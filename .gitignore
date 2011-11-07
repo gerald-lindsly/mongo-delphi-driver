@@ -1,0 +1,8 @@
+Win32/
+Win64/
+__history
+MongoDelphiDriver.dproj.local
+MongoDelphiDriver.groupproj.local
+MongoDelphiDriver.identcache
+Test.dproj.local
+Test.identcache

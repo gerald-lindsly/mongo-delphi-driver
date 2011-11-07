@@ -1,0 +1,48 @@
+﻿	<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+		<PropertyGroup>
+			<ProjectGuid>{A85C4061-9C73-443B-9DD9-773DB55C4F7E}</ProjectGuid>
+		</PropertyGroup>
+		<ItemGroup>
+			<Projects Include="MongoDelphiDriver.dproj">
+				<Dependencies/>
+			</Projects>
+			<Projects Include="Test.dproj">
+				<Dependencies>MongoDelphiDriver.dproj</Dependencies>
+			</Projects>
+		</ItemGroup>
+		<ProjectExtensions>
+			<Borland.Personality>Default.Personality.12</Borland.Personality>
+			<Borland.ProjectType/>
+			<BorlandProject>
+				<Default.Personality/>
+			</BorlandProject>
+		</ProjectExtensions>
+		<Target Name="MongoDelphiDriver">
+			<MSBuild Projects="MongoDelphiDriver.dproj"/>
+		</Target>
+		<Target Name="MongoDelphiDriver:Clean">
+			<MSBuild Projects="MongoDelphiDriver.dproj" Targets="Clean"/>
+		</Target>
+		<Target Name="MongoDelphiDriver:Make">
+			<MSBuild Projects="MongoDelphiDriver.dproj" Targets="Make"/>
+		</Target>
+		<Target Name="Test" DependsOnTargets="MongoDelphiDriver">
+			<MSBuild Projects="Test.dproj"/>
+		</Target>
+		<Target Name="Test:Clean" DependsOnTargets="MongoDelphiDriver:Clean">
+			<MSBuild Projects="Test.dproj" Targets="Clean"/>
+		</Target>
+		<Target Name="Test:Make" DependsOnTargets="MongoDelphiDriver:Make">
+			<MSBuild Projects="Test.dproj" Targets="Make"/>
+		</Target>
+		<Target Name="Build">
+			<CallTarget Targets="MongoDelphiDriver;Test"/>
+		</Target>
+		<Target Name="Clean">
+			<CallTarget Targets="MongoDelphiDriver:Clean;Test:Clean"/>
+		</Target>
+		<Target Name="Make">
+			<CallTarget Targets="MongoDelphiDriver:Make;Test:Make"/>
+		</Target>
+		<Import Condition="Exists('$(BDS)\Bin\CodeGear.Group.Targets')" Project="$(BDS)\Bin\CodeGear.Group.Targets"/>
+	</Project>
