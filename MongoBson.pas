@@ -1,4 +1,4 @@
-unit Bson;
+unit MongoBson;
 
 interface
   type TBson = class;
@@ -84,6 +84,7 @@ interface
       function append(name : PAnsiChar; value : TBsonRegex) : Boolean; overload;
       function append(name : PAnsiChar; value : TBsonTimestamp) : Boolean; overload;
       function append(name : PAnsiChar; value : TBsonBinary) : Boolean; overload;
+      function appendNull(name : PAnsiChar) : Boolean;
       function appendCode(name : PAnsiChar; value : PAnsiChar) : Boolean;
       function appendSymbol(name : PAnsiChar; value : PAnsiChar) : Boolean;
       function appendBinary(name : PAnsiChar; kind : Integer; data : Pointer; length : Integer) : Boolean;
@@ -128,6 +129,7 @@ interface
       destructor Destroy; override;
     end;
 
+    function BSON(x : array of Variant) : TBson;
     function ByteToHex(InByte : Byte) : string;
 
 implementation
@@ -157,6 +159,8 @@ implementation
   function bson_append_date(b : Pointer; name : PAnsiChar; value : Int64) : Integer;
     cdecl; external 'mongoc.dll';
   function bson_append_bool(b : Pointer; name : PAnsiChar; value : Boolean) : Integer;
+    cdecl; external 'mongoc.dll';
+  function bson_append_null(b : Pointer; name : PAnsiChar) : Integer;
     cdecl; external 'mongoc.dll';
   function bson_append_start_object(b : Pointer; name : PAnsiChar) : Integer;
     cdecl; external 'mongoc.dll';
@@ -442,6 +446,13 @@ implementation
     Result := (bson_append_binary(handle, name, value.kind, value.data, value.len) = 0);
   end;
 
+  function TBsonBuffer.appendNull(name: PAnsiChar) : Boolean;
+  begin
+    if handle = nil then
+      raise Exception.Create('BsonBuffer already finished');
+    Result := (bson_append_null(handle, name) = 0);
+  end;
+
   function TBsonBuffer.appendBinary(name : PAnsiChar; kind : Integer; data : Pointer; length : Integer) : Boolean;
   begin
     if handle = nil then
@@ -658,6 +669,51 @@ implementation
   const digits : array[0..15] of Char = '0123456789ABCDEF';
   begin
     result := digits[InByte shr 4] + digits[InByte and $0F];
+  end;
+
+  function BSON(x : array of Variant) : TBson;
+  var
+    len : Integer;
+    i   : Integer;
+    bb  : TBsonBuffer;
+    depth : Integer;
+    key : string;
+    value : string;
+    name : PAnsiChar;
+  begin
+    bb := TBsonBuffer.Create();
+    len := Length(x);
+    i := 0;
+    depth := 0;
+    while i < len do
+      key := VarToStr(x[i]);
+      if key = '}' then begin
+        if depth = 0 then
+          Raise Exception.Create('BSON: unexpected "}"');
+        bb.finishObject();
+        dec(depth);
+      end
+      else begin
+        name := PAnsiChar(AnsiString(key));
+        inc(i);
+        if i = Len then
+          raise Exception.Create('BSON: expected value for ' + key);
+        value := VarToStr(x[i]);
+        if value = '{' then begin
+          bb.startObject(name);
+          inc(depth);
+        end
+        else
+          case VarType(x[i]) of
+            varNull: bb.appendNull(name);
+            varInteger: bb.append(name, Integer(x[i]));
+          end;
+
+      end;
+      inc(i);
+
+
+
   end;
 
 end.
