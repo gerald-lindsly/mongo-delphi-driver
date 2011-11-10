@@ -31,6 +31,7 @@ requires
   rtl;
 
 contains
-  Bson in 'Bson.pas';
+  MongoBson in 'MongoBson.pas',
+  MongoDB in 'MongoDB.pas';
 
 end.

@@ -84,6 +84,8 @@ interface
       function append(name : PAnsiChar; value : TBsonRegex) : Boolean; overload;
       function append(name : PAnsiChar; value : TBsonTimestamp) : Boolean; overload;
       function append(name : PAnsiChar; value : TBsonBinary) : Boolean; overload;
+      function append(name : PAnsiChar; value : TBson) : Boolean; overload;
+      function append(name : PAnsiChar; value : OleVariant) : Boolean; overload;
       function appendNull(name : PAnsiChar) : Boolean;
       function appendCode(name : PAnsiChar; value : PAnsiChar) : Boolean;
       function appendSymbol(name : PAnsiChar; value : PAnsiChar) : Boolean;
@@ -98,9 +100,8 @@ interface
   end;
 
   TBson = class(TObject)
-    private
-       var handle : Pointer;
-    public
+      var handle : Pointer;
+
       function size() : Integer;
       function iterator() : TBsonIterator;
       function find(name : PAnsiChar) : TBsonIterator;
@@ -129,7 +130,15 @@ interface
       destructor Destroy; override;
     end;
 
-    function BSON(x : array of Variant) : TBson;
+    var
+      bsonEmpty : TBson;
+
+    (* The idea for this shorthand way to build a BSON
+       document from an array of variants came from Stijn Sanders
+       and his TMongoWire, located here:
+       https://github.com/stijnsanders/TMongoWire
+    *)
+    function BSON(x : array of OleVariant) : TBson;
     function ByteToHex(InByte : Byte) : string;
 
 implementation
@@ -175,6 +184,8 @@ implementation
   function bson_append_timestamp2(b : Pointer; name : PAnsiChar; time : Integer; increment : Integer) : Integer;
     cdecl; external 'mongoc.dll';
   function bson_append_binary(b : Pointer; name : PAnsiChar; kind : Byte; data : Pointer; len : Integer) : Integer;
+    cdecl; external 'mongoc.dll';
+  function bson_append_bson(b : Pointer; name : PAnsiChar; value : Pointer) : Integer;
     cdecl; external 'mongoc.dll';
   function bson_buffer_size(b : Pointer) : Integer; cdecl; external 'mongoc.dll';
   function bson_size(b : Pointer) : Integer; cdecl; external 'mongoc.dll';
@@ -446,6 +457,26 @@ implementation
     Result := (bson_append_binary(handle, name, value.kind, value.data, value.len) = 0);
   end;
 
+  function TBsonBuffer.append(name : PAnsiChar; value : OleVariant) : Boolean;
+    var
+      d : double;
+  begin
+    case VarType(value) of
+      varNull: Result := appendNull(name);
+      varInteger: Result := append(name, Integer(value));
+      varSingle, varDouble, varCurrency: begin
+        d := value;
+        Result := append(name, d);
+      end;
+      varDate: Result := append(name, TDateTime(value));
+      varInt64: Result := append(name, Int64(value));
+      varBoolean: Result := append(name, Boolean(value));
+      varOleStr: Result := append(name, PAnsiChar(AnsiString(value)));
+    else
+      raise Exception.Create('TBson.append(variant): type not supported (' + IntToStr(VarType(value)) + ')');
+    end;
+  end;
+
   function TBsonBuffer.appendNull(name: PAnsiChar) : Boolean;
   begin
     if handle = nil then
@@ -458,6 +489,11 @@ implementation
     if handle = nil then
       raise Exception.Create('BsonBuffer already finished');
     Result := (bson_append_binary(handle, name, kind, data, length) = 0);
+  end;
+
+  function TBsonBuffer.append(name : PAnsiChar; value : TBson) : Boolean;
+  begin
+    Result := (bson_append_bson(handle, name, value.handle) = 0);
   end;
 
   function TBsonBuffer.startObject(name: PAnsiChar) : Boolean;
@@ -595,6 +631,9 @@ implementation
 
   procedure TBson.display();
   begin
+    if Self = nil then
+      WriteLn('nil BSON')
+    else
     _display(iterator, 0);
   end;
 
@@ -671,25 +710,25 @@ implementation
     result := digits[InByte shr 4] + digits[InByte and $0F];
   end;
 
-  function BSON(x : array of Variant) : TBson;
+  function BSON(x : array of OleVariant) : TBson;
   var
-    len : Integer;
-    i   : Integer;
-    bb  : TBsonBuffer;
+    len   : Integer;
+    i     : Integer;
+    bb    : TBsonBuffer;
     depth : Integer;
-    key : string;
+    key   : string;
     value : string;
-    name : PAnsiChar;
+    name  : PAnsiChar;
   begin
     bb := TBsonBuffer.Create();
     len := Length(x);
     i := 0;
     depth := 0;
-    while i < len do
+    while i < len do begin
       key := VarToStr(x[i]);
       if key = '}' then begin
         if depth = 0 then
-          Raise Exception.Create('BSON: unexpected "}"');
+          Raise Exception.Create('BSON(): unexpected "}"');
         bb.finishObject();
         dec(depth);
       end
@@ -697,23 +736,23 @@ implementation
         name := PAnsiChar(AnsiString(key));
         inc(i);
         if i = Len then
-          raise Exception.Create('BSON: expected value for ' + key);
+          raise Exception.Create('BSON(): expected value for ' + key);
         value := VarToStr(x[i]);
         if value = '{' then begin
           bb.startObject(name);
           inc(depth);
         end
         else
-          case VarType(x[i]) of
-            varNull: bb.appendNull(name);
-            varInteger: bb.append(name, Integer(x[i]));
-          end;
-
+          bb.append(name, x[i]);
       end;
       inc(i);
-
-
-
+    end;
+    if depth > 0 then
+      Raise Exception.Create('BSON: open subobject');
+    Result := bb.finish();
   end;
+
+  initialization
+    bsonEmpty := BSON([]);
 
 end.
