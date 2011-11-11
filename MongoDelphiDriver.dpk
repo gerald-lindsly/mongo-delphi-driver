@@ -32,6 +32,7 @@ requires
 
 contains
   MongoBson in 'MongoBson.pas',
-  MongoDB in 'MongoDB.pas';
+  MongoDB in 'MongoDB.pas',
+  GridFS in 'GridFS.pas';
 
 end.

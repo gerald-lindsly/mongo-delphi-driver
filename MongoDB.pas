@@ -483,7 +483,7 @@ implementation
   begin
     Result := (mongo_cursor_next(handle) = 0);
   end;
-  
+
   function TMongoCursor.value() : TBson;
   var
     b : TBson;
@@ -506,7 +506,7 @@ implementation
       Raise Exception.Create('TMongo.drop: expected a ''.'' in the namespace.');
     db := Copy(ns, 1, i - 1);
     collection := Copy(ns, i+1, Length(ns) - i);
-    Result := mongo_count(handle, PAnsiChar(AnsiString(db)), 
+    Result := mongo_count(handle, PAnsiChar(AnsiString(db)),
                                   PAnsiChar(AnsiString(collection)), query.handle);
   end;
 
@@ -527,7 +527,7 @@ implementation
     else
       Result := nil;
   end;
-  
+
   function TMongo.indexCreate(ns : string; key : TBson) : TBson;
   begin
     Result := indexCreate(ns, key, 0);
@@ -537,22 +537,22 @@ implementation
   begin
     Result := indexCreate(ns, BSON([key, True]), options);
   end;
-  
+
   function TMongo.indexCreate(ns : string; key : string) : TBson;
   begin
     Result := indexCreate(ns, key, 0);
   end;
-  
+
   function TMongo.addUser(name : string; password : string; db : string) : Boolean;
   begin
     Result := (mongo_cmd_add_user(handle, PAnsiChar(AnsiString(db)),
                                           PAnsiChar(AnsiString(name)),
                                           PAnsiChar(AnsiString(password))) = 0);
   end;
-  
+
   function TMongo.addUser(name : string; password : string) : Boolean;
   begin
-    Result := addUser(name, password, 'admin');  
+    Result := addUser(name, password, 'admin');
   end;
 
   function TMongo.authenticate(name : string; password : string; db : string) : Boolean;
@@ -561,12 +561,12 @@ implementation
                                               PAnsiChar(AnsiString(name)),
                                               PAnsiChar(AnsiString(password))) = 0);
   end;
-  
+
   function TMongo.authenticate(name : string; password : string) : Boolean;
   begin
     Result := authenticate(name, password, 'admin');
   end;
-  
+
   function TMongo.command(db : string; command : TBson) : TBson;
   var
     b : TBson;
@@ -582,7 +582,7 @@ implementation
       Result := nil;
     bson_dispose(res);
   end;
-  
+
   function TMongo.command(db : string; cmdstr : string; arg : OleVariant) : TBson;
   begin
     Result := command(db, BSON([cmdstr, arg]));
@@ -603,7 +603,7 @@ implementation
       Result := nil;
     bson_dispose(res);
   end;
-  
+
   function TMongo.getPrevErr(db : string) : TBson;
   var
     b : TBson;
@@ -619,7 +619,7 @@ implementation
       Result := nil;
     bson_dispose(res);
   end;
-  
+
   procedure TMongo.resetErr(db : string);
   begin
     command(db, 'reseterror', True);

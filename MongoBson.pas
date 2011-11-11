@@ -140,11 +140,12 @@ interface
     *)
     function BSON(x : array of OleVariant) : TBson;
     function ByteToHex(InByte : Byte) : string;
+    function Int64ToDouble(i64 : int64) : double; cdecl; external 'mongoc.dll';
 
 implementation
   uses SysUtils, Variants;
 
-  function bson_create() : Pointer;  external 'mongoc.dll';
+  function bson_create() : Pointer;  cdecl; external 'mongoc.dll';
   procedure bson_init(b : Pointer);  cdecl; external 'mongoc.dll';
   procedure bson_destroy(b : Pointer); cdecl; external 'mongoc.dll';
   procedure bson_dispose(b : Pointer); cdecl; external 'mongoc.dll';
@@ -189,8 +190,8 @@ implementation
     cdecl; external 'mongoc.dll';
   function bson_buffer_size(b : Pointer) : Integer; cdecl; external 'mongoc.dll';
   function bson_size(b : Pointer) : Integer; cdecl; external 'mongoc.dll';
-  function bson_iterator_create() : Pointer;  external 'mongoc.dll';
-  procedure bson_iterator_dispose(i : Pointer);  external 'mongoc.dll';
+  function bson_iterator_create() : Pointer; cdecl; external 'mongoc.dll';
+  procedure bson_iterator_dispose(i : Pointer); cdecl; external 'mongoc.dll';
   procedure bson_iterator_init(i : Pointer; b : Pointer); cdecl; external 'mongoc.dll';
   function bson_find(i : Pointer; b : Pointer; name : PAnsiChar) : TBsonType;
     cdecl; external 'mongoc.dll';
@@ -216,7 +217,6 @@ implementation
   function bson_iterator_bin_type(i : Pointer) : Byte;  cdecl; external 'mongoc.dll';
   function bson_iterator_bin_data(i : Pointer) : Pointer;  cdecl; external 'mongoc.dll';
 
-  function Int64ToDouble(i64 : int64) : double; cdecl; external 'mongoc.dll';
 
   constructor TBsonOID.Create();
   begin

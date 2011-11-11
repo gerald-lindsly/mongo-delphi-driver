@@ -7,7 +7,7 @@ program Test;
 uses
   System.SysUtils,
   Variants,
-  MongoBson, MongoDB;
+  MongoBson, MongoDB, GridFS;
 
 var
   bb : TBsonBuffer;
@@ -23,6 +23,9 @@ var
   j : Integer;
   cursor : TMongoCursor;
   databases : TStringArray;
+  gfs : TGridFS;
+  gfw : TGridfileWriter;
+  gf : TGridfile;
 
 const
   db = 'test';
@@ -255,6 +258,39 @@ begin
       b := mongo.getLastErr(db);
       b.display();
 
+      gfs := TGridFS.Create(mongo, 'grid');
+      WriteLn('Store test.exe = ', gfs.storeFile('test.exe'));
+
+      WriteLn('Store bin = ', gfs.store(bin.data, bin.len, 'bin'));
+
+      gfs.removeFile('bin');
+
+      gfw := gfs.writerCreate('writer');
+      gfw.write(bin.data, bin.len);
+      gfw.write(bin.data, bin.len);
+      gfw.finish();
+
+      gf := gfs.find('writer');
+
+      WriteLn('name = ', gf.getFilename());
+      WriteLn('length = ', gf.getLength());
+      WriteLn('chunkSize = ', gf.getChunkSize());
+      WriteLn('chunkCount = ', gf.getChunkCount());
+      WriteLn('contentType = ', gf.getContentType());
+      WriteLN('uploadDate = ', DateTimeToStr(gf.getUploadDate()));
+      WriteLN('md5 = ', gf.getMD5());
+      b := gf.getDescriptor();
+      b.display();
+
+      gf.read(@j, sizeof(j));
+      WriteLn(j);
+
+      gf := gfs.find('test.exe');
+      cursor := gf.getChunks(1, 5);
+      while cursor.next() do
+        Writeln(cursor.value.size());
+
+      WriteLn(gf.seek(100000));
 
       WriteLn('Done');
       ReadLn;
