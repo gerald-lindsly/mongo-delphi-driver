@@ -26,6 +26,7 @@ var
   gfs : TGridFS;
   gfw : TGridfileWriter;
   gf : TGridfile;
+  buf : array[0..100] of AnsiChar;
 
 const
   db = 'test';
@@ -291,6 +292,15 @@ begin
         Writeln(cursor.value.size());
 
       WriteLn(gf.seek(100000));
+
+      gfs.storeFile('../../MongoDB.pas', 'MongoDB.pas');
+      gf := gfs.find('MongoDB.pas');
+      gf.seek(100);
+      gf.read(@buf, 20);
+      buf[20] := Chr(0);
+      WriteLn(buf);
+
+
 
       WriteLn('Done');
       ReadLn;
