@@ -1,8 +1,14 @@
+{ This unit implements BSON, a binary JSON-like document format.
+  It is used to represent documents in MongoDB and also for network traffic.
+  See http://www.mongodb.org/display/DOCS/BSON }
+
 unit MongoBson;
 
 interface
   type TBson = class;
 
+  { A value of TBsonType indicates the type of the data associated
+    with a field within a BSON document. }
   TBsonType = (
     bsonEOO = 0,
     bsonDOUBLE = 1,
@@ -26,120 +32,260 @@ interface
 
   TBsonIterator = class;
 
+  { A TBsonOID is used to store BSON Object IDs.
+    See http://www.mongodb.org/display/DOCS/Object+IDs }
   TBsonOID = class(TObject)
     var
+      { the oid data }
       value : array[0..11] of Byte;
+    { Generate an Object ID }
     constructor Create(); overload;
-    constructor Create(s : PAnsiChar); overload;
+    { Create an ObjectID from a 24-digit hex string }
+    constructor Create(s : string); overload;
+    { Create an Object ID from a TBsonIterator pointing to an oid field }
     constructor Create(i : TBsonIterator); overload;
+    { Convert this Object ID to a 24-digit hex string }
     function AsString() : string;
   end;
 
+  { A TBsonCodeWScope is used to hold javascript code and its associated scope.
+    See TBsonIterator.getCodeWScope() }
   TBsonCodeWScope = class(TObject)
     var
       code : string;
       scope : TBson;
+    { Create a TBsonCodeWScope from a javascript string and a TBson scope }
     constructor Create(code_ : string; scope_ : TBson); overload;
+    { Create a TBsonCodeWScope from a TBSonIterator pointing to a
+      CODEWSCOPE field. }
     constructor Create(i : TBsonIterator); overload;
   end;
 
+  { A TBsonRegex is used to hold a regular expression string and its options.
+    See TBsonIterator.getRegex(). }
   TBsonRegex = class(TObject)
     var
       pattern : string;
       options : string;
+    { Create a TBsonRegex from reqular expression and options strings }
     constructor Create(pattern_ : string; options_ : string); overload;
+    { Create a TBsonRegex from a TBsonIterator pointing to a REGEX field }
     constructor Create(i : TBsonIterator); overload;
   end;
 
+  { A TBsonTimestamp is used to hold a TDateTime and an increment value.
+    See http://www.mongodb.org/display/DOCS/Timestamp+data+type and
+    TBsonIterator.getTimestamp() }
   TBsonTimestamp = class(TObject)
     var
       time : TDateTime;
       increment : Integer;
+    { Create a TBsonTimestamp from a TDateTime and an increment }
     constructor Create(time_ : TDateTime; increment_ : Integer); overload;
+    { Create a TBSonTimestamp from a TBsonIterator pointing to a TIMESTAMP
+      field. }
     constructor Create(i : TBsonIterator); overload;
   end;
 
+  { A TBsonBinary is used to hold the contents of BINDATA fields.
+    See TBsonIterator.getBinary() }
   TBsonBinary = class(TObject)
     var
+      { Pointer to data allocated on the heap with GetMem }
       data : Pointer;
+      { The length of the data in bytes }
       len  : Integer;
+      { The subtype of the BINDATA (usually 0) }
       kind : Integer;
+    { Create a TBsonBinary from a pointer and a length.  The data
+      is copied to the heap.  kind is initialized to 0 }
     constructor Create(p : Pointer; length : Integer); overload;
+    { Create a TBsonBinary from a TBsonIterator pointing to a BINDATA
+      field. }
     constructor Create(i : TBsonIterator); overload;
+    { Destroys the TBsonBinary and releases its memory with FreeMem() }
     destructor Destroy(); override;
   end;
 
+  { A TBsonBuffer is used to build a BSON document by appending the
+    names and values of fields.  Call finish() when done to convert
+    the buffer to a TBson which can be used in database operations.
+    Example: @longcode(#
+      var
+        bb : TBsonBuffer;
+        b  : TBson;
+      begin
+        bb := TBsonBuffer.Create();
+        bb.append('name', 'Joe');
+        bb.append('age', 33);
+        bb.append('city', 'Boston');
+        b := bb.finish();
+      end;
+    #) }
   TBsonBuffer = class(TObject)
     private
       var handle : Pointer;
     public
-      function append(name : PAnsiChar; value : PAnsiChar) : Boolean; overload;
-      function append(name : PAnsiChar; value : Integer) : Boolean; overload;
-      function append(name : PAnsiChar; value : Int64) : Boolean; overload;
-      function append(name : PAnsiChar; value : Double) : Boolean; overload;
-      function append(name : PAnsiChar; value : TDateTime) : Boolean; overload;
-      function append(name : PAnsiChar; value : Boolean) : Boolean; overload;
-      function append(name : PAnsiChar; value : TBsonOID) : Boolean; overload;
-      function append(name : PAnsiChar; value : TBsonCodeWScope) : Boolean; overload;
-      function append(name : PAnsiChar; value : TBsonRegex) : Boolean; overload;
-      function append(name : PAnsiChar; value : TBsonTimestamp) : Boolean; overload;
-      function append(name : PAnsiChar; value : TBsonBinary) : Boolean; overload;
-      function append(name : PAnsiChar; value : TBson) : Boolean; overload;
-      function append(name : PAnsiChar; value : OleVariant) : Boolean; overload;
-      function appendNull(name : PAnsiChar) : Boolean;
-      function appendCode(name : PAnsiChar; value : PAnsiChar) : Boolean;
-      function appendSymbol(name : PAnsiChar; value : PAnsiChar) : Boolean;
-      function appendBinary(name : PAnsiChar; kind : Integer; data : Pointer; length : Integer) : Boolean;
-      function startObject(name : PAnsiChar) : Boolean;
-      function startArray(name : PAnsiChar) : Boolean;
-      function finishObject() : Boolean;
-      function size() : Integer;
-      function finish() : TBson;
+      { Create an empty TBsonBuffer ready to have fields appended. }
       constructor Create();
+      { Append a string (PAnsiChar) to the buffer }
+      function append(name : PAnsiChar; value : PAnsiChar) : Boolean; overload;
+      { Append an Integer to the buffer }
+      function append(name : PAnsiChar; value : Integer) : Boolean; overload;
+      { Append an Int64 to the buffer }
+      function append(name : PAnsiChar; value : Int64) : Boolean; overload;
+      { Append a Double to the buffer }
+      function append(name : PAnsiChar; value : Double) : Boolean; overload;
+      { Append a TDateTime to the buffer; converted to 64-bit POSIX time }
+      function append(name : PAnsiChar; value : TDateTime) : Boolean; overload;
+      { Append a Boolean to the buffer }
+      function append(name : PAnsiChar; value : Boolean) : Boolean; overload;
+      { Append an Object ID to the buffer }
+      function append(name : PAnsiChar; value : TBsonOID) : Boolean; overload;
+      { Append a CODEWSCOPE to the buffer }
+      function append(name : PAnsiChar; value : TBsonCodeWScope) : Boolean; overload;
+      { Append a REGEX to the buffer }
+      function append(name : PAnsiChar; value : TBsonRegex) : Boolean; overload;
+      { Append a TIMESTAMP to the buffer }
+      function append(name : PAnsiChar; value : TBsonTimestamp) : Boolean; overload;
+      { Append BINDATA to the buffer }
+      function append(name : PAnsiChar; value : TBsonBinary) : Boolean; overload;
+      { Append a TBson document as a subobject }
+      function append(name : PAnsiChar; value : TBson) : Boolean; overload;
+      { Generic version of append.  Calls one of the other append functions
+        if the type contained in the variant is supported. }
+      function append(name : PAnsiChar; value : OleVariant) : Boolean; overload;
+      { Append a NULL field to the buffer }
+      function appendNull(name : PAnsiChar) : Boolean;
+      { Append an UNDEFINED field to the buffer }
+      function appendUndefined(name : PAnsiChar) : Boolean;
+      { Append javascript code to the buffer }
+      function appendCode(name : PAnsiChar; value : PAnsiChar) : Boolean;
+      { Append a SYMBOL to the buffer }
+      function appendSymbol(name : PAnsiChar; value : PAnsiChar) : Boolean;
+      { Alternate way to append BINDATA directly without first creating a
+        TBsonBinary value }
+      function appendBinary(name : PAnsiChar; kind : Integer; data : Pointer; length : Integer) : Boolean;
+      { Indicate that you will be appending more fields as a subobject }
+      function startObject(name : PAnsiChar) : Boolean;
+      { Indicate that you will be appending more fields as an array }
+      function startArray(name : PAnsiChar) : Boolean;
+      { Indicate that a subobject or array is done. }
+      function finishObject() : Boolean;
+      { Return the current size of the BSON document you are building }
+      function size() : Integer;
+      { Call this when finished appending fields to the buffer to turn it into
+        a TBson for network transport. }
+      function finish() : TBson;
+      { Destroy this TBsonBuffer.  Releases external resources. }
       destructor Destroy(); override;
   end;
 
+  { A TBson holds a BSON document.  BSON is a binary, JSON-like document format.
+    It is used to represent documents in MongoDB and also for network traffic.
+    See http://www.mongodb.org/display/DOCS/BSON   }
   TBson = class(TObject)
+      { Pointer to externally managed data.  User code should not modify this.
+        It is public only because the MongoDB and GridFS units must access it. }
       var handle : Pointer;
-
+      { Return the size of this BSON document in bytes }
       function size() : Integer;
+      { Get a TBsonIterator that points to the first field of this BSON }
       function iterator() : TBsonIterator;
+      { Get a TBsonIterator that points to the field with the given name.
+        If name is not found, nil is returned. }
       function find(name : PAnsiChar) : TBsonIterator;
+      { Get the value of a field given its name.  This function does not support
+        all BSON field types.  Use find() and one of the 'get' functions of
+        TBsonIterator to retrieve special values. }
       function value(name : PAnsiChar) : Variant;
+      { Display this BSON document on the console.  subobjects and arrays are
+        appropriately indented. }
       procedure display();
+      { Create a TBson given a pointer to externally managed data describing
+        the document.  User code should not instantiate TBson directly.  Use
+        TBsonBuffer and finish() to create BSON documents. }
       constructor Create(h : Pointer);
+      { Destroy this TBson.  Releases the externally managed data. }
       destructor Destroy; override;
   end;
 
+  { TBsonIterators are used to step through the fields of a TBson document. }
   TBsonIterator = class(TObject)
     private
+       { Pointer to externally managed data. }
        var handle : Pointer;
     public
+      { Return the TBsonType of the field pointed to by this iterator. }
       function kind() : TBsonType;
-      function key() : PAnsiChar;
+      { Return the key (or name) of the field pointed to by this iterator. }
+      function key() : string;
+      { Step to the first or next field of a TBson document.  Returns True
+        if there is a next field; otherwise, returns false at the end of the
+        document (or subobject).
+        Example: @longcode(#
+          iter := b.iterator;
+          while i.next() do
+             if i.kind = bsonNULL then
+                WriteLn(i.key, ' is a NULL field.');
+        #) }
       function next() : Boolean;
+      { Get the value of the field pointed to by this iterator.  This function
+        does not support all BSON field types and will throw an exception for
+        those it does not.  Use one of the 'get' functions to extract one of these
+        special types. }
       function value() : Variant;
+      { Get an TBsonIterator pointing to the first field of a subobject or array.
+        kind() must be bsonOBJECT or bsonARRAY. }
       function subiterator() : TBsonIterator;
+      { Get an Object ID from the field pointed to by this iterator. }
       function getOID() : TBsonOID;
+      { Get a TBsonCodeWScope object for a CODEWSCOPE field pointed to by this
+        iterator. }
       function getCodeWScope() : TBsonCodeWScope;
+      { Get a TBsonRegex for a REGEX field }
       function getRegex() : TBsonRegex;
+      { Get a TBsonTimestamp object for a TIMESTAMP field pointed to by this
+        iterator. }
       function getTimestamp() : TBsonTimestamp;
+      { Get a TBsonBinary object for the BINDATA field pointed to by this
+        iterator. }
       function getBinary() : TBsonBinary;
+      { Internal usage only.  Create an uninitialized TBsonIterator }
       constructor Create(); overload;
+      { Create a TBsonIterator that points to the first field of the given
+        TBson }
       constructor Create(b : TBson); overload;
+      { Destroy this TBsonIterator.  Releases external resources. }
       destructor Destroy; override;
     end;
 
     var
+    { An empty BSON document }
       bsonEmpty : TBson;
 
     (* The idea for this shorthand way to build a BSON
        document from an array of variants came from Stijn Sanders
        and his TMongoWire, located here:
        https://github.com/stijnsanders/TMongoWire
-    *)
+
+       Subobjects are started with '{' and ended with '}'
+
+       Example: @longcode(#
+         var b : TBson;
+         begin
+           b := BSON(['name', 'Albert', 'age', 64,
+                       'address', '{',
+                          'street', '109 Vine Street',
+                          'city', 'New Haven',
+                          '}' ]);
+    #) *)
     function BSON(x : array of OleVariant) : TBson;
+
+    { Convert a byte to a 2-digit hex string }
     function ByteToHex(InByte : Byte) : string;
+
+    { Convert an Int64 to a Double.  Some loss of precision may occur. }
     function Int64ToDouble(i64 : int64) : double; cdecl; external 'mongoc.dll';
 
 implementation
@@ -171,6 +317,8 @@ implementation
   function bson_append_bool(b : Pointer; name : PAnsiChar; value : Boolean) : Integer;
     cdecl; external 'mongoc.dll';
   function bson_append_null(b : Pointer; name : PAnsiChar) : Integer;
+    cdecl; external 'mongoc.dll';
+  function bson_append_undefined(b : Pointer; name : PAnsiChar) : Integer;
     cdecl; external 'mongoc.dll';
   function bson_append_start_object(b : Pointer; name : PAnsiChar) : Integer;
     cdecl; external 'mongoc.dll';
@@ -223,11 +371,11 @@ implementation
     bson_oid_gen(@value);
   end;
 
-  constructor TBsonOID.Create(s : PAnsiChar);
+  constructor TBsonOID.Create(s : string);
   begin
     if length(s) <> 24 then
       Raise Exception.Create('Expected a 24 digit hex string');
-    bson_oid_from_string(@value, s);
+    bson_oid_from_string(@value, PAnsiChar(AnsiString(s)));
   end;
 
   constructor TBsonOID.Create(i : TBsonIterator);
@@ -276,7 +424,7 @@ implementation
 
   function TBsonIterator.key() : PAnsiChar;
   begin
-    Result := bson_iterator_key(handle);
+    Result := string(bson_iterator_key(handle));
   end;
 
   function TBsonIterator.value() : Variant;
@@ -756,3 +904,4 @@ implementation
     bsonEmpty := BSON([]);
 
 end.
+
