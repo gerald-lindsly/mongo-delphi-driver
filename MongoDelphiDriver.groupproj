@@ -9,6 +9,9 @@
 			<Projects Include="Test.dproj">
 				<Dependencies>MongoDelphiDriver.dproj</Dependencies>
 			</Projects>
+			<Projects Include="AddressBook.dproj">
+				<Dependencies/>
+			</Projects>
 		</ItemGroup>
 		<ProjectExtensions>
 			<Borland.Personality>Default.Personality.12</Borland.Personality>
@@ -35,14 +38,23 @@
 		<Target Name="Test:Make" DependsOnTargets="MongoDelphiDriver:Make">
 			<MSBuild Projects="Test.dproj" Targets="Make"/>
 		</Target>
+		<Target Name="AddressBook">
+			<MSBuild Projects="AddressBook.dproj"/>
+		</Target>
+		<Target Name="AddressBook:Clean">
+			<MSBuild Projects="AddressBook.dproj" Targets="Clean"/>
+		</Target>
+		<Target Name="AddressBook:Make">
+			<MSBuild Projects="AddressBook.dproj" Targets="Make"/>
+		</Target>
 		<Target Name="Build">
-			<CallTarget Targets="MongoDelphiDriver;Test"/>
+			<CallTarget Targets="MongoDelphiDriver;Test;AddressBook"/>
 		</Target>
 		<Target Name="Clean">
-			<CallTarget Targets="MongoDelphiDriver:Clean;Test:Clean"/>
+			<CallTarget Targets="MongoDelphiDriver:Clean;Test:Clean;AddressBook:Clean"/>
 		</Target>
 		<Target Name="Make">
-			<CallTarget Targets="MongoDelphiDriver:Make;Test:Make"/>
+			<CallTarget Targets="MongoDelphiDriver:Make;Test:Make;AddressBook:Make"/>
 		</Target>
 		<Import Condition="Exists('$(BDS)\Bin\CodeGear.Group.Targets')" Project="$(BDS)\Bin\CodeGear.Group.Targets"/>
 	</Project>
