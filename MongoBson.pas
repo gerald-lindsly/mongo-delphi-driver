@@ -422,7 +422,7 @@ implementation
     Result := bson_iterator_next(handle) <> bsonEOO;
   end;
 
-  function TBsonIterator.key() : PAnsiChar;
+  function TBsonIterator.key() : string;
   begin
     Result := string(bson_iterator_key(handle));
   end;
@@ -630,6 +630,13 @@ implementation
     if handle = nil then
       raise Exception.Create('BsonBuffer already finished');
     Result := (bson_append_null(handle, name) = 0);
+  end;
+
+  function TBsonBuffer.appendUndefined(name: PAnsiChar) : Boolean;
+  begin
+    if handle = nil then
+      raise Exception.Create('BsonBuffer already finished');
+    Result := (bson_append_undefined(handle, name) = 0);
   end;
 
   function TBsonBuffer.appendBinary(name : PAnsiChar; kind : Integer; data : Pointer; length : Integer) : Boolean;
