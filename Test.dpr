@@ -121,7 +121,7 @@ begin
 
       WriteLn('Drop = ', mongo.drop(ns));
 
-      mongo.indexCreate(ns, 'name', mongo.indexUnique);
+      mongo.indexCreate(ns, 'name', indexUnique);
 
       (* display hosts for a TMongoReplset
       Count := mongo.getHostCount();
@@ -177,7 +177,7 @@ begin
       bb := TBsonBuffer.Create();
       bb.append('name', 'Joe');
       bb.append('age', 36);
-      bb.append('city', 'Natick');
+      bb.append('city', 'Austin');
       x := bb.finish;
       criteria := BSON(['name', 'Joe']);
       x.display();
@@ -192,7 +192,7 @@ begin
       criteria := BSON(['name', 'Paul']);
       criteria.display();
       x.display();
-      Writeln(mongo.update(ns, criteria, x, mongo.updateUpsert));
+      Writeln(mongo.update(ns, criteria, x, updateUpsert));
 
       (* Remove a record *)
       WriteLn(mongo.remove(ns, BSON(['name', 'John'])));
@@ -299,8 +299,6 @@ begin
       gf.read(@buf, 20);
       buf[20] := Chr(0);
       WriteLn(buf);
-
-
 
       WriteLn('Done');
       ReadLn;
