@@ -33,6 +33,8 @@ interface
     TMongoCursor = class;
     TStringArray = array of string;
 
+    { TMongo objects establish a connection to a MongoDB server and are
+      used for subsequent database operations on that server. }
     TMongo = class(TObject)
       { Pointer to externally managed data describing the connection.
         User code should not access this.  It is public only for
@@ -42,7 +44,7 @@ interface
         MongoDB server running on the localhost '127.0.0.1:27017'.
         Check isConnected() to see if it was successful. }
       constructor Create(); overload;
-      { Create a TMongo connection object.  The host:port to connect to is given
+      { Create a TMongo connection object.  The host[:port] to connect to is given
         as the host string. port defaults to 27017 if not given.
         Check the result of isConnected() to see if it was successful. }
       constructor Create(host : string); overload;
