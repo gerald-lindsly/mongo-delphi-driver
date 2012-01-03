@@ -27,6 +27,8 @@ var
   gfw : TGridfileWriter;
   gf : TGridfile;
   buf : array[0..100] of AnsiChar;
+  ia1 : array[0..4] of Integer;
+  ia2 : TIntegerArray;
 
 const
   db = 'test';
@@ -44,6 +46,20 @@ end;
 
 begin
   try
+
+    bb := TBsonBuffer.Create();
+    ia1[0] := 5;
+    ia1[1] := 7;
+    ia1[2] := 9;
+    ia1[3] := 11;
+    ia1[4] := 13;
+    bb.appendArray('ia', ia1);
+    b := bb.finish;
+    i := b.iterator;
+    ia2 := i.getIntegerArray();
+    for j := 0 to Length(ia2) - 1  do
+      WriteLn(ia2[j]);
+
     bb := TBsonBuffer.Create();
     bb.append('test', 'testing');
     cws := TBsonCodeWScope.Create('Code for scope', bb.finish());

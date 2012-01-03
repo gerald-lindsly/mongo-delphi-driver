@@ -6,6 +6,10 @@ unit MongoBson;
 
 interface
   type TBson = class;
+  TIntegerArray = array of Integer;
+  TDoubleArray = array of Double;
+  TBooleanArray = array of Boolean;
+  TStringArray = array of string;
 
   { A value of TBsonType indicates the type of the data associated
     with a field within a BSON document. }
@@ -155,6 +159,14 @@ interface
       { Generic version of append.  Calls one of the other append functions
         if the type contained in the variant is supported. }
       function append(name : PAnsiChar; value : OleVariant) : Boolean; overload;
+      { Append an array of Integers }
+      function appendArray(name : PAnsiChar; value : array of Integer) : Boolean; overload;
+      { Append an array of Doubles }
+      function appendArray(name : PAnsiChar; value : array of Double) : Boolean; overload;
+      { Append an array of Booleans }
+      function appendArray(name : PAnsiChar; value : array of Boolean) : Boolean; overload;
+      { Append an array of strings }
+      function appendArray(name : PAnsiChar; value : array of string) : Boolean; overload;
       { Append a NULL field to the buffer }
       function appendNull(name : PAnsiChar) : Boolean;
       { Append an UNDEFINED field to the buffer }
@@ -251,6 +263,18 @@ interface
       { Get a TBsonBinary object for the BINDATA field pointed to by this
         iterator. }
       function getBinary() : TBsonBinary;
+      { Get an array of Integers.  This iterator must point to ARRAY field
+        which has each component type as Integer }
+      function getIntegerArray() : TIntegerArray;
+      { Get an array of Doubles.  This iterator must point to ARRAY field
+        which has each component type as Double }
+      function getDoubleArray() : TDoubleArray;
+      { Get an array of strings.  This iterator must point to ARRAY field
+        which has each component type as string }
+      function getStringArray() : TStringArray;
+      { Get an array of Booleans.  This iterator must point to ARRAY field
+        which has each component type as Boolean }
+      function getBooleanArray() : TBooleanArray;
       { Internal usage only.  Create an uninitialized TBsonIterator }
       constructor Create(); overload;
       { Create a TBsonIterator that points to the first field of the given
@@ -484,6 +508,98 @@ implementation
     Result := i;
   end;
 
+  function TBsonIterator.getIntegerArray() : TIntegerArray;
+    var
+      i : TBsonIterator;
+      j, count : Integer;
+  begin
+    if kind() <> bsonArray then
+      raise Exception.Create('Iterator does not point to an array');
+    i := subiterator();
+    count := 0;
+    while i.next() do begin
+      if i.kind() <> bsonINT then
+        raise Exception.Create('Array component is not an Integer');
+      inc(count);
+    end;
+    i := subiterator;
+    j := 0;
+    SetLength(Result, count);
+    while i.next() do begin
+      Result[j] := i.value();
+      inc(j);
+    end;
+  end;
+
+  function TBsonIterator.getDoubleArray() : TDoubleArray;
+    var
+      i : TBsonIterator;
+      j, count : Integer;
+  begin
+    if kind() <> bsonArray then
+      raise Exception.Create('Iterator does not point to an array');
+    i := subiterator();
+    count := 0;
+    while i.next() do begin
+      if i.kind() <> bsonDOUBLE then
+        raise Exception.Create('Array component is not a Double');
+      inc(count);
+    end;
+    i := subiterator;
+    j := 0;
+    SetLength(Result, count);
+    while i.next() do begin
+      Result[j] := i.value();
+      inc(j);
+    end;
+  end;
+
+  function TBsonIterator.getStringArray() : TStringArray;
+    var
+      i : TBsonIterator;
+      j, count : Integer;
+  begin
+    if kind() <> bsonArray then
+      raise Exception.Create('Iterator does not point to an array');
+    i := subiterator();
+    count := 0;
+    while i.next() do begin
+      if i.kind() <> bsonSTRING then
+        raise Exception.Create('Array component is not a string');
+      inc(count);
+    end;
+    i := subiterator;
+    j := 0;
+    SetLength(Result, count);
+    while i.next() do begin
+      Result[j] := i.value();
+      inc(j);
+    end;
+  end;
+
+  function TBsonIterator.getBooleanArray() : TBooleanArray;
+    var
+      i : TBsonIterator;
+      j, count : Integer;
+  begin
+    if kind() <> bsonArray then
+      raise Exception.Create('Iterator does not point to an array');
+    i := subiterator();
+    count := 0;
+    while i.next() do begin
+      if i.kind() <> bsonBOOL then
+        raise Exception.Create('Array component is not a Boolean');
+      inc(count);
+    end;
+    i := subiterator;
+    j := 0;
+    SetLength(Result, count);
+    while i.next() do begin
+      Result[j] := i.value();
+      inc(j);
+    end;
+  end;
+
   function TBson.value(name: PAnsiChar) : Variant;
     var
       i : TBsonIterator;
@@ -649,6 +765,74 @@ implementation
   function TBsonBuffer.append(name : PAnsiChar; value : TBson) : Boolean;
   begin
     Result := (bson_append_bson(handle, name, value.handle) = 0);
+  end;
+
+  function TBsonBuffer.appendArray(name : PAnsiChar; value : array of Integer) : Boolean;
+  var
+    success : Boolean;
+    i, len : Integer;
+  begin
+    success := (bson_append_start_array(handle, name) = 0);
+    len := Length(value);
+    i := 0;
+    while success and (i < len) do begin
+      success := (bson_append_int(handle, PAnsiChar(AnsiString(IntToStr(i))), value[i]) = 0);
+      inc(i);
+    end;
+    if success then
+      success := (bson_append_finish_object(handle) = 0);
+    Result := success;
+  end;
+
+  function TBsonBuffer.appendArray(name : PAnsiChar; value : array of Double) : Boolean;
+  var
+    success : Boolean;
+    i, len : Integer;
+  begin
+    success := (bson_append_start_array(handle, name) = 0);
+    len := Length(value);
+    i := 0;
+    while success and (i < len) do begin
+      success := (bson_append_double(handle, PAnsiChar(AnsiString(IntToStr(i))), value[i]) = 0);
+      inc(i);
+    end;
+    if success then
+      success := (bson_append_finish_object(handle) = 0);
+    Result := success;
+  end;
+
+  function TBsonBuffer.appendArray(name : PAnsiChar; value : array of Boolean) : Boolean;
+  var
+    success : Boolean;
+    i, len : Integer;
+  begin
+    success := (bson_append_start_array(handle, name) = 0);
+    len := Length(value);
+    i := 0;
+    while success and (i < len) do begin
+      success := (bson_append_bool(handle, PAnsiChar(AnsiString(IntToStr(i))), value[i]) = 0);
+      inc(i);
+    end;
+    if success then
+      success := (bson_append_finish_object(handle) = 0);
+    Result := success;
+  end;
+
+  function TBsonBuffer.appendArray(name : PAnsiChar; value : array of string) : Boolean;
+  var
+    success : Boolean;
+    i, len : Integer;
+  begin
+    success := (bson_append_start_array(handle, name) = 0);
+    len := Length(value);
+    i := 0;
+    while success and (i < len) do begin
+      success := (bson_append_string(handle, PAnsiChar(AnsiString(IntToStr(i))), PAnsiChar(AnsiString(value[i]))) = 0);
+      inc(i);
+    end;
+    if success then
+      success := (bson_append_finish_object(handle) = 0);
+    Result := success;
   end;
 
   function TBsonBuffer.startObject(name: PAnsiChar) : Boolean;
