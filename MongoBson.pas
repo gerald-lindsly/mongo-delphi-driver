@@ -325,7 +325,8 @@ interface
     function ByteToHex(InByte : Byte) : string;
 
     { Convert an Int64 to a Double.  Some loss of precision may occur. }
-    function Int64ToDouble(i64 : int64) : double; cdecl; external 'mongoc.dll';
+    function Int64toDouble(i64 : int64) : double;
+      cdecl; external 'mongoc.dll' name 'bson_int64_to_double';
 
 implementation
   uses SysUtils, Variants;
@@ -480,7 +481,7 @@ implementation
       bsonINT: Result := bson_iterator_int(handle);
       bsonBOOL: Result := bson_iterator_bool(handle);
       bsonDATE: begin
-           d := Int64ToDouble(bson_iterator_date(handle)) / (1000 * 24 * 60 * 60) + 25569;
+           d := Int64toDouble(bson_iterator_date(handle)) / (1000 * 24 * 60 * 60) + 25569;
            Result := d;
       end;
       bsonLONG: Result := bson_iterator_long(handle);

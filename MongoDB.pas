@@ -342,6 +342,7 @@ implementation
   Uses
     SysUtils;
 
+  function mongo_sock_init() : Integer;  cdecl; external 'mongoc.dll';
   function mongo_create() : Pointer; cdecl; external 'mongoc.dll';
   procedure mongo_dispose(c : Pointer); cdecl; external 'mongoc.dll';
   function mongo_connect(c : Pointer; host : PAnsiChar; port : Integer) : Integer;
@@ -880,5 +881,7 @@ implementation
     Result := string(mongo_get_server_err_string(handle));
   end;
 
+initialization
+  mongo_sock_init();
 end.
 

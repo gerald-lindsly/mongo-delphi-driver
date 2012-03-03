@@ -105,7 +105,7 @@ begin
   query := BSON(['phone', '{', '$gt', txtPhone.Text, '}']);
   b := mongo.findOne(ns, query);
   if b = nil then
-    ShowMessage('No previous record.')
+    ShowMessage('No next record.')
   else
     ShowRecord(b);
 end;
@@ -117,7 +117,7 @@ begin
   query := BSON(['phone', '{', '$lt', txtPhone.Text, '}']);
   b := mongo.findOne(ns, query);
   if b = nil then
-    ShowMessage('No next record.')
+    ShowMessage('No previous record.')
   else
     ShowRecord(b);
 end;

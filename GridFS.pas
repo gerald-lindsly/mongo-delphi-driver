@@ -381,7 +381,7 @@ implementation
 
   function TGridfile.getUploadDate() : TDateTime;
   begin
-    Result := Int64ToDouble(gridfile_get_uploaddate(handle)) / (1000 * 24 * 60 * 60) + 25569;
+    Result := Int64toDouble(gridfile_get_uploaddate(handle)) / (1000 * 24 * 60 * 60) + 25569;
   end;
 
   function TGridfile.getMD5() : string;
