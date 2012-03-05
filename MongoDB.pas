@@ -190,6 +190,18 @@ interface
         The collection namespace (ns) is in the form 'database.collection'.
         key is the name of the field on which to index.
         Returns nil if successful; otherwise, a TBson document that describes the error. }
+      function distinct(ns : string; key : string) : TBson;
+      { Returns a BSON document containing a field 'values' which
+        is an array of the distinct values of the key in the given collection (ns).
+        Example:
+          var
+             b : TBson;
+             names : TStringArray;
+          begin
+             b := mongo.distinct('test.people', 'name');
+             names := b.find('values').GetStringArray();
+          end
+      }
       function indexCreate(ns : string; key : string) : TBson; overload;
       { Create an index for the given collection so that accesses by the given
         key are faster.
@@ -827,6 +839,24 @@ implementation
     else
       Result := nil;
     bson_dispose(res);
+  end;
+
+  function TMongo.distinct(ns : string; key : string) : TBson;
+    var b : TBson;
+        buf : TBsonBuffer;
+        p : Integer;
+        db, collection : string;
+  begin
+    p := pos('.', ns);
+    if p = 0 then
+      Raise Exception.Create('Expected a ''.'' in the namespace');
+    db := Copy(ns, 1, p-1);
+    collection := Copy(ns, p+1, Length(ns) - p);
+    buf := TBsonBuffer.Create();
+    buf.append('distinct', collection);
+    buf.append('key', key);
+    b := buf.finish;
+    Result := command(db, b);
   end;
 
   function TMongo.command(db : string; cmdstr : string; arg : OleVariant) : TBson;

@@ -258,6 +258,12 @@ begin
 
       WriteLn(mongo.count(ns, query));
 
+      (* get distinct names *)
+      x := mongo.distinct(ns, 'name');
+      i := x.find('values').subiterator;
+      while i.next do
+        writeln(i.value);
+
       (* add a user to database 'admin' *)
       mongo.addUser('Gerald', 'P97gwep16');
 
