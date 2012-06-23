@@ -65,8 +65,10 @@ procedure PatchMemory(p : Pointer; DataSize : Integer; Data : Pointer; OldData :
 procedure PatchMemory(p : Pointer; DataSize : Integer; Data : Pointer); overload;
 function SetTlsOffset(P: PInt; AOffset: Integer; DirectReplacement : boolean =
     false): PInt;
+{$IFNDEF WIN64}
 function GetThreadVar(TlsSlot : integer): Pointer;
 procedure SetThreadVar(TlsSlot : integer; Value : pointer);
+{$ENDIF}
 function KillProcess(const aProcess: string): Boolean;
 function ProcessExists(const AProcess : string): Boolean;
 function GetProcessHandle(const AProcess : string; dwDesiredAccess : DWORD):
@@ -74,7 +76,9 @@ function GetProcessHandle(const AProcess : string; dwDesiredAccess : DWORD):
 function UpperCase(const S: string): string;
 function ExtractFileName(const FileName: string): string;
 function LastDelimiter(const Delimiters, S: AnsiString): Integer;
+{$IFNDEF WIN64}
 function StrScan(const Str: PAnsiChar; Chr: AnsiChar): PAnsiChar;
+{$ENDIF}
 function ByteType(const S: string; Index: Integer): TMbcsByteType;
 
 function CnvGetComputerName: string;
@@ -87,7 +91,7 @@ var
 implementation
 
 uses
-  TLHelp32 {$IFDef LEVEL7} , Variants {$EndIf}; // This three units are safe because they not reference Classes
+  {$IFDEF WIN64} SysUtils, {$ENDIF} TLHelp32 {$IFDef LEVEL7} , Variants {$EndIf}; // This three units are safe because they not reference Classes
 
 const
   //kernel = 'kernel32.dll';
@@ -161,6 +165,7 @@ begin
       Win32Platform := dwPlatformId;
 end;
 
+{$IFNDEF WIN64}
 function GetThreadVar(TlsSlot : integer): Pointer;
 asm
     cmp         Win32Platform, VER_PLATFORM_WIN32_NT // Check if is WinNT or higher
@@ -185,6 +190,7 @@ asm
     mov         fs:[TlsSlot], Value
   @@Exit:
 end;
+{$ENDIF}
 
 function KillProcess(const aProcess: string): Boolean;
 var
@@ -245,6 +251,7 @@ begin
   end;
 end;
 
+{$IFNDEF WIN64}
 function StrScan(const Str: PAnsiChar; Chr: AnsiChar): PAnsiChar; assembler;
 asm
         PUSH    EDI
@@ -263,6 +270,7 @@ asm
         DEC     EAX
 @@1:    POP     EDI
 end;
+{$ENDIF}
 
 function ByteType(const S: string; Index: Integer): TMbcsByteType;
 begin

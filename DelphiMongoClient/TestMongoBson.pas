@@ -608,19 +608,21 @@ var
   i : integer;
   it : IBsonIterator;
   b : IBson;
+  BoolArrayResult : TBooleanArray;
 begin
   Name := PAnsiChar('BOOLARRFLD');
   SetLength(Value, 10);
   for I := low(Value) to high(Value) do
-    Value[i] := boolean(i mod 2);
+    Value[i] := i mod 2 = 1;
   ReturnValue := FIBsonBuffer.appendArray(Name, Value);
   Check(ReturnValue, 'ReturnValue should be True');
   b := FIBsonBuffer.finish;
   it := b.iterator;
   it.Next;
-  CheckEquals(length(Value), length(it.getBooleanArray), 'Array sizes don''t match');
-  for I := low(it.getBooleanArray) to high(it.getBooleanArray) do
-    CheckEquals(Value[i], it.getBooleanArray[i], 'Items on Boolean array don''t match');
+  BoolArrayResult := it.getBooleanArray;
+  CheckEquals(length(Value), length(BoolArrayResult), 'Array sizes don''t match');
+  for I := low(BoolArrayResult) to high(BoolArrayResult) do
+    CheckEquals(Value[i], BoolArrayResult[i], 'Items on Boolean array don''t match');
 end;
 
 procedure TestIBsonBuffer.TestappendStringArray;

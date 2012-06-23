@@ -65,7 +65,7 @@ type
     fhandle: Pointer;
     procedure autoCheckCmdLastError(const ns: AnsiString; ANeedsParsing: Boolean);
     procedure autoCmdResetLastError(const ns: AnsiString; ANeedsParsing: Boolean);
-    procedure parseNamespace(const ns: AnsiString; var db: AnsiString; var Collection: String);
+    procedure parseNamespace(const ns: AnsiString; var db: AnsiString; var Collection: AnsiString);
   public
       { Create a TMongo connection object.  A connection is attempted on the
         MongoDB server running on the localhost '127.0.0.1:27017'.
@@ -429,7 +429,7 @@ type
   Tmongo_replset_init = procedure (c: Pointer; Name: PAnsiChar); cdecl; 
   Tmongo_replset_add_seed = procedure (c: Pointer; host: PAnsiChar; port: Integer); cdecl; 
   Tmongo_replset_connect = function(c: Pointer): Integer; cdecl; 
-  Tmongo_is_connected = function (c: Pointer): Wordbool; cdecl;
+  Tmongo_is_connected = function (c: Pointer): LongBool; cdecl;
   Tmongo_get_err = function(c: Pointer): Integer; cdecl;
   Tmongo_set_op_timeout = function (c: Pointer; millis: Integer): Integer; cdecl; 
   Tmongo_get_op_timeout = function (c: Pointer): Integer; cdecl; 
@@ -437,7 +437,7 @@ type
   Tmongo_check_connection = function (c: Pointer): Integer; cdecl;
   Tmongo_disconnect = procedure (c: Pointer); cdecl;
   Tmongo_reconnect = function (c: Pointer): Integer; cdecl; 
-  Tmongo_cmd_ismaster = function (c: Pointer; b: Pointer): Wordbool; cdecl; 
+  Tmongo_cmd_ismaster = function (c: Pointer; b: Pointer): Longbool; cdecl;
   Tmongo_get_socket = function (c: Pointer): Integer; cdecl;
   Tmongo_get_host_count = function (c: Pointer): Integer; cdecl; 
   Tmongo_get_host = function (c: Pointer; i: Integer): PAnsiChar; cdecl; 
@@ -525,7 +525,7 @@ procedure mongo_destroy(c: Pointer); cdecl; external MongoCDLL;
 procedure mongo_replset_init(c: Pointer; Name: PAnsiChar); cdecl; external MongoCDLL;
 procedure mongo_replset_add_seed(c: Pointer; host: PAnsiChar; port: Integer); cdecl; external MongoCDLL;
 function mongo_replset_connect(c: Pointer): Integer; cdecl; external MongoCDLL;
-function mongo_is_connected(c: Pointer): Wordbool; cdecl; external MongoCDLL;
+function mongo_is_connected(c: Pointer): Longbool; cdecl; external MongoCDLL;
 function mongo_get_err(c: Pointer): Integer; cdecl; external MongoCDLL;
 function mongo_set_op_timeout(c: Pointer; millis: Integer): Integer; cdecl; external MongoCDLL;
 function mongo_get_op_timeout(c: Pointer): Integer; cdecl; external MongoCDLL;
@@ -533,7 +533,7 @@ function mongo_get_primary(c: Pointer): PAnsiChar; cdecl; external MongoCDLL;
 function mongo_check_connection(c: Pointer): Integer; cdecl; external MongoCDLL;
 procedure mongo_disconnect(c: Pointer); cdecl; external MongoCDLL;
 function mongo_reconnect(c: Pointer): Integer; cdecl; external MongoCDLL;
-function mongo_cmd_ismaster(c: Pointer; b: Pointer): Wordbool; cdecl; external MongoCDLL;
+function mongo_cmd_ismaster(c: Pointer; b: Pointer): Longbool; cdecl; external MongoCDLL;
 function mongo_get_socket(c: Pointer): Integer; cdecl; external MongoCDLL;
 function mongo_get_host_count(c: Pointer): Integer; cdecl; external MongoCDLL;
 function mongo_get_host(c: Pointer; i: Integer): PAnsiChar; cdecl; external MongoCDLL;
@@ -565,7 +565,7 @@ function mongo_get_server_err(c: Pointer): Integer; cdecl; external MongoCDLL;
 function mongo_get_server_err_string(c: Pointer): PAnsiChar; cdecl; external MongoCDLL;
 {$ENDIF}
 
-procedure parseHost(host: AnsiString; var hosturl: AnsiString; var port: Integer);
+procedure parseHost(const host: AnsiString; var hosturl: AnsiString; var port: Integer);
 var
   i: Integer;
 begin
@@ -1209,7 +1209,7 @@ begin
   Result := AnsiString(mongo_get_server_err_string(fhandle));
 end;
 
-procedure TMongo.parseNamespace(const ns: AnsiString; var db: AnsiString; var Collection: String);
+procedure TMongo.parseNamespace(const ns: AnsiString; var db: AnsiString; var Collection: AnsiString);
 var
   i : integer;
 begin
