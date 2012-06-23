@@ -23,7 +23,7 @@ uses
   MongoDB in '..\..\MongoDB.pas',
   TestMongoBson in 'TestMongoBson.pas',
   MongoBson in '..\..\MongoBson.pas',
-  TestGridFS in 'TestGridFS.pas',
+  //TestGridFS in 'TestGridFS.pas',
   GridFS in '..\..\GridFS.pas';
 
 {$R *.RES}
