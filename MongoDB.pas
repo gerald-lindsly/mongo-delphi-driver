@@ -56,12 +56,17 @@ type
   { TMongo objects establish a connection to a MongoDB server and are
     used for subsequent database operations on that server. }
   TMongo = class(TObject)
+  private
+    FAutoCheckLastError: Boolean;
   protected
       { Pointer to externally managed data describing the connection.
         User code should not access this.  It is public only for
         access from the GridFS unit. }
     fhandle: Pointer;
-  public  
+    procedure autoCheckCmdLastError(const ns: AnsiString; ANeedsParsing: Boolean);
+    procedure autoCmdResetLastError(const ns: AnsiString; ANeedsParsing: Boolean);
+    procedure parseNamespace(const ns: AnsiString; var db: AnsiString; var Collection: String);
+  public
       { Create a TMongo connection object.  A connection is attempted on the
         MongoDB server running on the localhost '127.0.0.1:27017'.
         Check isConnected() to see if it was successful. }
@@ -282,9 +287,14 @@ type
       { Get the server error string.  As a convenience, this is saved here after calling
         getLastErr() or getPrevErr(). }
     function getServerErrString: AnsiString;
+      { Get the specified database last error Bson object }
+    function cmdGetLastError(const db: AnsiString): IBson;
+      { Resets the specified database error state }
+    procedure cmdResetLastError(const db: AnsiString);
       { Destroy this TMongo object.  Severs the connection to the server and releases
         external resources. }
     destructor Destroy; override;
+    property AutoCheckLastError: Boolean read FAutoCheckLastError write FAutoCheckLastError;
     property Handle: Pointer read FHandle;
   end;
 
@@ -453,7 +463,8 @@ type
   Tmongo_cmd_authenticate = function (c: Pointer; db: PAnsiChar; Name: PAnsiChar; password: PAnsiChar): Integer; cdecl; 
   Tmongo_run_command = function (c: Pointer; db: PAnsiChar; command: Pointer; res: Pointer): Integer; cdecl; 
   Tmongo_cmd_get_last_error = function (c: Pointer; db: PAnsiChar; res: Pointer): Integer; cdecl; 
-  Tmongo_cmd_get_prev_error = function (c: Pointer; db: PAnsiChar; res: Pointer): Integer; cdecl; 
+  Tmongo_cmd_get_prev_error = function (c: Pointer; db: PAnsiChar; res: Pointer): Integer; cdecl;
+  Tmongo_cmd_reset_error = procedure(c : Pointer; db : PAnsiChar); cdecl;
   Tmongo_get_server_err = function (c: Pointer): Integer; cdecl;
   Tmongo_get_server_err_string = function (c: Pointer): PAnsiChar; cdecl;
 
@@ -502,6 +513,7 @@ var
   mongo_run_command : Tmongo_run_command;
   mongo_cmd_get_last_error : Tmongo_cmd_get_last_error;
   mongo_cmd_get_prev_error : Tmongo_cmd_get_prev_error;
+  mongo_cmd_reset_error : Tmongo_cmd_reset_error;
   mongo_get_server_err : Tmongo_get_server_err;
   mongo_get_server_err_string : Tmongo_get_server_err_string;
 {$ELSE}
@@ -548,6 +560,7 @@ function mongo_cmd_authenticate(c: Pointer; db: PAnsiChar; Name: PAnsiChar; pass
 function mongo_run_command(c: Pointer; db: PAnsiChar; command: Pointer; res: Pointer): Integer; cdecl; external MongoCDLL;
 function mongo_cmd_get_last_error(c: Pointer; db: PAnsiChar; res: Pointer): Integer; cdecl; external MongoCDLL;
 function mongo_cmd_get_prev_error(c: Pointer; db: PAnsiChar; res: Pointer): Integer; cdecl; external MongoCDLL;
+procedure mongo_cmd_reset_error(c : Pointer; db : PAnsiChar); cdecl; external MongoCDLL;
 function mongo_get_server_err(c: Pointer): Integer; cdecl; external MongoCDLL;
 function mongo_get_server_err_string(c: Pointer): PAnsiChar; cdecl; external MongoCDLL;
 {$ENDIF}
@@ -624,6 +637,7 @@ begin
   {$IFDEF OnDemandMongoCLoad}
   InitMongoDBLibrary;
   {$ENDIF}
+  AutoCheckLastError := True;
   fhandle := mongo_create;
   mongo_connect(fhandle, S127001, 27017);
 end;
@@ -637,6 +651,7 @@ begin
   {$IFDEF OnDemandMongoCLoad}
   InitMongoDBLibrary;
   {$ENDIF}
+  AutoCheckLastError := True;
   fhandle := mongo_create;
   parseHost(host, hosturl, port);
   mongo_connect(fhandle, PAnsiChar(hosturl), port);
@@ -752,7 +767,7 @@ begin
   b := command(SAdmin, SListDatabases, true);
   if b = nil then
     Result := nil
-  else 
+  else
   begin
     it := b.iterator;
     it.Next;
@@ -819,31 +834,36 @@ end;
 
 function TMongo.Rename(const from_ns, to_ns: AnsiString): Boolean;
 begin
+  autoCmdResetLastError(from_ns, True);
   Result := command(SAdmin, BSON([SRenameCollection, from_ns, STo, to_ns])) <> nil;
+  autoCheckCmdLastError(from_ns, True);
 end;
 
 function TMongo.drop(const ns: AnsiString): Boolean;
 var
   db: AnsiString;
   collection: AnsiString;
-  i: Integer;
 begin
-  i := Pos('.', ns);
-  if i = 0 then
+  parseNamespace(ns, db, collection);
+  if db = '' then
     raise Exception.Create(STMongoDropExpectedAInTheNamespac);
-  db := Copy(ns, 1, i - 1);
-  collection := Copy(ns, i + 1, Length(ns) - i);
+  autoCmdResetLastError(db, False);
   Result := mongo_cmd_drop_collection(fhandle, PAnsiChar(db), PAnsiChar(collection), nil) = 0;
+  autoCheckCmdLastError(db, False);
 end;
 
 function TMongo.dropDatabase(const db: AnsiString): Boolean;
 begin
+  autoCmdResetLastError(db, False);
   Result := mongo_cmd_drop_db(fhandle, PAnsiChar(db)) = 0;
+  autoCheckCmdLastError(db, False);
 end;
 
 function TMongo.Insert(const ns: AnsiString; b: IBson): Boolean;
 begin
+  autoCmdResetLastError(ns, True);
   Result := mongo_insert(fhandle, PAnsiChar(ns), b.Handle, nil) = 0;
+  autoCheckCmdLastError(ns, True);
 end;
 
 function TMongo.Insert(const ns: AnsiString; const bs: array of IBson): Boolean;
@@ -860,7 +880,9 @@ begin
   try
     for i := 0 to Len - 1 do
       ps^[i] := bs[i].Handle;
+    autoCmdResetLastError(ns, True);
     Result := mongo_insert_batch(fhandle, PAnsiChar(ns), ps, Len, nil, 0) = 0;
+    autoCheckCmdLastError(ns, True);
   finally
     FreeMem(ps);
   end;
@@ -869,7 +891,9 @@ end;
 function TMongo.Update(const ns: AnsiString; criteria, objNew: IBson; flags:
     Integer): Boolean;
 begin
+  autoCmdResetLastError(ns, True);
   Result := mongo_update(fhandle, PAnsiChar(ns), criteria.Handle, objNew.Handle, flags, nil) = 0;
+  autoCheckCmdLastError(ns, True);
 end;
 
 function TMongo.Update(const ns: AnsiString; criteria, objNew: IBson): Boolean;
@@ -879,7 +903,9 @@ end;
 
 function TMongo.remove(const ns: AnsiString; criteria: IBson): Boolean;
 begin
+  autoCmdResetLastError(ns, True);
   Result := mongo_remove(fhandle, PAnsiChar(ns), criteria.Handle, nil) = 0;
+  autoCheckCmdLastError(ns, True);
 end;
 
 function TMongo.findOne(const ns: AnsiString; query, fields: IBson): IBson;
@@ -888,6 +914,7 @@ var
 begin
   res := bson_create;
   try
+    autoCmdResetLastError(ns, True);
     if mongo_find_one(fhandle, PAnsiChar(ns), query.Handle, fields.Handle, res) = 0 then
       Result := NewBson(res)
     else
@@ -895,6 +922,7 @@ begin
       mongo_dispose(res);
       Result := nil;
     end;
+    autoCheckCmdLastError(ns, True);
   except
     mongo_dispose(res);
     raise;
@@ -925,7 +953,9 @@ begin
     q := bb.finish;
   end;
   Cursor.conn := Self;
+  autoCmdResetLastError(ns, True);
   ch := mongo_find(fhandle, PAnsiChar(ns), q.Handle, Cursor.fields.Handle, Cursor.limit, Cursor.skip, Cursor.options);
+  autoCheckCmdLastError(ns, True);
   Cursor.FindCalled;
   if ch <> nil then
   begin
@@ -940,19 +970,20 @@ function TMongo.Count(const ns: AnsiString; query: IBson): Double;
 var
   db: AnsiString;
   collection: AnsiString;
-  i: Integer;
 begin
-  i := Pos('.', ns);
-  if i = 0 then
-    raise Exception.Create(STMongoDropExpectedAInTheNamespac);
-  db := Copy(ns, 1, i - 1);
-  collection := Copy(ns, i + 1, Length(ns) - i);
+  parseNamespace(ns, db, collection);
+  if db = '' then
+    raise Exception.Create(SExpectedAInTheNamespace);
+  autoCmdResetLastError(db, False);
   Result := mongo_count(fhandle, PAnsiChar(db), PAnsiChar(collection), query.Handle);
+  autoCheckCmdLastError(db, False);
 end;
 
 function TMongo.Count(const ns: AnsiString): Double;
 begin
+  autoCmdResetLastError(ns, True);
   Result := Count(ns, NewBson(nil));
+  autoCheckCmdLastError(ns, True);
 end;
 
 function TMongo.indexCreate(const ns: AnsiString; key: IBson; options: Integer): IBson;
@@ -968,7 +999,9 @@ begin
     bson_dispose(h);
     raise;
   end;
+  autoCmdResetLastError(ns, True);
   created := mongo_create_index(fhandle, PAnsiChar(ns), key.Handle, options, res.Handle) = 0;
+  autoCheckCmdLastError(ns, True);
   if not created then
     Result := res
   else
@@ -1010,6 +1043,40 @@ begin
   Result := authenticate(Name, password, SAdmin);
 end;
 
+procedure TMongo.autoCheckCmdLastError(const ns: AnsiString; ANeedsParsing: Boolean);
+var
+  Err : IBson;
+  db: AnsiString;
+  collection: AnsiString;
+  it : IBsonIterator;
+begin
+  if not FAutoCheckLastError then
+    exit;
+   if ANeedsParsing then
+    parseNamespace(ns, db, collection)
+  else db := ns;
+  Err := cmdGetLastError(db);
+  if Err <> nil then
+    begin
+      it := Err.iterator;
+      it.Next;
+      raise Exception.Create(it.Value);
+    end;
+end;
+
+procedure TMongo.autoCmdResetLastError(const ns: AnsiString; ANeedsParsing: Boolean);
+var
+  db: AnsiString;
+  collection: AnsiString;
+begin
+  if not FAutoCheckLastError then
+    exit;
+  if ANeedsParsing then
+    parseNamespace(ns, db, collection)
+  else db := ns;
+  cmdResetLastError(db);
+end;
+
 function TMongo.command(const db: AnsiString; command: IBson): IBson;
 var
   b: IBson;
@@ -1041,14 +1108,11 @@ function TMongo.distinct(const ns, key: AnsiString): IBson;
 var
   b: IBson;
   buf: IBsonBuffer;
-  p: Integer;
   db, collection: AnsiString;
 begin
-  p := Pos('.', ns);
-  if p = 0 then
+  parseNamespace(ns, db, collection);
+  if db = '' then
     raise Exception.Create(SExpectedAInTheNamespace);
-  db := Copy(ns, 1, p - 1);
-  collection := Copy(ns, p + 1, Length(ns) - p);
   buf := NewBsonBuffer;
   buf.AppendStr(SDistinct, PAnsiChar(collection));
   buf.AppendStr(SKey, PAnsiChar(key));
@@ -1086,6 +1150,21 @@ begin
   finally
     bson_dispose(res);
   end;
+end;
+
+function TMongo.cmdGetLastError(const db: AnsiString): IBson;
+var
+  h : Pointer;
+begin
+  h := bson_create;
+  if mongo_cmd_get_last_error(fHandle, PAnsiChar(db), h) = 0 then
+    Result := nil
+  else Result := NewBson(h);  
+end;
+
+procedure TMongo.cmdResetLastError(const db: AnsiString);
+begin
+  mongo_cmd_reset_error(fHandle, PAnsiChar(db));
 end;
 
 function TMongo.getPrevErr(const db: AnsiString): IBson;
@@ -1128,6 +1207,23 @@ end;
 function TMongo.getServerErrString: AnsiString;
 begin
   Result := AnsiString(mongo_get_server_err_string(fhandle));
+end;
+
+procedure TMongo.parseNamespace(const ns: AnsiString; var db: AnsiString; var Collection: String);
+var
+  i : integer;
+begin
+  i := Pos('.', ns);
+  if i > 0 then
+    begin
+      db := Copy(ns, 1, i - 1);
+      collection := Copy(ns, i + 1, Length(ns) - i);
+    end
+    else
+    begin
+      db := '';
+      Collection := ns;
+    end;
 end;
 
 { TMongoCursor }
@@ -1346,6 +1442,7 @@ begin
   mongo_run_command := GetProcAddress(HMongoDBDll, 'mongo_run_command');
   mongo_cmd_get_last_error := GetProcAddress(HMongoDBDll, 'mongo_cmd_get_last_error');
   mongo_cmd_get_prev_error := GetProcAddress(HMongoDBDll, 'mongo_cmd_get_prev_error');
+  mongo_cmd_reset_error := GetProcAddress(HMongoDBDll, 'mongo_cmd_reset_error');
   mongo_get_server_err := GetProcAddress(HMongoDBDll, 'mongo_get_server_err');
   mongo_get_server_err_string := GetProcAddress(HMongoDBDll, 'mongo_get_server_err_string');
   mongo_sock_init;
