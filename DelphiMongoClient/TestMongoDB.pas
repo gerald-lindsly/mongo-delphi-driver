@@ -132,6 +132,10 @@ type
     procedure TestValue;
   end;
 
+var
+  MongoStarted : Boolean;
+  FSlaveStarted : Boolean;
+
 procedure StartMongoDB(const AParams: String);
 
 implementation
@@ -139,10 +143,6 @@ implementation
 uses
   SysUtils, AppExec, CnvGenUtils, uFileManagement, Variants, Windows, FileCtrl
   {$IFDEF TAXPORT}, uScope, Forms, CnvStream, CnvFileUtils, JclDateTime {$ENDIF};
-
-var
-  MongoStarted : Boolean;
-  FSlaveStarted : Boolean;
 
 procedure StartMongoDB(const AParams: String);
 {$IFDEF TAXPORT}
@@ -233,15 +233,15 @@ begin
     begin
       DeleteEntireDir(ExtractFilePath(ParamStr(0)) + '\MongoDataReplica_1');
       ForceDirectories(ExtractFilePath(ParamStr(0)) + '\MongoDataReplica_1');
-      StartMongoDB('--dbpath ' + ExtractFilePath(ParamStr(0)) + '\MongoDataReplica_1 --smallfiles --port 27018 --replSet foo');
+      StartMongoDB('--dbpath ' + ExtractFilePath(ParamStr(0)) + '\MongoDataReplica_1 --smallfiles --noprealloc --port 27018 --replSet foo');
 
       DeleteEntireDir(ExtractFilePath(ParamStr(0)) + '\MongoDataReplica_2');
       ForceDirectories(ExtractFilePath(ParamStr(0)) + '\MongoDataReplica_2');
-      StartMongoDB('--dbpath ' + ExtractFilePath(ParamStr(0)) + '\MongoDataReplica_2 --smallfiles --port 27019 --replSet foo');
+      StartMongoDB('--dbpath ' + ExtractFilePath(ParamStr(0)) + '\MongoDataReplica_2 --smallfiles --noprealloc --port 27019 --replSet foo');
 
       DeleteEntireDir(ExtractFilePath(ParamStr(0)) + '\MongoDataReplica_3');
       ForceDirectories(ExtractFilePath(ParamStr(0)) + '\MongoDataReplica_3');
-      StartMongoDB('--dbpath ' + ExtractFilePath(ParamStr(0)) + '\MongoDataReplica_3 --smallfiles --port 27020 --replSet foo'); 
+      StartMongoDB('--dbpath ' + ExtractFilePath(ParamStr(0)) + '\MongoDataReplica_3 --smallfiles --noprealloc --port 27020 --replSet foo');
 
       with TMongo.Create('127.0.0.1:27018') do
         try
@@ -355,7 +355,7 @@ begin
     begin
       DeleteEntireDir(ExtractFilePath(ParamStr(0)) + '\MongoData');
       ForceDirectories(ExtractFilePath(ParamStr(0)) + '\MongoData');
-      StartMongoDB('--dbpath ' + ExtractFilePath(ParamStr(0)) + '\MongoData --smallfiles ');
+      StartMongoDB('--dbpath ' + ExtractFilePath(ParamStr(0)) + '\MongoData --smallfiles --noprealloc');
       MongoStarted := True;
     end;
   FMongo := CreateMongo;
@@ -1136,7 +1136,12 @@ begin
   FMongoSecondary := TMongo.Create('127.0.0.1:27019');
   try
     SetupData;
-    Check(not FMongoSecondary.find(SampleDataDB, FIMongoCursor), 'Call to FMongoSecondary.Find should return False because no option to read from Secondary is set');
+    try
+      FMongoSecondary.find(SampleDataDB, FIMongoCursor);
+      Fail('Call to FMongoSecondary.Find should error out and it didn''t because no option to read from Secondary was set');
+    except
+      on E : Exception do Check(pos('not master', E.Message) > 0, 'Call should have errored our because Secondary option was not set');
+    end;
     FIMongoCursor.Options := cursorSlaveOk;
     Check(FMongoSecondary.find(SampleDataDB, FIMongoCursor), 'Call to FMongoSecondary.Find should return True');
   finally
