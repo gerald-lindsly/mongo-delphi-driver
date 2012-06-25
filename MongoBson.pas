@@ -376,6 +376,11 @@ procedure InitMongoDBLibrary;
 procedure DoneMongoDBLibrary;
 {$ENDIF}
 
+{$IFDEF DELPHIXE2}
+function Pos(const SubStr, Str: AnsiString): Integer;
+function IntToStr(i : integer) : AnsiString;
+{$ENDIF}
+
 var
   { An empty BSON document }
   bsonEmpty: IBson;
@@ -387,7 +392,7 @@ uses
 
 // START resource string wizard section
 resourcestring
-  {$IFNDEF DELPHI 2007}
+  {$IFNDEF DELPHI2007}
   SCanTAccessAnInt64UsingAVariantOn = 'Can''t access an Int64 using a variant on old version of Delphi. Use AsInt64 instead';
   {$ENDIF}
   {$IFDEF OnDemandMongoCLoad}
@@ -755,6 +760,18 @@ function bson_iterator_bin_data(i: Pointer): Pointer; cdecl; external MONGOC_DLL
 function Int64toDouble(i64: Int64): Double; cdecl; external MONGOC_DLL Name 'bson_int64_to_double';
 {$ENDIF}
 
+{$IFDEF DELPHIXE2}
+function Pos(const SubStr, Str: AnsiString): Integer;
+begin
+  Result := System.Pos(String(SubStr), String(Str));
+end;
+
+function IntToStr(i : integer) : AnsiString;
+begin
+  Result := AnsiString(SysUtils.IntToStr(i));
+end;
+{$ENDIF}
+
 { TBsonOID }
 
 constructor TBsonOID.Create;
@@ -878,7 +895,7 @@ begin
         Result := d;
       end;
     bsonLONG:
-      {$IFNDEF DELPHI 2007}
+      {$IFNDEF DELPHI2007}
       raise Exception.Create(SCanTAccessAnInt64UsingAVariantOn);
       {$ELSE}
       Result := bson_iterator_long(Handle);

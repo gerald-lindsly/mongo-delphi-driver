@@ -24,6 +24,8 @@ unit MongoDB;
 
 interface
 
+{$I MongoC_defines.inc}
+
 uses
   MongoBson;
 
@@ -388,7 +390,7 @@ procedure DoneMongoDBLibrary;
 implementation
   
 uses
-  SysUtils, Windows;
+  SysUtils, Windows {$IFDEF DELPHIXE2}, AnsiStrings {$ENDIF};
 
 // START resource string wizard section
 const
@@ -542,7 +544,7 @@ function mongo_insert_batch(c: Pointer; ns: PAnsiChar; bsons: Pointer; Count: In
 function mongo_update(c: Pointer; ns: PAnsiChar; cond: Pointer; op: Pointer; flags: Integer; wc: Pointer): Integer; cdecl; external MongoCDLL;
 function mongo_remove(c: Pointer; ns: PAnsiChar; criteria: Pointer; wc: Pointer): Integer; cdecl; external MongoCDLL;
 function mongo_find_one(c: Pointer; ns: PAnsiChar; query: Pointer; fields: Pointer; Result: Pointer): Integer; cdecl; external MongoCDLL;
-function bson_create: Pointer; cdecl external MongoCDLL;
+function bson_create: Pointer; cdecl; external MongoCDLL;
 procedure bson_dispose(b: Pointer); cdecl; external MongoCDLL;
 procedure bson_copy(dest: Pointer; src: Pointer); cdecl; external MongoCDLL;
 function mongo_cursor_create: Pointer; cdecl; external MongoCDLL;
@@ -802,7 +804,7 @@ function TMongo.getDatabaseCollections(const db: AnsiString): TStringArray;
 var
   Cursor: IMongoCursor;
   Count, i: Integer;
-  ns, Name: AnsiString;
+  ns, Name : AnsiString;
   b: IBson;
 begin
   Count := 0;
@@ -824,7 +826,7 @@ begin
     begin
       b := Cursor.Value;
       Name := b.Value(SName);
-      if (Pos(SSystem, Name) = 0) and (Pos('$', Name) = 0) then 
+      if (Pos(SSystem, Name) = 0) and (Pos('$', Name) = 0) then
       begin
         Result[i] := Name;
         Inc(i);

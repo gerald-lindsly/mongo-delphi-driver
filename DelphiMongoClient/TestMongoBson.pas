@@ -12,7 +12,7 @@ unit TestMongoBson;
 interface
 
 uses
-  TestFramework, MongoBson;
+  SysUtils, TestFramework, MongoBson;
 
 type
   // Test methods for class IBsonOID
@@ -166,7 +166,7 @@ type
 implementation
 
 uses
-  Classes, SysUtils, Variants;
+  Classes, Variants;
 
 const
   DELTA_DATE = 0.00009999;
@@ -195,7 +195,7 @@ end;
 
 procedure TestIBsonOID.TestAsString;
 var
-  ReturnValue: string;
+  ReturnValue: AnsiString;
   Val64 : Int64;
 begin
   ReturnValue := FIBsonOID.AsString;

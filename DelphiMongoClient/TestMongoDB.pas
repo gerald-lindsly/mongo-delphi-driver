@@ -12,7 +12,7 @@ unit TestMongoDB;
 interface
 
 uses
-  Classes, TestFramework, MongoDB, MongoBson;
+  Classes, SysUtils, TestFramework, MongoDB, MongoBson;
 
 type
   TestTMongo = class;
@@ -141,7 +141,7 @@ procedure StartMongoDB(const AParams: String);
 implementation
 
 uses
-  SysUtils, AppExec, CnvGenUtils, uFileManagement, Variants, Windows, FileCtrl
+  AppExec, CnvGenUtils, uFileManagement, Variants, Windows, FileCtrl
   {$IFDEF TAXPORT}, uScope, Forms, CnvStream, CnvFileUtils, JclDateTime {$ENDIF};
 
 procedure StartMongoDB(const AParams: String);
