@@ -19,7 +19,7 @@
 
 { This unit implements the TMongo connection class for connecting to a MongoDB server
   and performing database operations on that server. }
-  
+
 unit MongoDB;
 
 interface
@@ -27,7 +27,7 @@ interface
 {$I MongoC_defines.inc}
 
 uses
-  MongoBson;
+  MongoBson, SysUtils, MongoAPI;
 
 const
   updateUpsert = 1;
@@ -54,21 +54,26 @@ const
 
 type
   IMongoCursor = interface;
+  IWriteConcern = interface;
+
+  EMongo = class(Exception);
 
   { TMongo objects establish a connection to a MongoDB server and are
     used for subsequent database operations on that server. }
   TMongo = class(TObject)
   private
     FAutoCheckLastError: Boolean;
+    FWriteConcern: IWriteConcern;
   protected
       { Pointer to externally managed data describing the connection.
         User code should not access this.  It is public only for
         access from the GridFS unit. }
     fhandle: Pointer;
-    procedure autoCheckCmdLastError(const ns: AnsiString; ANeedsParsing: Boolean);
-    procedure autoCmdResetLastError(const ns: AnsiString; ANeedsParsing: Boolean);
+    procedure InitMongo(const AHost: AnsiString); virtual;
     procedure parseNamespace(const ns: AnsiString; var db: AnsiString; var Collection: AnsiString);
   public
+    procedure autoCheckCmdLastError(const ns: AnsiString; ANeedsParsing: Boolean);
+    procedure autoCmdResetLastError(const ns: AnsiString; ANeedsParsing: Boolean);
       { Create a TMongo connection object.  A connection is attempted on the
         MongoDB server running on the localhost '127.0.0.1:27017'.
         Check isConnected() to see if it was successful. }
@@ -293,6 +298,9 @@ type
     function cmdGetLastError(const db: AnsiString): IBson;
       { Resets the specified database error state }
     procedure cmdResetLastError(const db: AnsiString);
+      { Sets de default write concern for the connection. Pass nil on AWriteConcern to set a NULL write concern
+        at the driver level }
+    procedure setWriteConcern(AWriteConcern: IWriteConcern);
       { Destroy this TMongo object.  Severs the connection to the server and releases
         external resources. }
     destructor Destroy; override;
@@ -303,6 +311,9 @@ type
     { TMongoReplset is a superclass of the TMongo connection class that implements
       a different constructor and several functions for connecting to a replset. }
   TMongoReplset = class(TMongo)
+  protected
+    procedure InitMongo(const AHost: AnsiString); override;
+  public
       { Create a TMongoReplset object given the replset name.  Unlike the constructor
         for TMongo, this does not yet establish the connection.  Call addSeed() for each
         of the seed hosts and then call Connect to connect to the replset. }
@@ -377,20 +388,46 @@ type
     property Sort: IBson read GetSort write SetSort;
   end;
 
+  IWriteConcern = interface
+    { See http://api.mongodb.org/c/0.6/write_concern.html for details on the meaning of
+      each property. The propery names are mapped to the actual C structure in purpose to
+      keep consistency with C driver meanings }
+    function Getfinished: Boolean;
+    function Getfsync: Integer;
+    function GetHandle: Pointer;
+    function Getj: Integer;
+    function Getmode: AnsiString;
+    function Getw: Integer;
+    function Getwtimeout: Integer;
+    procedure Setfsync(const Value: Integer);
+    procedure Setj(const Value: Integer);
+    procedure Setmode(const Value: AnsiString);
+    procedure Setw(const Value: Integer);
+    procedure Setwtimeout(const Value: Integer);
+    { Always call finish after you are done setting all writeconcern fields, otherwise
+      you can't use the writeconcern object with TMongo object.
+      The call to finish is equivalent to mongo_write_concern_finish() }
+    procedure finish;
+    property fsync: Integer read Getfsync write Setfsync;
+    property j: Integer read Getj write Setj;
+    property mode: AnsiString read Getmode write Setmode;
+    property w: Integer read Getw write Setw;
+    property wtimeout: Integer read Getwtimeout write Setwtimeout;
+    property Handle: Pointer read GetHandle;
+    property finished: Boolean read Getfinished;
+  end;
+
 { Create a cursor with a empty query (which matches everything) }
 function NewMongoCursor: IMongoCursor; overload;
 { Create a cursor with the given query. }
 function NewMongoCursor(query: IBson): IMongoCursor; overload;
-
-{$IFDEF OnDemandMongoCLoad}
-procedure InitMongoDBLibrary;
-procedure DoneMongoDBLibrary;
-{$ENDIF}
+{ Create a WriteConcern object to be used as default write concern for the Mongo connection }
+function NewWriteConcern: IWriteConcern;
 
 implementation
   
 uses
-  SysUtils, Windows {$IFDEF DELPHIXE2}, AnsiStrings {$ENDIF};
+  Windows {$IFDEF DELPHIXE2}, AnsiStrings {$ENDIF};
 
 // START resource string wizard section
 const
@@ -413,6 +450,7 @@ const
 
 // START resource string wizard section
 resourcestring
+  SCanTUseAnUnfinishedWriteConcern = 'Can''t use an unfinished WriteConcern';
   {$IFDEF OnDemandMongoCLoad}
   SFailedLoadingMongocDll = 'Failed loading mongoc.dll';
   SFunctionNotFoundOnMongoCLibrary = 'Function "%s" not found on MongoC library';
@@ -421,151 +459,15 @@ resourcestring
   SExpectedAInTheNamespace = 'Expected a ''.'' in the namespace';
 // END resource string wizard section
 
-{$IFDEF OnDemandMongoCLoad}
 type
-  Tmongo_sock_init = function : Integer; cdecl;
-  Tmongo_create = function : Pointer; cdecl;
-  Tmongo_dispose = procedure (c: Pointer); cdecl;
-  Tmongo_connect = function (c: Pointer; host: PAnsiChar; port: Integer): Integer; cdecl;
-  Tmongo_destroy = procedure(c: Pointer); cdecl; 
-  Tmongo_replset_init = procedure (c: Pointer; Name: PAnsiChar); cdecl; 
-  Tmongo_replset_add_seed = procedure (c: Pointer; host: PAnsiChar; port: Integer); cdecl; 
-  Tmongo_replset_connect = function(c: Pointer): Integer; cdecl; 
-  Tmongo_is_connected = function (c: Pointer): LongBool; cdecl;
-  Tmongo_get_err = function(c: Pointer): Integer; cdecl;
-  Tmongo_set_op_timeout = function (c: Pointer; millis: Integer): Integer; cdecl; 
-  Tmongo_get_op_timeout = function (c: Pointer): Integer; cdecl; 
-  Tmongo_get_primary = function (c: Pointer): PAnsiChar; cdecl; 
-  Tmongo_check_connection = function (c: Pointer): Integer; cdecl;
-  Tmongo_disconnect = procedure (c: Pointer); cdecl;
-  Tmongo_reconnect = function (c: Pointer): Integer; cdecl; 
-  Tmongo_cmd_ismaster = function (c: Pointer; b: Pointer): Longbool; cdecl;
-  Tmongo_get_socket = function (c: Pointer): Integer; cdecl;
-  Tmongo_get_host_count = function (c: Pointer): Integer; cdecl; 
-  Tmongo_get_host = function (c: Pointer; i: Integer): PAnsiChar; cdecl; 
-  Tmongo_insert = function (c: Pointer; ns: PAnsiChar; b: Pointer; wc: Pointer): Integer; cdecl;
-  Tmongo_insert_batch = function (c: Pointer; ns: PAnsiChar; bsons: Pointer; Count: Integer; wc: Pointer; flags: Integer): Integer; cdecl; 
-  Tmongo_update = function (c: Pointer; ns: PAnsiChar; cond: Pointer; op: Pointer; flags: Integer; wc: Pointer): Integer; cdecl; 
-  Tmongo_remove = function (c: Pointer; ns: PAnsiChar; criteria: Pointer; wc: Pointer): Integer; cdecl; 
-  Tmongo_find_one = function (c: Pointer; ns: PAnsiChar; query: Pointer; fields: Pointer; Result: Pointer): Integer; cdecl;
-  Tbson_create = function : Pointer; cdecl;
-  Tbson_dispose = procedure (b: Pointer); cdecl; 
-  Tbson_copy = procedure (dest: Pointer; src: Pointer); cdecl; 
-  Tmongo_cursor_create = function : Pointer; cdecl; 
-  Tmongo_cursor_dispose = procedure (Cursor: Pointer); cdecl; 
-  Tmongo_cursor_destroy = procedure (Cursor: Pointer); cdecl; 
-  Tmongo_find = function (c: Pointer; ns: PAnsiChar; query: Pointer; fields: Pointer; limit, skip, options: Integer): Pointer; cdecl;
-  Tmongo_cursor_next = function (Cursor: Pointer): Integer; cdecl; 
-  Tmongo_cursor_bson = function (Cursor: Pointer): Pointer; cdecl; 
-  Tmongo_cmd_drop_collection = function (c: Pointer; db: PAnsiChar; collection: PAnsiChar; Result: Pointer): Integer; cdecl; 
-  Tmongo_cmd_drop_db = function (c: Pointer; db: PAnsiChar): Integer; cdecl; 
-  Tmongo_count = function (c: Pointer; db: PAnsiChar; collection: PAnsiChar; query: Pointer): Double; cdecl; 
-  Tmongo_create_index = function (c: Pointer; ns: PAnsiChar; key: Pointer; options: Integer; res: Pointer): Integer; cdecl;
-  Tmongo_cmd_add_user = function (c: Pointer; db: PAnsiChar; Name: PAnsiChar; password: PAnsiChar): Integer; cdecl; 
-  Tmongo_cmd_authenticate = function (c: Pointer; db: PAnsiChar; Name: PAnsiChar; password: PAnsiChar): Integer; cdecl; 
-  Tmongo_run_command = function (c: Pointer; db: PAnsiChar; command: Pointer; res: Pointer): Integer; cdecl; 
-  Tmongo_cmd_get_last_error = function (c: Pointer; db: PAnsiChar; res: Pointer): Integer; cdecl; 
-  Tmongo_cmd_get_prev_error = function (c: Pointer; db: PAnsiChar; res: Pointer): Integer; cdecl;
-  Tmongo_cmd_reset_error = procedure(c : Pointer; db : PAnsiChar); cdecl;
-  Tmongo_get_server_err = function (c: Pointer): Integer; cdecl;
-  Tmongo_get_server_err_string = function (c: Pointer): PAnsiChar; cdecl;
-
-var
-  HMongoDBDll : Cardinal;
-  mongo_sock_init : Tmongo_sock_init;
-  mongo_create : Tmongo_create;
-  mongo_dispose : Tmongo_dispose;
-  mongo_connect : Tmongo_connect;
-  mongo_destroy : Tmongo_destroy;
-  mongo_replset_init : Tmongo_replset_init;
-  mongo_replset_add_seed : Tmongo_replset_add_seed;
-  mongo_replset_connect : Tmongo_replset_connect;
-  mongo_is_connected : Tmongo_is_connected;
-  mongo_get_err : Tmongo_get_err;
-  mongo_set_op_timeout : Tmongo_set_op_timeout;
-  mongo_get_op_timeout : Tmongo_get_op_timeout;
-  mongo_get_primary : Tmongo_get_primary;
-  mongo_check_connection : Tmongo_check_connection;
-  mongo_disconnect : Tmongo_disconnect;
-  mongo_reconnect : Tmongo_reconnect;
-  mongo_cmd_ismaster : Tmongo_cmd_ismaster;
-  mongo_get_socket : Tmongo_get_socket;
-  mongo_get_host_count : Tmongo_get_host_count;
-  mongo_get_host : Tmongo_get_host;
-  mongo_insert : Tmongo_insert;
-  mongo_insert_batch : Tmongo_insert_batch;
-  mongo_update : Tmongo_update;
-  mongo_remove : Tmongo_remove;
-  mongo_find_one : Tmongo_find_one;
-  bson_create : Tbson_create;
-  bson_dispose : Tbson_dispose;
-  bson_copy : Tbson_copy;
-  mongo_cursor_create : Tmongo_cursor_create;
-  mongo_cursor_dispose : Tmongo_cursor_dispose;
-  mongo_cursor_destroy : Tmongo_cursor_destroy;
-  mongo_find : Tmongo_find;
-  mongo_cursor_next : Tmongo_cursor_next;
-  mongo_cursor_bson : Tmongo_cursor_bson;
-  mongo_cmd_drop_collection : Tmongo_cmd_drop_collection;
-  mongo_cmd_drop_db : Tmongo_cmd_drop_db;
-  mongo_count : Tmongo_count;
-  mongo_create_index : Tmongo_create_index;
-  mongo_cmd_add_user : Tmongo_cmd_add_user;
-  mongo_cmd_authenticate : Tmongo_cmd_authenticate;
-  mongo_run_command : Tmongo_run_command;
-  mongo_cmd_get_last_error : Tmongo_cmd_get_last_error;
-  mongo_cmd_get_prev_error : Tmongo_cmd_get_prev_error;
-  mongo_cmd_reset_error : Tmongo_cmd_reset_error;
-  mongo_get_server_err : Tmongo_get_server_err;
-  mongo_get_server_err_string : Tmongo_get_server_err_string;
-{$ELSE}
-function mongo_sock_init: Integer; cdecl; external MongoCDLL;
-function mongo_create: Pointer; cdecl; external MongoCDLL;
-procedure mongo_dispose(c: Pointer); cdecl; external MongoCDLL;
-function mongo_connect(c: Pointer; host: PAnsiChar; port: Integer): Integer; cdecl; external MongoCDLL;
-procedure mongo_destroy(c: Pointer); cdecl; external MongoCDLL;
-procedure mongo_replset_init(c: Pointer; Name: PAnsiChar); cdecl; external MongoCDLL;
-procedure mongo_replset_add_seed(c: Pointer; host: PAnsiChar; port: Integer); cdecl; external MongoCDLL;
-function mongo_replset_connect(c: Pointer): Integer; cdecl; external MongoCDLL;
-function mongo_is_connected(c: Pointer): Longbool; cdecl; external MongoCDLL;
-function mongo_get_err(c: Pointer): Integer; cdecl; external MongoCDLL;
-function mongo_set_op_timeout(c: Pointer; millis: Integer): Integer; cdecl; external MongoCDLL;
-function mongo_get_op_timeout(c: Pointer): Integer; cdecl; external MongoCDLL;
-function mongo_get_primary(c: Pointer): PAnsiChar; cdecl; external MongoCDLL;
-function mongo_check_connection(c: Pointer): Integer; cdecl; external MongoCDLL;
-procedure mongo_disconnect(c: Pointer); cdecl; external MongoCDLL;
-function mongo_reconnect(c: Pointer): Integer; cdecl; external MongoCDLL;
-function mongo_cmd_ismaster(c: Pointer; b: Pointer): Longbool; cdecl; external MongoCDLL;
-function mongo_get_socket(c: Pointer): Integer; cdecl; external MongoCDLL;
-function mongo_get_host_count(c: Pointer): Integer; cdecl; external MongoCDLL;
-function mongo_get_host(c: Pointer; i: Integer): PAnsiChar; cdecl; external MongoCDLL;
-function mongo_insert(c: Pointer; ns: PAnsiChar; b: Pointer; wc: Pointer): Integer; cdecl; external MongoCDLL;
-function mongo_insert_batch(c: Pointer; ns: PAnsiChar; bsons: Pointer; Count: Integer; wc: Pointer; flags: Integer): Integer; cdecl; external MongoCDLL;
-function mongo_update(c: Pointer; ns: PAnsiChar; cond: Pointer; op: Pointer; flags: Integer; wc: Pointer): Integer; cdecl; external MongoCDLL;
-function mongo_remove(c: Pointer; ns: PAnsiChar; criteria: Pointer; wc: Pointer): Integer; cdecl; external MongoCDLL;
-function mongo_find_one(c: Pointer; ns: PAnsiChar; query: Pointer; fields: Pointer; Result: Pointer): Integer; cdecl; external MongoCDLL;
-function bson_create: Pointer; cdecl; external MongoCDLL;
-procedure bson_dispose(b: Pointer); cdecl; external MongoCDLL;
-procedure bson_copy(dest: Pointer; src: Pointer); cdecl; external MongoCDLL;
-function mongo_cursor_create: Pointer; cdecl; external MongoCDLL;
-procedure mongo_cursor_dispose(Cursor: Pointer); cdecl; external MongoCDLL;
-procedure mongo_cursor_destroy(Cursor: Pointer); cdecl; external MongoCDLL;
-function mongo_find(c: Pointer; ns: PAnsiChar; query: Pointer; fields: Pointer; limit, skip, options: Integer): Pointer; cdecl; external MongoCDLL;
-function mongo_cursor_next(Cursor: Pointer): Integer; cdecl; external MongoCDLL;
-function mongo_cursor_bson(Cursor: Pointer): Pointer; cdecl; external MongoCDLL;
-function mongo_cmd_drop_collection(c: Pointer; db: PAnsiChar; collection: PAnsiChar; Result: Pointer): Integer; cdecl; external MongoCDLL;
-function mongo_cmd_drop_db(c: Pointer; db: PAnsiChar): Integer; cdecl; external MongoCDLL;
-function mongo_count(c: Pointer; db: PAnsiChar; collection: PAnsiChar; query: Pointer): Double; cdecl; external MongoCDLL;
-function mongo_create_index(c: Pointer; ns: PAnsiChar; key: Pointer; options: Integer; res: Pointer): Integer; cdecl; external MongoCDLL;
-function mongo_cmd_add_user(c: Pointer; db: PAnsiChar; Name: PAnsiChar; password: PAnsiChar): Integer; cdecl; external MongoCDLL;
-function mongo_cmd_authenticate(c: Pointer; db: PAnsiChar; Name: PAnsiChar; password: PAnsiChar): Integer; cdecl; external MongoCDLL;
-function mongo_run_command(c: Pointer; db: PAnsiChar; command: Pointer; res: Pointer): Integer; cdecl; external MongoCDLL;
-function mongo_cmd_get_last_error(c: Pointer; db: PAnsiChar; res: Pointer): Integer; cdecl; external MongoCDLL;
-function mongo_cmd_get_prev_error(c: Pointer; db: PAnsiChar; res: Pointer): Integer; cdecl; external MongoCDLL;
-procedure mongo_cmd_reset_error(c : Pointer; db : PAnsiChar); cdecl; external MongoCDLL;
-function mongo_get_server_err(c: Pointer): Integer; cdecl; external MongoCDLL;
-function mongo_get_server_err_string(c: Pointer): PAnsiChar; cdecl; external MongoCDLL;
-{$ENDIF}
+  Tmongo_write_concern = record
+    w : integer;
+    wtimeout : integer;
+    j : integer;
+    fsync : integer;
+    mode : PAnsiChar;
+    cmd : pointer;
+  end;
 
 procedure parseHost(const host: AnsiString; var hosturl: AnsiString; var port: Integer);
 var
@@ -613,6 +515,8 @@ type
     procedure SetQuery(const Value: IBson);
     procedure SetSkip(const Value: Integer);
     procedure SetSort(const Value: IBson);
+  protected
+    procedure DestroyCursor;
   public
     constructor Create; overload;
     constructor Create(aquery: IBson); overload;
@@ -631,6 +535,30 @@ type
     property Sort: IBson read GetSort write SetSort;
   end;
 
+  TWriteConcern = class(TInterfacedObject, IWriteConcern)
+  private
+    FMode: AnsiString;
+    FWriteConcern : Tmongo_write_concern;
+    FFinished : Boolean;
+    procedure finish;
+    function Getfsync: Integer;
+    function GetHandle: Pointer;
+    function Getj: Integer;
+    function Getmode: AnsiString;
+    function Getw: Integer;
+    function Getwtimeout: Integer;
+    function Getfinished: Boolean;
+    procedure Modified;
+    procedure Setfsync(const Value: Integer);
+    procedure Setj(const Value: Integer);
+    procedure Setmode(const Value: AnsiString);
+    procedure Setw(const Value: Integer);
+    procedure Setwtimeout(const Value: Integer);
+  public
+    constructor Create;
+    destructor Destroy; override;
+  end;
+
 { TMongo }
 
 constructor TMongo.Create;
@@ -640,23 +568,17 @@ begin
   InitMongoDBLibrary;
   {$ENDIF}
   AutoCheckLastError := True;
-  fhandle := mongo_create;
-  mongo_connect(fhandle, S127001, 27017);
+  InitMongo(S127001 + ':27017');
 end;
 
 constructor TMongo.Create(const host: AnsiString);
-var
-  hosturl: AnsiString;
-  port: Integer;
 begin
   inherited Create;
   {$IFDEF OnDemandMongoCLoad}
   InitMongoDBLibrary;
   {$ENDIF}
   AutoCheckLastError := True;
-  fhandle := mongo_create;
-  parseHost(host, hosturl, port);
-  mongo_connect(fhandle, PAnsiChar(hosturl), port);
+  InitMongo(host);
 end;
 
 destructor TMongo.Destroy;
@@ -668,9 +590,7 @@ end;
 
 constructor TMongoReplset.Create(const Name: AnsiString);
 begin
-  inherited Create;
-  fhandle := mongo_create;
-  mongo_replset_init(Handle, PAnsiChar(Name));
+  inherited Create(Name);
 end;
 
 procedure TMongoReplset.addSeed(const host: AnsiString);
@@ -739,7 +659,12 @@ var
   APrimary : PAnsiChar;
 begin
   APrimary := mongo_get_primary(fhandle);
-  Result := AnsiString(APrimary);
+  try
+    Result := AnsiString(APrimary);
+  finally
+    if APrimary <> nil then
+      bson_free(APrimary);
+  end;
 end;
 
 function TMongo.getSocket: Integer;
@@ -755,8 +680,22 @@ begin
 end;
 
 function TMongoReplset.getHost(i: Integer): AnsiString;
+var
+  AHost : PAnsiChar;
 begin
-  Result := AnsiString(mongo_get_host(Handle, i));
+  AHost := mongo_get_host(Handle, i);
+  try
+    Result := AnsiString(AHost);
+  finally
+    if AHost <> nil then
+      bson_free(AHost);
+  end;
+end;
+
+procedure TMongoReplset.InitMongo(const AHost: AnsiString);
+begin
+  fhandle := mongo_create;
+  mongo_replset_init(Handle, PAnsiChar(AHost)); // AHost contains the replicate set Name
 end;
 
 function TMongo.getDatabases: TStringArray;
@@ -848,7 +787,7 @@ var
 begin
   parseNamespace(ns, db, collection);
   if db = '' then
-    raise Exception.Create(STMongoDropExpectedAInTheNamespac);
+    raise EMongo.Create(STMongoDropExpectedAInTheNamespac);
   autoCmdResetLastError(db, False);
   Result := mongo_cmd_drop_collection(fhandle, PAnsiChar(db), PAnsiChar(collection), nil) = 0;
   autoCheckCmdLastError(db, False);
@@ -921,12 +860,12 @@ begin
       Result := NewBson(res)
     else
     begin
-      mongo_dispose(res);
+      bson_dispose(res);
       Result := nil;
     end;
     autoCheckCmdLastError(ns, True);
   except
-    mongo_dispose(res);
+    bson_dispose(res);
     raise;
   end;
 end;
@@ -943,7 +882,7 @@ var
   ch: Pointer;
 begin
   if Cursor.fields = nil then
-    Cursor.fields := NewBson(nil);
+    Cursor.fields := bsonEmpty;
   q := Cursor.query;
   if q = nil then
     q := bsonEmpty;
@@ -957,15 +896,18 @@ begin
   Cursor.conn := Self;
   autoCmdResetLastError(ns, True);
   ch := mongo_find(fhandle, PAnsiChar(ns), q.Handle, Cursor.fields.Handle, Cursor.limit, Cursor.skip, Cursor.options);
-  autoCheckCmdLastError(ns, True);
-  Cursor.FindCalled;
-  if ch <> nil then
-  begin
-    Cursor.Handle := ch;
-    Result        := true;
-  end
-  else
-    Result := false;
+  try
+    autoCheckCmdLastError(ns, True);
+    if ch <> nil then
+    begin
+      Cursor.Handle := ch;
+      Result        := true;
+    end
+    else
+      Result := false;
+  finally
+    Cursor.FindCalled;
+  end;
 end;
 
 function TMongo.Count(const ns: AnsiString; query: IBson): Double;
@@ -975,7 +917,7 @@ var
 begin
   parseNamespace(ns, db, collection);
   if db = '' then
-    raise Exception.Create(SExpectedAInTheNamespace);
+    raise EMongo.Create(SExpectedAInTheNamespace);
   autoCmdResetLastError(db, False);
   Result := mongo_count(fhandle, PAnsiChar(db), PAnsiChar(collection), query.Handle);
   autoCheckCmdLastError(db, False);
@@ -1062,7 +1004,7 @@ begin
     begin
       it := Err.iterator;
       it.Next;
-      raise Exception.Create(it.Value);
+      raise EMongo.Create(it.Value);
     end;
 end;
 
@@ -1102,6 +1044,7 @@ begin
     else
       Result := nil;
   finally
+    bson_destroy(res);
     bson_dispose(res);
   end;
 end;
@@ -1114,7 +1057,7 @@ var
 begin
   parseNamespace(ns, db, collection);
   if db = '' then
-    raise Exception.Create(SExpectedAInTheNamespace);
+    raise EMongo.Create(SExpectedAInTheNamespace);
   buf := NewBsonBuffer;
   buf.AppendStr(SDistinct, PAnsiChar(collection));
   buf.AppendStr(SKey, PAnsiChar(key));
@@ -1150,6 +1093,7 @@ begin
     else
       Result := nil;
   finally
+    bson_destroy(res);
     bson_dispose(res);
   end;
 end;
@@ -1160,7 +1104,11 @@ var
 begin
   h := bson_create;
   if mongo_cmd_get_last_error(fHandle, PAnsiChar(db), h) = 0 then
-    Result := nil
+    begin
+      bson_destroy(h);
+      bson_dispose(h);
+      Result := nil;
+    end
   else Result := NewBson(h);  
 end;
 
@@ -1192,6 +1140,7 @@ begin
     else
       Result := nil;
   finally
+    bson_destroy(res);
     bson_dispose(res);
   end;
 end;
@@ -1211,6 +1160,16 @@ begin
   Result := AnsiString(mongo_get_server_err_string(fhandle));
 end;
 
+procedure TMongo.InitMongo(const AHost: AnsiString);
+var
+  hosturl: AnsiString;
+  port: Integer;
+begin
+  fhandle := mongo_create;
+  parseHost(AHost, hosturl, port);
+  mongo_connect(fhandle, PAnsiChar(hosturl), port);
+end;
+
 procedure TMongo.parseNamespace(const ns: AnsiString; var db: AnsiString; var Collection: AnsiString);
 var
   i : integer;
@@ -1226,6 +1185,16 @@ begin
       db := '';
       Collection := ns;
     end;
+end;
+
+procedure TMongo.setWriteConcern(AWriteConcern: IWriteConcern);
+begin
+  if AWriteConcern <> nil then
+    if AWriteConcern.finished then
+      mongo_set_write_concern(FHandle, AWriteConcern.Handle)
+    else raise EMongo.Create(SCanTUseAnUnfinishedWriteConcern)
+  else mongo_set_write_concern(FHandle, nil);
+  FWriteConcern := AWriteConcern;
 end;
 
 { TMongoCursor }
@@ -1251,11 +1220,19 @@ end;
 
 destructor TMongoCursor.Destroy;
 begin
-  if Handle <> nil then
+  DestroyCursor;
+  inherited;
+end;
+
+procedure TMongoCursor.DestroyCursor;
+begin
+  if FHandle <> nil then
     begin
-      mongo_cursor_destroy(Handle);
-      if not FindCalledFlag then
-        mongo_cursor_dispose(Handle);
+      mongo_cursor_destroy (FHandle);
+      if not FFindCalledFlag then
+        mongo_cursor_dispose (FHandle);
+      FHandle := nil;
+      FFindCalledFlag := False;
     end;
 end;
 
@@ -1333,6 +1310,8 @@ end;
 
 procedure TMongoCursor.SetHandle(const Value: Pointer);
 begin
+  if FHandle <> nil then
+    DestroyCursor;
   FHandle := Value;
 end;
 
@@ -1387,87 +1366,100 @@ begin
   Result := TMongoCursor.Create(query);
 end;
 
-{$IFDEF OnDemandMongoCLoad}
-procedure InitMongoDBLibrary;
-  function GetProcAddress(h : Cardinal; const FnName : AnsiString) : Pointer;
-  begin
-    Result := Windows.GetProcAddress(h, PAnsiChar(FnName));
-    if Result = nil then
-      raise Exception.CreateFmt(SFunctionNotFoundOnMongoCLibrary, [FnName]);
-  end;
+function NewWriteConcern: IWriteConcern;
 begin
-  if HMongoDBDll <> 0 then
-    exit;
-  HMongoDBDll := LoadLibrary(MongoCDLL);
-  if HMongoDBDll = 0 then
-    raise Exception.Create(SFailedLoadingMongocDll);
-  mongo_sock_init := GetProcAddress(HMongoDBDll, 'mongo_sock_init');
-  mongo_create := GetProcAddress(HMongoDBDll, 'mongo_create');
-  mongo_dispose := GetProcAddress(HMongoDBDll, 'mongo_dispose');
-  mongo_connect := GetProcAddress(HMongoDBDll, 'mongo_connect');
-  mongo_destroy := GetProcAddress(HMongoDBDll, 'mongo_destroy');
-  mongo_replset_init := GetProcAddress(HMongoDBDll, 'mongo_replset_init');
-  mongo_replset_add_seed := GetProcAddress(HMongoDBDll, 'mongo_replset_add_seed');
-  mongo_replset_connect := GetProcAddress(HMongoDBDll, 'mongo_replset_connect');
-  mongo_is_connected := GetProcAddress(HMongoDBDll, 'mongo_is_connected');
-  mongo_get_err := GetProcAddress(HMongoDBDll, 'mongo_get_err');
-  mongo_set_op_timeout := GetProcAddress(HMongoDBDll, 'mongo_set_op_timeout');
-  mongo_get_op_timeout := GetProcAddress(HMongoDBDll, 'mongo_get_op_timeout');
-  mongo_get_primary := GetProcAddress(HMongoDBDll, 'mongo_get_primary');
-  mongo_check_connection := GetProcAddress(HMongoDBDll, 'mongo_check_connection');
-  mongo_disconnect := GetProcAddress(HMongoDBDll, 'mongo_disconnect');
-  mongo_reconnect := GetProcAddress(HMongoDBDll, 'mongo_reconnect');
-  mongo_cmd_ismaster := GetProcAddress(HMongoDBDll, 'mongo_cmd_ismaster');
-  mongo_get_socket := GetProcAddress(HMongoDBDll, 'mongo_get_socket');
-  mongo_get_host_count := GetProcAddress(HMongoDBDll, 'mongo_get_host_count');
-  mongo_get_host := GetProcAddress(HMongoDBDll, 'mongo_get_host');
-  mongo_insert := GetProcAddress(HMongoDBDll, 'mongo_insert');
-  mongo_insert_batch := GetProcAddress(HMongoDBDll, 'mongo_insert_batch');
-  mongo_update := GetProcAddress(HMongoDBDll, 'mongo_update');
-  mongo_remove := GetProcAddress(HMongoDBDll, 'mongo_remove');
-  mongo_find_one := GetProcAddress(HMongoDBDll, 'mongo_find_one');
-  bson_create := GetProcAddress(HMongoDBDll, 'bson_create');
-  bson_dispose := GetProcAddress(HMongoDBDll, 'bson_dispose');
-  bson_copy := GetProcAddress(HMongoDBDll, 'bson_copy');
-  mongo_cursor_create := GetProcAddress(HMongoDBDll, 'mongo_cursor_create');
-  mongo_cursor_dispose := GetProcAddress(HMongoDBDll, 'mongo_cursor_dispose');
-  mongo_cursor_destroy := GetProcAddress(HMongoDBDll, 'mongo_cursor_destroy');
-  mongo_find := GetProcAddress(HMongoDBDll, 'mongo_find');
-  mongo_cursor_next := GetProcAddress(HMongoDBDll, 'mongo_cursor_next');
-  mongo_cursor_bson := GetProcAddress(HMongoDBDll, 'mongo_cursor_bson');
-  mongo_cmd_drop_collection := GetProcAddress(HMongoDBDll, 'mongo_cmd_drop_collection');
-  mongo_cmd_drop_db := GetProcAddress(HMongoDBDll, 'mongo_cmd_drop_db');
-  mongo_count := GetProcAddress(HMongoDBDll, 'mongo_count');
-  mongo_create_index := GetProcAddress(HMongoDBDll, 'mongo_create_index');
-  mongo_cmd_add_user := GetProcAddress(HMongoDBDll, 'mongo_cmd_add_user');
-  mongo_cmd_authenticate := GetProcAddress(HMongoDBDll, 'mongo_cmd_authenticate');
-  mongo_run_command := GetProcAddress(HMongoDBDll, 'mongo_run_command');
-  mongo_cmd_get_last_error := GetProcAddress(HMongoDBDll, 'mongo_cmd_get_last_error');
-  mongo_cmd_get_prev_error := GetProcAddress(HMongoDBDll, 'mongo_cmd_get_prev_error');
-  mongo_cmd_reset_error := GetProcAddress(HMongoDBDll, 'mongo_cmd_reset_error');
-  mongo_get_server_err := GetProcAddress(HMongoDBDll, 'mongo_get_server_err');
-  mongo_get_server_err_string := GetProcAddress(HMongoDBDll, 'mongo_get_server_err_string');
-  mongo_sock_init;
+  Result := TWriteConcern.Create;
 end;
 
-procedure DoneMongoDBLibrary;
+constructor TWriteConcern.Create;
 begin
-  if HMongoDBDll <> 0 then
-    begin
-      FreeLibrary(HMongoDBDll);
-      HMongoDBDll := 0;
-    end;
+  inherited Create;
+  mongo_write_concern_init(@FWriteConcern);
 end;
-{$ENDIF}
 
-initialization
-  {$IFNDEF OnDemandMongoCLoad}
-  mongo_sock_init;
-  {$ENDIF}
-finalization
-  {$IFDEF OnDemandMongoCLoad}
-  DoneMongoDBLibrary;
-  {$ENDIF}
+destructor TWriteConcern.Destroy;
+begin
+  mongo_write_concern_destroy(@FWriteConcern);
+  inherited;
+end;
+
+procedure TWriteConcern.finish;
+begin
+  mongo_write_concern_finish(@FWriteConcern);
+  FFinished := True;
+end;
+
+function TWriteConcern.Getfinished: Boolean;
+begin
+  Result := FFinished;
+end;
+
+function TWriteConcern.Getfsync: Integer;
+begin
+  Result := FWriteConcern.fsync;
+end;
+
+function TWriteConcern.GetHandle: Pointer;
+begin
+  Result := @FWriteConcern;
+end;
+
+function TWriteConcern.Getj: Integer;
+begin
+  Result := FWriteConcern.j;
+end;
+
+function TWriteConcern.Getmode: AnsiString;
+begin
+  Result := AnsiString(FWriteConcern.mode);
+end;
+
+function TWriteConcern.Getw: Integer;
+begin
+  Result := FWriteConcern.w;
+end;
+
+function TWriteConcern.Getwtimeout: Integer;
+begin
+  Result := FWriteConcern.wtimeout;
+end;
+
+procedure TWriteConcern.Modified;
+begin
+  FFinished := False;
+end;
+
+procedure TWriteConcern.Setfsync(const Value: Integer);
+begin
+  FWriteConcern.fsync := Value;
+  Modified;
+end;
+
+procedure TWriteConcern.Setj(const Value: Integer);
+begin
+  FWriteConcern.j := Value;
+  Modified;
+end;
+
+procedure TWriteConcern.Setmode(const Value: AnsiString);
+begin
+  FMode := Value;
+  FWriteConcern.mode := PAnsiChar(FMode);
+  Modified;
+end;
+
+procedure TWriteConcern.Setw(const Value: Integer);
+begin
+  FWriteConcern.w := Value;
+  Modified;
+end;
+
+procedure TWriteConcern.Setwtimeout(const Value: Integer);
+begin
+  FWriteConcern.wtimeout := Value;
+  Modified;
+end;
+
 end.
 
 

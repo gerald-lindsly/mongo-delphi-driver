@@ -24,7 +24,7 @@ uses
   TestMongoBson in 'TestMongoBson.pas',
   MongoBson in '..\..\MongoBson.pas',
   TestGridFS in 'TestGridFS.pas',
-  TestCnvStreamMongoDBProvider,
+  TestMongoStream,
   GridFS in '..\..\GridFS.pas';
 
 {$R *.RES}

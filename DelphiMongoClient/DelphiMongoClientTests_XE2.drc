@@ -8,44 +8,49 @@
   resources were bound to the produced executable.
 */
 
-#define MongoBson_SNilBSON 65120
-#define MongoBson_SBSONUnexpected 65121
-#define MongoBson_SBSONExpectedValueFor 65122
-#define MongoBson_SBSONOpenSubobject 65123
-#define MongoDB_STMongoDropExpectedAInTheNamespac 65124
-#define MongoDB_SExpectedAInTheNamespace 65125
-#define MongoBson_SDatatypeNotSupported 65136
-#define MongoBson_SExpectedA24DigitHexString 65137
-#define MongoBson_SBsonType 65138
-#define MongoBson_SNotSupportedByTBsonIteratorValue 65139
-#define MongoBson_SIteratorDoesNotPointToAnArray 65140
-#define MongoBson_SArrayComponentIsNotAnInteger 65141
-#define MongoBson_SArrayComponentIsNotADouble 65142
-#define MongoBson_SArrayComponentIsNotAString 65143
-#define MongoBson_SArrayComponentIsNotABoolean 65144
-#define MongoBson_SBsonBufferAlreadyFinished 65145
-#define MongoBson_STBsonAppendVariantTypeNotSupport 65146
-#define MongoBson_SUNDEFINED 65147
-#define MongoBson_SNULL 65148
-#define MongoBson_SCODEWSCOPE 65149
-#define MongoBson_SBINARY 65150
-#define MongoBson_SUNKNOWN 65151
-#define DUnitConsts_sNoChecksExecuted 65152
-#define DUnitConsts_sExceptionUnexpected 65153
-#define DUnitConsts_sPrintError 65154
-#define DUnitConsts_sPrintErrors 65155
-#define DUnitConsts_sFailedTestDetails 65156
-#define DUnitConsts_sPrintFailure 65157
-#define DUnitConsts_sPrintFailures 65158
-#define DUnitConsts_sTestResultsOk 65159
-#define DUnitConsts_sTestResultsFailures 65160
-#define DUnitConsts_sTestResults 65161
-#define DUnitConsts_sRunCount 65162
-#define DUnitConsts_sFailureCount 65163
-#define DUnitConsts_sErrorsCount 65164
-#define DUnitConsts_sDUnitTesting 65165
-#define DUnitConsts_sDecodeTime 65166
-#define DUnitConsts_sPressReturn 65167
+#define MongoBson_SCODEWSCOPE 65120
+#define MongoBson_SBINARY 65121
+#define MongoBson_SUNKNOWN 65122
+#define MongoBson_SNilBSON 65123
+#define MongoBson_SBSONUnexpected 65124
+#define MongoBson_SBSONExpectedValueFor 65125
+#define MongoBson_SBSONOpenSubobject 65126
+#define MongoDB_SCanTUseAnUnfinishedWriteConcern 65127
+#define MongoDB_STMongoDropExpectedAInTheNamespac 65128
+#define MongoDB_SExpectedAInTheNamespace 65129
+#define GridFS_SUnableToCreateGridFS 65130
+#define DUnitConsts_sDUnitTesting 65136
+#define DUnitConsts_sDecodeTime 65137
+#define DUnitConsts_sPressReturn 65138
+#define MongoBson_SDatatypeNotSupported 65139
+#define MongoBson_SExpectedA24DigitHexString 65140
+#define MongoBson_SBsonType 65141
+#define MongoBson_SNotSupportedByTBsonIteratorValue 65142
+#define MongoBson_SIteratorDoesNotPointToAnArray 65143
+#define MongoBson_SArrayComponentIsNotAnInteger 65144
+#define MongoBson_SArrayComponentIsNotADouble 65145
+#define MongoBson_SArrayComponentIsNotAString 65146
+#define MongoBson_SArrayComponentIsNotABoolean 65147
+#define MongoBson_SBsonBufferAlreadyFinished 65148
+#define MongoBson_STBsonAppendVariantTypeNotSupport 65149
+#define MongoBson_SUNDEFINED 65150
+#define MongoBson_SNULL 65151
+#define DUnitConsts_sExceptionNothig 65152
+#define DUnitConsts_sAllowLeakArrayValues 65153
+#define DUnitConsts_sNoChecksExecuted 65154
+#define DUnitConsts_sExceptionUnexpected 65155
+#define DUnitConsts_sMethodNotFound 65156
+#define DUnitConsts_sPrintError 65157
+#define DUnitConsts_sPrintErrors 65158
+#define DUnitConsts_sFailedTestDetails 65159
+#define DUnitConsts_sPrintFailure 65160
+#define DUnitConsts_sPrintFailures 65161
+#define DUnitConsts_sTestResultsOk 65162
+#define DUnitConsts_sTestResultsFailures 65163
+#define DUnitConsts_sTestResults 65164
+#define DUnitConsts_sRunCount 65165
+#define DUnitConsts_sFailureCount 65166
+#define DUnitConsts_sErrorsCount 65167
 #define Vcl_ComStrs_sRichEditInsertError 65168
 #define Vcl_ComStrs_sRichEditLoadFail 65169
 #define Vcl_ComStrs_sRichEditSaveFail 65170
@@ -54,14 +59,14 @@
 #define DUnitConsts_sPopupPrevious 65173
 #define DUnitConsts_sPopupRun 65174
 #define DUnitConsts_sPopupNext 65175
-#define DUnitConsts_sFailedSetup 65176
-#define DUnitConsts_sFailedTearDown 65177
-#define DUnitConsts_sTests 65178
-#define DUnitConsts_sIdenticalContent 65179
-#define DUnitConsts_sExpectedException 65180
-#define DUnitConsts_sEmptyTest 65181
-#define DUnitConsts_sExceptionNothig 65182
-#define DUnitConsts_sAllowLeakArrayValues 65183
+#define DUnitConsts_sNilListener 65176
+#define DUnitConsts_sFailedSetup 65177
+#define DUnitConsts_sFailedTearDown 65178
+#define DUnitConsts_sNonNilTestResult 65179
+#define DUnitConsts_sTests 65180
+#define DUnitConsts_sIdenticalContent 65181
+#define DUnitConsts_sExpectedException 65182
+#define DUnitConsts_sEmptyTest 65183
 #define Vcl_Consts_SStyleClassNotFound 65184
 #define Vcl_Consts_SStyleInvalidHandle 65185
 #define Vcl_Consts_SStyleFormatError 65186
@@ -416,12 +421,20 @@
 #define System_SysConst_SInvalidOp 65535
 STRINGTABLE
 BEGIN
+	MongoBson_SCODEWSCOPE,	L"CODEWSCOPE "
+	MongoBson_SBINARY,	L"BINARY ("
+	MongoBson_SUNKNOWN,	L"UNKNOWN"
 	MongoBson_SNilBSON,	L"nil BSON"
 	MongoBson_SBSONUnexpected,	L"BSON(): unexpected \"}\""
 	MongoBson_SBSONExpectedValueFor,	L"BSON(): expected value for "
 	MongoBson_SBSONOpenSubobject,	L"BSON: open subobject"
+	MongoDB_SCanTUseAnUnfinishedWriteConcern,	L"Can't use an unfinished WriteConcern"
 	MongoDB_STMongoDropExpectedAInTheNamespac,	L"TMongo.drop: expected a '.' in the namespace."
 	MongoDB_SExpectedAInTheNamespace,	L"Expected a '.' in the namespace"
+	GridFS_SUnableToCreateGridFS,	L"Unable to create GridFS"
+	DUnitConsts_sDUnitTesting,	L"DUnit / Testing"
+	DUnitConsts_sDecodeTime,	L"Time: %d:%2.2d:%2.2d.%d"
+	DUnitConsts_sPressReturn,	L"Press <RETURN> to continue."
 	MongoBson_SDatatypeNotSupported,	L"Datatype not supported calling IterateAndFillArray"
 	MongoBson_SExpectedA24DigitHexString,	L"Expected a 24 digit hex string"
 	MongoBson_SBsonType,	L"BsonType ("
@@ -435,11 +448,11 @@ BEGIN
 	MongoBson_STBsonAppendVariantTypeNotSupport,	L"TBson.append(variant): type not supported ("
 	MongoBson_SUNDEFINED,	L"UNDEFINED"
 	MongoBson_SNULL,	L"NULL"
-	MongoBson_SCODEWSCOPE,	L"CODEWSCOPE "
-	MongoBson_SBINARY,	L"BINARY ("
-	MongoBson_SUNKNOWN,	L"UNKNOWN"
+	DUnitConsts_sExceptionNothig,	L"nothing"
+	DUnitConsts_sAllowLeakArrayValues,	L"Too many values in for AllowedLeakArray. Limit = "
 	DUnitConsts_sNoChecksExecuted,	L"No checks executed in TestCase"
 	DUnitConsts_sExceptionUnexpected,	L"unexpected exception"
+	DUnitConsts_sMethodNotFound,	L"Method not found: \""
 	DUnitConsts_sPrintError,	L"There was %d error:"
 	DUnitConsts_sPrintErrors,	L"There were %d errors:"
 	DUnitConsts_sFailedTestDetails,	L"%3d) %s: %s\r\n     at %s\r\n      \"%s\""
@@ -451,9 +464,6 @@ BEGIN
 	DUnitConsts_sRunCount,	L"Run:      %8d"
 	DUnitConsts_sFailureCount,	L"Failures: %8d"
 	DUnitConsts_sErrorsCount,	L"Errors:   %8d"
-	DUnitConsts_sDUnitTesting,	L"DUnit / Testing"
-	DUnitConsts_sDecodeTime,	L"Time: %d:%2.2d:%2.2d.%d"
-	DUnitConsts_sPressReturn,	L"Press <RETURN> to continue."
 	Vcl_ComStrs_sRichEditInsertError,	L"RichEdit line insertion error"
 	Vcl_ComStrs_sRichEditLoadFail,	L"Failed to Load Stream"
 	Vcl_ComStrs_sRichEditSaveFail,	L"Failed to Save Stream"
@@ -462,14 +472,14 @@ BEGIN
 	DUnitConsts_sPopupPrevious,	L" Previous"
 	DUnitConsts_sPopupRun,	L" Run Selected Test"
 	DUnitConsts_sPopupNext,	L" Next"
+	DUnitConsts_sNilListener,	L"listener is nil"
 	DUnitConsts_sFailedSetup,	L"SetUp FAILED: "
 	DUnitConsts_sFailedTearDown,	L"TearDown FAILED: "
+	DUnitConsts_sNonNilTestResult,	L"Expected non nil TestResult"
 	DUnitConsts_sTests,	L"Tests"
 	DUnitConsts_sIdenticalContent,	L"Memory content was identical:"
 	DUnitConsts_sExpectedException,	L"Expected exception \"%s\" but there was none. %s"
 	DUnitConsts_sEmptyTest,	L"Empty test"
-	DUnitConsts_sExceptionNothig,	L"nothing"
-	DUnitConsts_sAllowLeakArrayValues,	L"Too many values in for AllowedLeakArray. Limit = "
 	Vcl_Consts_SStyleClassNotFound,	L"Style class '%s' not found"
 	Vcl_Consts_SStyleInvalidHandle,	L"Invalid style handle"
 	Vcl_Consts_SStyleFormatError,	L"Invalid style format"
@@ -826,7 +836,7 @@ END
 
 /* c:\program files (x86)\embarcadero\rad studio\9.0\lib\Win64\release\Controls.res */
 /* c:\program files (x86)\embarcadero\rad studio\9.0\lib\Win64\release\Buttons.res */
-/* c:\program files (x86)\embarcadero\rad studio\9.0\lib\Win64\release\GUITestRunner.DFM */
+/* c:\program files (x86)\embarcadero\rad studio\9.0\Source\DUnit\src\GUITestRunner.DFM */
 /* c:\program files (x86)\embarcadero\rad studio\9.0\lib\Win64\release\FileCtrl.res */
 /* X:\Lib\D5\Tests\DelphiMongoClient\DelphiMongoClientTests_XE2.RES */
 /* X:\Lib\D5\Tests\DelphiMongoClient\DelphiMongoClientTests_XE2.drf */

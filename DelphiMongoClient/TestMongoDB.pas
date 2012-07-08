@@ -29,7 +29,16 @@ type
     property ErrorStr: String read FErrorStr write FErrorStr;
   end;
 
-  TestTMongo = class(TTestCase)
+  TestMongoBase = class(TTestCase)
+  protected
+    FMongo: TMongo;
+    function CreateMongo: TMongo; virtual;
+    procedure SetUp; override;
+    procedure TearDown; override;
+  public
+  end;
+
+  TestTMongo = class(TestMongoBase)
   private
     test_db_created: Boolean;
     procedure Create_test_db;
@@ -38,8 +47,6 @@ type
     procedure InsertAndCheckBson(ID: Integer; const AValue: string);
     procedure RemoveTest_user;
   protected
-    FMongo: TMongo;
-    function CreateMongo: TMongo; virtual;
     function GetExpectedPrimary: String; virtual;
   public
     procedure SetUp; override;
@@ -87,6 +94,8 @@ type
     procedure TestgetServerErr;
     procedure TestgetServerErrString;
     procedure TestFourThreads;
+    procedure TestUseWriteConcern;
+    procedure TestTryToUseUnfinishedWriteConcern;
   end;
   // Test methods for class TMongoReplset
   
@@ -107,6 +116,7 @@ type
   private
     FIMongoCursor: IMongoCursor;
     FMongo: TMongoReplset;
+    FMongoSecondary : TMongo;
   protected
     procedure DeleteSampleData;
     procedure SetupData;
@@ -233,15 +243,15 @@ begin
     begin
       DeleteEntireDir(ExtractFilePath(ParamStr(0)) + '\MongoDataReplica_1');
       ForceDirectories(ExtractFilePath(ParamStr(0)) + '\MongoDataReplica_1');
-      StartMongoDB('--dbpath ' + ExtractFilePath(ParamStr(0)) + '\MongoDataReplica_1 --smallfiles --noprealloc --port 27018 --replSet foo');
+      StartMongoDB('--dbpath ' + ExtractFilePath(ParamStr(0)) + '\MongoDataReplica_1 --smallfiles --noprealloc --journalCommitInterval 5 --port 27018 --replSet foo');
 
       DeleteEntireDir(ExtractFilePath(ParamStr(0)) + '\MongoDataReplica_2');
       ForceDirectories(ExtractFilePath(ParamStr(0)) + '\MongoDataReplica_2');
-      StartMongoDB('--dbpath ' + ExtractFilePath(ParamStr(0)) + '\MongoDataReplica_2 --smallfiles --noprealloc --port 27019 --replSet foo');
+      StartMongoDB('--dbpath ' + ExtractFilePath(ParamStr(0)) + '\MongoDataReplica_2 --smallfiles --noprealloc --journalCommitInterval 5 --port 27019 --replSet foo');
 
       DeleteEntireDir(ExtractFilePath(ParamStr(0)) + '\MongoDataReplica_3');
       ForceDirectories(ExtractFilePath(ParamStr(0)) + '\MongoDataReplica_3');
-      StartMongoDB('--dbpath ' + ExtractFilePath(ParamStr(0)) + '\MongoDataReplica_3 --smallfiles --noprealloc --port 27020 --replSet foo');
+      StartMongoDB('--dbpath ' + ExtractFilePath(ParamStr(0)) + '\MongoDataReplica_3 --smallfiles --noprealloc --journalCommitInterval 5 --port 27020 --replSet foo');
 
       with TMongo.Create('127.0.0.1:27018') do
         try
@@ -279,10 +289,34 @@ begin
     Sleep(200); // Need to sleep between calls to give time to first KillProcess call to succeed
 end;
 
-function TestTMongo.CreateMongo: TMongo;
+{ TestMongoBase }
+
+function TestMongoBase.CreateMongo: TMongo;
 begin
   Result := TMongo.Create;
 end;
+
+procedure TestMongoBase.SetUp;
+begin
+  inherited;
+  if not MongoStarted then
+    begin
+      DeleteEntireDir(ExtractFilePath(ParamStr(0)) + '\MongoData');
+      ForceDirectories(ExtractFilePath(ParamStr(0)) + '\MongoData');
+      StartMongoDB('--dbpath ' + ExtractFilePath(ParamStr(0)) + '\MongoData --smallfiles --noprealloc --journalCommitInterval 5');
+      MongoStarted := True;
+    end;
+  FMongo := CreateMongo;
+end;
+
+procedure TestMongoBase.TearDown;
+begin
+  FMongo.Free;
+  FMongo := nil;
+  inherited;
+end;
+
+{ TestTMongo }
 
 procedure TestTMongo.Create_test_db;
 var
@@ -351,23 +385,15 @@ end;
 
 procedure TestTMongo.SetUp;
 begin
-  if not MongoStarted then
-    begin
-      DeleteEntireDir(ExtractFilePath(ParamStr(0)) + '\MongoData');
-      ForceDirectories(ExtractFilePath(ParamStr(0)) + '\MongoData');
-      StartMongoDB('--dbpath ' + ExtractFilePath(ParamStr(0)) + '\MongoData --smallfiles --noprealloc');
-      MongoStarted := True;
-    end;
-  FMongo := CreateMongo;
   test_db_created := False;
+  inherited;
 end;
 
 procedure TestTMongo.TearDown;
 begin
   FMongo.drop('test_db.test_thread');
   FMongo.dropDatabase('test_db');
-  FMongo.Free;
-  FMongo := nil;
+  inherited;
 end;
 
 procedure TestTMongo.TestisConnected;
@@ -901,6 +927,34 @@ begin
   end;
 end;
 
+procedure TestTMongo.TestUseWriteConcern;
+var
+  wc : IWriteConcern;
+begin
+  Create_test_db;
+  wc := NewWriteConcern;
+  wc.j := 1;
+  wc.finish;
+  FMongo.setWriteConcern(wc);
+  InsertAndCheckBson(1, 'Value1');
+  FMongo.setWriteConcern(nil);
+  InsertAndCheckBson(2, 'Value2');
+end;
+
+procedure TestTMongo.TestTryToUseUnfinishedWriteConcern;
+var
+  wc : IWriteConcern;
+begin
+  wc := NewWriteConcern;
+  wc.j := 1;
+  try
+    FMongo.setWriteConcern(wc);
+    Fail('Should have failed with error that tried to use unfinished writeconcern');
+  except
+    on E : EMongo do Check(pos('unfinished', E.Message) > 0, 'Exception expected should be that tried to use unfinished writeconcern');
+  end;
+end;
+
 { TestTMongoReplset }
 
 function TestTMongoReplset.CreateMongo: TMongo;
@@ -998,6 +1052,9 @@ begin
   FIMongoCursor := nil;
   FMongo.dropDatabase('test_db');
   FMongo.Free;
+  if FMongoSecondary <> nil then
+    FreeAndNil(FMongoSecondary);
+  inherited;
 end;
 
 procedure TestIMongoCursor.TestGetConn;
@@ -1130,23 +1187,20 @@ begin
 end;
 
 procedure TestIMongoCursor.TestSetOptions;
-var
-  FMongoSecondary : TMongo;
 begin
   FMongoSecondary := TMongo.Create('127.0.0.1:27019');
+  SetupData;
   try
-    SetupData;
-    try
-      FMongoSecondary.find(SampleDataDB, FIMongoCursor);
-      Fail('Call to FMongoSecondary.Find should error out and it didn''t because no option to read from Secondary was set');
-    except
-      on E : Exception do Check(pos('not master', E.Message) > 0, 'Call should have errored our because Secondary option was not set');
-    end;
-    FIMongoCursor.Options := cursorSlaveOk;
-    Check(FMongoSecondary.find(SampleDataDB, FIMongoCursor), 'Call to FMongoSecondary.Find should return True');
-  finally
-    FMongoSecondary.Free;
+    FMongoSecondary.find(SampleDataDB, FIMongoCursor);
+    Fail('Call to FMongoSecondary.Find should error out and it didn''t because no option to read from Secondary was set');
+  except
+    on E : Exception do Check(pos('not master', E.Message) > 0, 'Call should have errored our because Secondary option was not set');
   end;
+  FIMongoCursor := nil;
+  FIMongoCursor := NewMongoCursor;
+  FIMongoCursor.Options := cursorSlaveOk;
+  Check(FMongoSecondary.find(SampleDataDB, FIMongoCursor), 'Call to FMongoSecondary.Find should return True');
+  FIMongoCursor := nil;
 end;
 
 procedure TestIMongoCursor.TestSetQuery;

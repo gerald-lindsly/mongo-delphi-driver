@@ -166,7 +166,7 @@ type
 implementation
 
 uses
-  Classes, Variants;
+  Classes, Variants, MongoAPI;
 
 const
   DELTA_DATE = 0.00009999;
@@ -179,6 +179,7 @@ end;
 procedure TestIBsonOID.TearDown;
 begin
   FIBsonOID := nil;
+  inherited;
 end;
 
 procedure TestIBsonOID.TestSetValueAndGetValue;
@@ -216,6 +217,7 @@ end;
 procedure TestIBsonCodeWScope.TearDown;
 begin
   FIBsonCodeWScope := nil;
+  inherited;
 end;
 
 procedure TestIBsonCodeWScope.TestsetAndGetCode;
@@ -246,6 +248,7 @@ end;
 procedure TestIBsonRegex.TearDown;
 begin
   FIBsonRegex := nil;
+  inherited;
 end;
 
 procedure TestIBsonRegex.TestgetAndsetPattern;
@@ -279,6 +282,7 @@ end;
 procedure TestIBsonTimestamp.TearDown;
 begin
   FIBsonTimestamp := nil;
+  inherited;
 end;
 
 procedure TestIBsonTimestamp.TestsetAndGetTime;
@@ -315,6 +319,7 @@ end;
 procedure TestIBsonBinary.TearDown;
 begin
   FIBsonBinary := nil;
+  inherited;
 end;
 
 procedure TestIBsonBinary.TestgetLen;
@@ -365,6 +370,7 @@ end;
 procedure TestIBsonBuffer.TearDown;
 begin
   FIBsonBuffer := nil;
+  inherited;
 end;
 
 procedure TestIBsonBuffer.TestAppendStr;
@@ -853,6 +859,11 @@ procedure TestIBsonIterator.TearDown;
 begin
   FIBsonIterator := nil;
   b := nil;
+  bb := nil;
+  BsonOID := nil;
+  BsonRegEx := nil;
+  FTimestamp := nil;
+  inherited;
 end;
 
 procedure TestIBsonIterator.TestGetAsInt64;
@@ -1040,6 +1051,7 @@ end;
 procedure TestIBson.TearDown;
 begin
   FIBson := nil;
+  inherited;
 end;
 
 procedure TestIBson.Testfind;
