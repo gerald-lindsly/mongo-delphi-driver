@@ -25,16 +25,16 @@ type
     FGridFS: TGridFS;
     procedure CreateTestFile;
     procedure SetUp; override;
-    function StandardRemoteFileName: string;
-    function StandardTestFileName: String;
+    function StandardRemoteFileName: AnsiString;
+    function StandardTestFileName: AnsiString;
     procedure TearDown; override;
   end;
 
   TestTGridFS = class(TestGridFSBase)
   protected
-    procedure CheckFileExistance(const FileName: string; ExpectedResult: Boolean =
+    procedure CheckFileExistance(const FileName: AnsiString; ExpectedResult: Boolean =
         True);
-    procedure PrepareParamsForStore(var Len: Int64; var FileName: String; var p:
+    procedure PrepareParamsForStore(var Len: Int64; var FileName: AnsiString; var p:
         Pointer);
   published
     procedure TeststoreFile;
@@ -120,12 +120,12 @@ begin
   FGridFS := TGridFS.Create(FMongo, FSDB);
 end;
 
-function TestGridFSBase.StandardRemoteFileName: string;
+function TestGridFSBase.StandardRemoteFileName: AnsiString;
 begin
   Result := PREFIXREMOTE + TESTFILE;
 end;
 
-function TestGridFSBase.StandardTestFileName: String;
+function TestGridFSBase.StandardTestFileName: AnsiString;
 begin
   Result := basepath + TESTFILE;
 end;
@@ -141,10 +141,10 @@ begin
   inherited;
 end;
 
-procedure TestTGridFS.CheckFileExistance(const FileName: string;
+procedure TestTGridFS.CheckFileExistance(const FileName: AnsiString;
     ExpectedResult: Boolean = True);
 const
-  MsgPrefix : array [False..True] of String[3] = ('not', '');
+  MsgPrefix : array [False..True] of AnsiString = ('not', '');
 var
   gf : IGridFile;
 begin
@@ -154,7 +154,7 @@ begin
 end;
 
 procedure TestTGridFS.PrepareParamsForStore(var Len: Int64; var FileName:
-    String; var p: Pointer);
+    AnsiString; var p: Pointer);
 begin
   Len := length(FILEDATA);
   FileName := StandardTestFileName;
@@ -164,7 +164,7 @@ end;
 procedure TestTGridFS.TeststoreFile;
 var
   ReturnValue: Boolean;
-  FileName: string;
+  FileName: AnsiString;
 begin
   CreateTestFile;
   FileName := StandardTestFileName;
@@ -176,8 +176,8 @@ end;
 procedure TestTGridFS.TeststoreFileWithRemoteName;
 var
   ReturnValue: Boolean;
-  remoteName: string;
-  FileName: string;
+  remoteName: AnsiString;
+  FileName: AnsiString;
 begin
   CreateTestFile;
   FileName := StandardTestFileName;
@@ -190,9 +190,9 @@ end;
 procedure TestTGridFS.TeststoreFileWithRemoteNameAndContentType;
 var
   ReturnValue: Boolean;
-  contentType: string;
-  remoteName: string;
-  FileName: string;
+  contentType: AnsiString;
+  remoteName: AnsiString;
+  FileName: AnsiString;
 begin
   CreateTestFile;
   FileName := StandardTestFileName;
@@ -205,7 +205,7 @@ end;
 
 procedure TestTGridFS.TestremoveFile;
 var
-  FileName: string;
+  FileName: AnsiString;
 begin
   CreateTestFile;
   FileName := StandardTestFileName;
@@ -218,7 +218,7 @@ end;
 procedure TestTGridFS.Teststore;
 var
   ReturnValue: Boolean;
-  FileName: string;
+  FileName: AnsiString;
   Len: Int64;
   p: Pointer;
 begin
@@ -231,7 +231,7 @@ end;
 procedure TestTGridFS.TeststoreWithContentType;
 var
   ReturnValue: Boolean;
-  FileName, contentType: string;
+  FileName, contentType: AnsiString;
   Len: Int64;
   p: Pointer;
 begin
@@ -245,7 +245,7 @@ end;
 procedure TestTGridFS.TestwriterCreate;
 var
   ReturnValue: IGridfileWriter;
-  FileName: string;
+  FileName: AnsiString;
 begin
   FileName := StandardTestFileName;
   ReturnValue := FGridFS.writerCreate(FileName);
@@ -255,8 +255,8 @@ end;
 procedure TestTGridFS.TestwriterCreateWithContentType;
 var
   ReturnValue: IGridfileWriter;
-  contentType: string;
-  FileName: string;
+  contentType: AnsiString;
+  FileName: AnsiString;
 begin
   contentType := '';
   FileName := StandardTestFileName;
@@ -267,7 +267,7 @@ end;
 procedure TestTGridFS.Testfind;
 var
   ReturnValue: IGridfile;
-  FileName: string;
+  FileName: AnsiString;
 begin
   FileName := StandardTestFileName;
   ReturnValue := FGridFS.find(FileName, False);
@@ -282,7 +282,7 @@ procedure TestTGridFS.TestfindUsingBsonQuery;
 var
   ReturnValue: IGridfile;
   query: IBson;
-  FileName : string;
+  FileName : AnsiString;
 begin
   query := BSON(['filename', StandardTestFileName]);
   ReturnValue := FGridFS.find(query, False);
@@ -328,7 +328,7 @@ end;
 
 procedure TestTGridfile.TestgetFilename;
 var
-  ReturnValue: string;
+  ReturnValue: AnsiString;
 begin
   ReturnValue := FGridfile.getFilename;
   CheckEqualsString(StandardTestFileName, ReturnValue, 'Filename of stored file didn''t match');
@@ -352,7 +352,7 @@ end;
 
 procedure TestTGridfile.TestgetContentType;
 var
-  ReturnValue: string;
+  ReturnValue: AnsiString;
 begin
   ReturnValue := FGridfile.getContentType;
   CheckEqualsString('', ReturnValue, 'getContentType doesn''t match expected value');
@@ -368,7 +368,7 @@ end;
 
 procedure TestTGridfile.TestgetMD5;
 var
-  ReturnValue: string;
+  ReturnValue: AnsiString;
 begin
   ReturnValue := FGridfile.getMD5;
   CheckEqualsString('5f66edb442504c7b5ad71c15a7e57e04', ReturnValue, 'MD5 value of GridFile doesn''t match');
@@ -482,7 +482,7 @@ end;
 
 initialization
   // Register any test cases with the test runner
-  BasePath := ExtractFilePath(ParamStr(0));
+  BasePath := AnsiString(ExtractFilePath(ParamStr(0)));
   RegisterTest(TestTGridFS.Suite);
   RegisterTest(TestTGridfile.Suite);
   RegisterTest(TestTGridfileWriter.Suite);

@@ -222,7 +222,7 @@ end;
 
 procedure TestIBsonCodeWScope.TestsetAndGetCode;
 var
-  ACode: string;
+  ACode: AnsiString;
 begin
   ACode := '123';
   FIBsonCodeWScope.setCode(ACode);
@@ -253,7 +253,7 @@ end;
 
 procedure TestIBsonRegex.TestgetAndsetPattern;
 var
-  APattern: string;
+  APattern: AnsiString;
 begin
   CheckEqualsString('123', FIBsonRegex.getPattern, 'getPattern should return 123');
   APattern := '098';
@@ -263,7 +263,7 @@ end;
 
 procedure TestIBsonRegex.TestgetAndsetOptions;
 var
-  AOptions: string;
+  AOptions: AnsiString;
 begin
   CheckEqualsString('456', FIBsonRegex.getOptions, 'getOptions call should return "456"');
   AOptions := '789';
@@ -651,7 +651,7 @@ begin
   it.Next;
   CheckEquals(length(Value), length(it.getStringArray), 'Array sizes don''t match');
   for I := low(it.getStringArray) to high(it.getStringArray) do
-    CheckEqualsString(Value[i], it.getStringArray[i], 'Items on String array don''t match');
+    CheckEqualsString(Value[i], it.getStringArray[i], 'Items on AnsiString array don''t match');
 end;
 
 procedure TestIBsonBuffer.TestappendNull;
@@ -780,9 +780,9 @@ begin
   Name := PAnsiChar('ARR');
   ReturnValue := FIBsonBuffer.startArray(Name);
   Check(ReturnValue, 'ReturnValue should be True');
-    Check(FIBsonBuffer.Append(PAnsiChar(string('0')), 10), 'Call to Append should return True');
-    Check(FIBsonBuffer.Append(PAnsiChar(string('0')), 20), 'Call to Append should return True');
-    Check(FIBsonBuffer.Append(PAnsiChar(string('0')), 30), 'Call to Append should return True');
+    Check(FIBsonBuffer.Append(PAnsiChar(AnsiString('0')), 10), 'Call to Append should return True');
+    Check(FIBsonBuffer.Append(PAnsiChar(AnsiString('0')), 20), 'Call to Append should return True');
+    Check(FIBsonBuffer.Append(PAnsiChar(AnsiString('0')), 30), 'Call to Append should return True');
   FIBsonBuffer.finishObject;
   b := FIBsonBuffer.finish;
   it := b.iterator;
@@ -978,7 +978,7 @@ begin
     FIBsonIterator.Next;
   ReturnValue := FIBsonIterator.getStringArray;
   for i := low(StrArr) to high(StrArr) do
-    CheckEqualsString(StrArr[i], ReturnValue[i], 'String array element doesn''t match');
+    CheckEqualsString(StrArr[i], ReturnValue[i], 'AnsiString array element doesn''t match');
 end;
 
 procedure TestIBsonIterator.TestgetTimestamp;
@@ -995,7 +995,7 @@ end;
 
 procedure TestIBsonIterator.Testkey;
 var
-  ReturnValue: string;
+  ReturnValue: AnsiString;
   i : integer;
 begin
   ReturnValue := FIBsonIterator.key;
@@ -1059,7 +1059,7 @@ var
   ReturnValue: IBsonIterator;
   Name: PAnsiChar;
 begin
-  Name := PAnsiChar(string('S'));
+  Name := PAnsiChar(AnsiString('S'));
   ReturnValue := FIBson.find(Name);
   Check(ReturnValue <> nil, 'Call to FIBson.Find should have returned an iterator');
   CheckEqualsString('STR', ReturnValue.Value, 'Iterator.Value should have returned STR');

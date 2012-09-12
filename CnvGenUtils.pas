@@ -230,7 +230,7 @@ function ExtractFileName(const FileName: string): string;
 var
   I: Integer;
 begin
-  I := LastDelimiter('\:', FileName);
+  I := LastDelimiter('\:', AnsiString(FileName));
   Result := Copy(FileName, I + 1, MaxInt);
 end;
 

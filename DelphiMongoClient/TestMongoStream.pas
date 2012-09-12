@@ -154,7 +154,7 @@ begin
   FMongoStream := TMongoStream.Create(FMongo, ADB, AFileName, [msmCreate, msmWrite], False);
   CheckMongoStreamPointer;
   FreeAndNil(FMongoStream);
-  FMongoStream := TMongoStream.Create(FMongo, ADB, LowerCase(AFileName), [], False);
+  FMongoStream := TMongoStream.Create(FMongo, ADB, AnsiString(LowerCase(AFileName)), [], False);
 end;
 
 procedure TestTMongoStream.TestCreateStreamWithPrefix;

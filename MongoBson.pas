@@ -731,7 +731,7 @@ var
   i: IBsonIterator;
   j, Count: Integer;
 begin
-  PrepareArrayIterator(i, j, count, bsonINT, SArrayComponentIsNotAnInteger);
+  PrepareArrayIterator(i, j, count, bsonINT, AnsiString(SArrayComponentIsNotAnInteger));
   SetLength(Result, Count);
   IterateAndFillArray(i, Result, j, bsonINT);
 end;
@@ -741,7 +741,7 @@ var
   i: IBsonIterator;
   j, Count: Integer;
 begin
-  PrepareArrayIterator(i, j, count, bsonDOUBLE, SArrayComponentIsNotADouble);
+  PrepareArrayIterator(i, j, count, bsonDOUBLE, AnsiString(SArrayComponentIsNotADouble));
   SetLength(Result, Count);
   IterateAndFillArray(i, Result, j, bsonDOUBLE);
 end;
@@ -751,7 +751,7 @@ var
   i: IBsonIterator;
   j, Count: Integer;
 begin
-  PrepareArrayIterator(i, j, count, bsonSTRING, SArrayComponentIsNotAString);
+  PrepareArrayIterator(i, j, count, bsonSTRING, AnsiString(SArrayComponentIsNotAString));
   SetLength(Result, Count);
   IterateAndFillArray(i, Result, j, bsonSTRING);
 end;
@@ -761,7 +761,7 @@ var
   i: IBsonIterator;
   j, Count: Integer;
 begin
-  PrepareArrayIterator(i, j, count, bsonBOOL, SArrayComponentIsNotABoolean);
+  PrepareArrayIterator(i, j, count, bsonBOOL, AnsiString(SArrayComponentIsNotABoolean));
   SetLength(Result, Count);
   IterateAndFillArray(i, Result, j, bsonBOOL);
 end;
@@ -778,7 +778,7 @@ begin
   begin
     case BSonType of
       bsonDOUBLE : TDoubleArray(Result)[j] := i.Value;
-      bsonSTRING : TStringArray(Result)[j] := i.Value;
+      bsonSTRING : TStringArray(Result)[j] := AnsiString(i.Value);
       bsonBOOL : TBooleanArray(Result)[j] := i.Value;
       bsonINT : TIntegerArray(Result)[j] := i.Value;
       else raise Exception.Create(SDatatypeNotSupported);
@@ -1442,7 +1442,7 @@ end;
 
 function ByteToHex(InByte: Byte): AnsiString;
 const 
-  digits: array[0..15] of Char = '0123456789ABCDEF';
+  digits: array[0..15] of AnsiChar = '0123456789ABCDEF';
 begin
   Result := digits[InByte shr 4] + digits[InByte and $0F];
 end;
@@ -1465,7 +1465,7 @@ begin
   depth := 0;
   while i < Len do
   begin
-    key := VarToStr(x[i]);
+    key := AnsiString(VarToStr(x[i]));
     if key = '}' then
     begin
       if depth = 0 then
@@ -1479,7 +1479,7 @@ begin
       Inc(i);
       if i = Len then
         raise Exception.Create(SBSONExpectedValueFor + key);
-      Value := VarToStr(x[i]);
+      Value := AnsiString(VarToStr(x[i]));
       if Value = '{' then
       begin
         bb.startObject(Name);

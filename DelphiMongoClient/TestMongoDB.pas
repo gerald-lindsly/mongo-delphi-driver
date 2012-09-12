@@ -20,13 +20,13 @@ type
 
   TMongoThread = class(TThread)
   private
-    FErrorStr: String;
+    FErrorStr: AnsiString;
     FMongoTest: TestTMongo;
   protected
     procedure Execute; override;
   public
     constructor Create(AMongoTest: TestTMongo);
-    property ErrorStr: String read FErrorStr write FErrorStr;
+    property ErrorStr: AnsiString read FErrorStr write FErrorStr;
   end;
 
   TestMongoBase = class(TTestCase)
@@ -43,11 +43,11 @@ type
     test_db_created: Boolean;
     procedure Create_test_db;
     procedure Create_test_db_andCheckCollection(AExists: Boolean);
-    procedure FindAndCheckBson(ID: Integer; const AValue: String);
-    procedure InsertAndCheckBson(ID: Integer; const AValue: string);
+    procedure FindAndCheckBson(ID: Integer; const AValue: AnsiString);
+    procedure InsertAndCheckBson(ID: Integer; const AValue: AnsiString);
     procedure RemoveTest_user;
   protected
-    function GetExpectedPrimary: String; virtual;
+    function GetExpectedPrimary: AnsiString; virtual;
   public
     procedure SetUp; override;
     procedure TearDown; override;
@@ -103,7 +103,7 @@ type
   protected
     FMongoReplset: TMongoReplset;
     function CreateMongo: TMongo; override;
-    function GetExpectedPrimary: String; override;
+    function GetExpectedPrimary: AnsiString; override;
   public
     procedure SetUp; override;
     procedure TearDown; override;
@@ -146,7 +146,7 @@ var
   MongoStarted : Boolean;
   FSlaveStarted : Boolean;
 
-procedure StartMongoDB(const AParams: String);
+procedure StartMongoDB(const AParams: AnsiString);
 
 implementation
 
@@ -154,7 +154,7 @@ uses
   AppExec, CnvGenUtils, uFileManagement, Variants, Windows, FileCtrl
   {$IFDEF TAXPORT}, uScope, Forms, CnvStream, CnvFileUtils, JclDateTime {$ENDIF};
 
-procedure StartMongoDB(const AParams: String);
+procedure StartMongoDB(const AParams: AnsiString);
 {$IFDEF TAXPORT}
 const
   MONGOD_NAME = 'mongod.exe';
@@ -163,7 +163,7 @@ var
   Scope : IScope;
   s : TCnvStream;
   f : TFileStream;
-  TargetMongoDBPath, TargetMongoDFile : string;
+  TargetMongoDBPath, TargetMongoDFile : AnsiString;
   Files : TFileInfoList;
 {$ENDIF}
 begin
@@ -212,7 +212,7 @@ begin
   OnePrimary := False;
   repeat
     Sleep(200);
-    with TMongo.Create(Format('127.0.0.1:%d', [APort])) do
+    with TMongo.Create(AnsiString(Format('127.0.0.1:%d', [APort]))) do
       try
         buf := NewBsonBuffer;
         buf.Append(PAnsiChar('replSetGetStatus'), 1);
@@ -243,15 +243,15 @@ begin
     begin
       DeleteEntireDir(ExtractFilePath(ParamStr(0)) + '\MongoDataReplica_1');
       ForceDirectories(ExtractFilePath(ParamStr(0)) + '\MongoDataReplica_1');
-      StartMongoDB('--dbpath ' + ExtractFilePath(ParamStr(0)) + '\MongoDataReplica_1 --smallfiles --noprealloc --journalCommitInterval 5 --port 27018 --replSet foo');
+      StartMongoDB('--dbpath ' + AnsiString(ExtractFilePath(ParamStr(0))) + '\MongoDataReplica_1 --smallfiles --noprealloc --journalCommitInterval 5 --port 27018 --replSet foo');
 
       DeleteEntireDir(ExtractFilePath(ParamStr(0)) + '\MongoDataReplica_2');
       ForceDirectories(ExtractFilePath(ParamStr(0)) + '\MongoDataReplica_2');
-      StartMongoDB('--dbpath ' + ExtractFilePath(ParamStr(0)) + '\MongoDataReplica_2 --smallfiles --noprealloc --journalCommitInterval 5 --port 27019 --replSet foo');
+      StartMongoDB('--dbpath ' + AnsiString(ExtractFilePath(ParamStr(0))) + '\MongoDataReplica_2 --smallfiles --noprealloc --journalCommitInterval 5 --port 27019 --replSet foo');
 
       DeleteEntireDir(ExtractFilePath(ParamStr(0)) + '\MongoDataReplica_3');
       ForceDirectories(ExtractFilePath(ParamStr(0)) + '\MongoDataReplica_3');
-      StartMongoDB('--dbpath ' + ExtractFilePath(ParamStr(0)) + '\MongoDataReplica_3 --smallfiles --noprealloc --journalCommitInterval 5 --port 27020 --replSet foo');
+      StartMongoDB('--dbpath ' + AnsiString(ExtractFilePath(ParamStr(0))) + '\MongoDataReplica_3 --smallfiles --noprealloc --journalCommitInterval 5 --port 27020 --replSet foo');
 
       with TMongo.Create('127.0.0.1:27018') do
         try
@@ -303,7 +303,7 @@ begin
     begin
       DeleteEntireDir(ExtractFilePath(ParamStr(0)) + '\MongoData');
       ForceDirectories(ExtractFilePath(ParamStr(0)) + '\MongoData');
-      StartMongoDB('--dbpath ' + ExtractFilePath(ParamStr(0)) + '\MongoData --smallfiles --noprealloc --journalCommitInterval 5');
+      StartMongoDB('--dbpath ' + AnsiString(ExtractFilePath(ParamStr(0))) + '\MongoData --smallfiles --noprealloc --journalCommitInterval 5');
       MongoStarted := True;
     end;
   FMongo := CreateMongo;
@@ -344,10 +344,10 @@ begin
     else CheckEquals(0, length(Cols), 'There should be no collection created');
 end;
 
-procedure TestTMongo.FindAndCheckBson(ID: Integer; const AValue: String);
+procedure TestTMongo.FindAndCheckBson(ID: Integer; const AValue: AnsiString);
 var
   q, b : IBson;
-  ns : String;
+  ns : AnsiString;
 begin
   ns := 'test_db.test_col';
   q := BSON(['int_fld', ID]);
@@ -356,16 +356,16 @@ begin
   CheckEqualsString(AValue, b.Value(PAnsiChar('val_fld')), 'Returned value should be equals to "' + AValue + '"');
 end;
 
-function TestTMongo.GetExpectedPrimary: String;
+function TestTMongo.GetExpectedPrimary: AnsiString;
 begin
   Result := '127.0.0.1:27017';
 end;
 
-procedure TestTMongo.InsertAndCheckBson(ID: Integer; const AValue: string);
+procedure TestTMongo.InsertAndCheckBson(ID: Integer; const AValue: AnsiString);
 var
   ReturnValue: Boolean;
   b: IBson;
-  ns: string;
+  ns: AnsiString;
 begin
   b := BSON(['int_fld', ID, 'val_fld', AValue]);
   ns := 'test_db.test_col';
@@ -469,7 +469,7 @@ end;
 
 procedure TestTMongo.TestgetPrimary;
 var
-  ReturnValue: string;
+  ReturnValue: AnsiString;
 begin
   ReturnValue := FMongo.getPrimary;
   CheckEqualsString(GetExpectedPrimary, ReturnValue, 'Call to return primary should be ' + GetExpectedPrimary);
@@ -497,7 +497,7 @@ end;
 procedure TestTMongo.TestgetDatabaseCollections;
 var
   ReturnValue: TStringArray;
-  db: string;
+  db: AnsiString;
 begin
   db := 'test_db';
   ReturnValue := FMongo.getDatabaseCollections(db);
@@ -510,8 +510,8 @@ end;
 procedure TestTMongo.TestRename;
 var
   ReturnValue: Boolean;
-  to_ns: string;
-  from_ns: string;
+  to_ns: AnsiString;
+  from_ns: AnsiString;
   Cols : TStringArray;
 begin
   Create_test_db_andCheckCollection(True);
@@ -527,7 +527,7 @@ end;
 procedure TestTMongo.Testdrop;
 var
   ReturnValue: Boolean;
-  ns: string;
+  ns: AnsiString;
 begin
   Create_test_db_andCheckCollection(True);
   ns := 'test_db.test_col';
@@ -539,7 +539,7 @@ end;
 procedure TestTMongo.TestdropDatabase;
 var
   ReturnValue: Boolean;
-  db: string;
+  db: AnsiString;
   dbs : TStringArray;
 begin
   Create_test_db_andCheckCollection(True);
@@ -560,7 +560,7 @@ procedure TestTMongo.TestInsertArrayofBson;
 var
   ReturnValue: Boolean;
   bs1, bs2: IBson;
-  ns: string;
+  ns: AnsiString;
 begin
   Create_test_db;
   bs1 := BSON(['int_fld', 1, 'val_fld', 'Value1']);
@@ -577,7 +577,7 @@ var
   ReturnValue: Boolean;
   objNew: IBson;
   criteria: IBson;
-  ns: string;
+  ns: AnsiString;
 begin
   Create_test_db;
   ns := 'test_db.test_col';
@@ -593,7 +593,7 @@ procedure TestTMongo.Testremove;
 var
   ReturnValue: Boolean;
   b, criteria: IBson;
-  ns: string;
+  ns: AnsiString;
 begin
   Create_test_db;
   InsertAndCheckBson(1, 'Value1');
@@ -616,7 +616,7 @@ var
   ReturnValue: IBson;
   fields: IBson;
   query: IBson;
-  ns: string;
+  ns: AnsiString;
 begin
   Create_test_db;
   InsertAndCheckBson(1, 'Value1');
@@ -632,7 +632,7 @@ procedure TestTMongo.Testfind;
 var
   ReturnValue: Boolean;
   Cursor: IMongoCursor;
-  ns: string;
+  ns: AnsiString;
   n : Integer;
 begin
   Create_test_db;
@@ -651,7 +651,7 @@ end;
 procedure TestTMongo.TestCount;
 var
   ReturnValue: Double;
-  ns: string;
+  ns: AnsiString;
 begin
   Create_test_db;
   InsertAndCheckBson(1, 'Value1');
@@ -664,7 +664,7 @@ procedure TestTMongo.TestCountWithQuery;
 var
   ReturnValue: Double;
   query: IBson;
-  ns: string;
+  ns: AnsiString;
 begin
   Create_test_db;
   InsertAndCheckBson(5, 'Value1');
@@ -678,8 +678,8 @@ procedure TestTMongo.Testdistinct;
 var
   ReturnValue: IBson;
   i : IBsonIterator;
-  key: string;
-  ns: string;
+  key: AnsiString;
+  ns: AnsiString;
   Arr : TIntegerArray;
 begin
   Create_test_db;
@@ -701,8 +701,8 @@ end;
 procedure TestTMongo.TestindexCreate;
 var
   ReturnValue: IBson;
-  key: string;
-  ns: string;
+  key: AnsiString;
+  ns: AnsiString;
 begin
   Create_test_db;
   InsertAndCheckBson(1, 'Value1');
@@ -716,8 +716,8 @@ procedure TestTMongo.TestindexCreateWithOptions;
 var
   ReturnValue: IBson;
   options: Integer;
-  key: string;
-  ns: string;
+  key: AnsiString;
+  ns: AnsiString;
 begin
   Create_test_db;
   InsertAndCheckBson(1, 'Value1');
@@ -732,7 +732,7 @@ procedure TestTMongo.TestindexCreateUsingBsonKey;
 var
   ReturnValue: IBson;
   key: IBson;
-  ns: string;
+  ns: AnsiString;
 begin
   Create_test_db;
   InsertAndCheckBson(1, 'Value1');
@@ -747,7 +747,7 @@ var
   ReturnValue: IBson;
   options: Integer;
   key: IBson;
-  ns: string;
+  ns: AnsiString;
 begin
   Create_test_db;
   InsertAndCheckBson(1, 'Value1');
@@ -761,8 +761,8 @@ end;
 procedure TestTMongo.TestaddUser;
 var
   ReturnValue: Boolean;
-  password: string;
-  Name: string;
+  password: AnsiString;
+  Name: AnsiString;
 begin
   Name := 'test_user';
   password := 'test_password';
@@ -774,9 +774,9 @@ end;
 procedure TestTMongo.TestaddUserWithDBParam;
 var
   ReturnValue: Boolean;
-  db: string;
-  password: string;
-  Name: string;
+  db: AnsiString;
+  password: AnsiString;
+  Name: AnsiString;
 begin
   Name := 'test_user';
   password := 'test_password';
@@ -789,8 +789,8 @@ end;
 procedure TestTMongo.Testauthenticate;
 var
   ReturnValue: Boolean;
-  password: string;
-  Name: string;
+  password: AnsiString;
+  Name: AnsiString;
 begin
   Name := 'test_user';
   password := 'test_password';
@@ -804,9 +804,9 @@ end;
 procedure TestTMongo.TestauthenticateWithSpecificDB;
 var
   ReturnValue: Boolean;
-  db: string;
-  password: string;
-  Name: string;
+  db: AnsiString;
+  password: AnsiString;
+  Name: AnsiString;
 begin
   Name := 'test_user';
   password := 'test_password';
@@ -821,8 +821,8 @@ end;
 procedure TestTMongo.TestauthenticateFail;
 var
   ReturnValue: Boolean;
-  password: string;
-  Name: string;
+  password: AnsiString;
+  Name: AnsiString;
 begin
   Name := 'Bla';
   Password := 'Fake';
@@ -834,7 +834,7 @@ procedure TestTMongo.TestcommandWithBson;
 var
   ReturnValue: IBson;
   command: IBson;
-  db: string;
+  db: AnsiString;
 begin
   Create_test_db;
   command := BSON(['isMaster', null]);
@@ -848,8 +848,8 @@ procedure TestTMongo.TestcommandWithArgs;
 var
   ReturnValue: IBson;
   arg: Variant;
-  cmdstr: string;
-  db: string;
+  cmdstr: AnsiString;
+  db: AnsiString;
 begin
   Create_test_db;
   db := 'test_db';
@@ -863,7 +863,7 @@ end;
 procedure TestTMongo.TestgetLastErr;
 var
   ReturnValue: IBson;
-  db: string;
+  db: AnsiString;
 begin
   db := 'test_db';
   ReturnValue := FMongo.getLastErr(db);
@@ -873,7 +873,7 @@ end;
 procedure TestTMongo.TestgetPrevErr;
 var
   ReturnValue: IBson;
-  db: string;
+  db: AnsiString;
 begin
   db := 'test_db';
   ReturnValue := FMongo.getPrevErr(db);
@@ -882,7 +882,7 @@ end;
 
 procedure TestTMongo.TestresetErr;
 var
-  db: string;
+  db: AnsiString;
 begin
   FMongo.resetErr(db);
   Check(True);
@@ -898,10 +898,10 @@ end;
 
 procedure TestTMongo.TestgetServerErrString;
 var
-  ReturnValue: string;
+  ReturnValue: AnsiString;
 begin
   ReturnValue := FMongo.getServerErrString;
-  CheckEqualsString('', ReturnValue, 'Error string should be equals to blank string');
+  CheckEqualsString('', ReturnValue, 'Error AnsiString should be equals to blank AnsiString');
 end;
 
 procedure TestTMongo.TestFourThreads;
@@ -920,7 +920,7 @@ begin
     for I := low(ts) to high(ts) do
       ts[i].WaitFor;
     for I := low(ts) to high(ts) do
-      CheckEqualsString('', ts[i].ErrorStr, 'ErrorString should be equals to blank string');
+      CheckEqualsString('', ts[i].ErrorStr, 'ErrorString should be equals to blank AnsiString');
   finally
     for I := low(ts) to high(ts) do
       ts[i].Free;
@@ -951,7 +951,7 @@ begin
     FMongo.setWriteConcern(wc);
     Fail('Should have failed with error that tried to use unfinished writeconcern');
   except
-    on E : EMongo do Check(pos('unfinished', E.Message) > 0, 'Exception expected should be that tried to use unfinished writeconcern');
+    on E : EMongo do Check(pos('unfinished', AnsiString(E.Message)) > 0, 'Exception expected should be that tried to use unfinished writeconcern');
   end;
 end;
 
@@ -968,7 +968,7 @@ begin
     end;
 end;
 
-function TestTMongoReplset.GetExpectedPrimary: String;
+function TestTMongoReplset.GetExpectedPrimary: AnsiString;
 begin
   Result := '127.0.0.1:27018';
 end;
@@ -1040,7 +1040,7 @@ begin
     begin
       b := NewBsonBuffer;
       b.Append(PAnsiChar('ID'), i);
-      s := Format('STR_%0.4d', [SampleDataCount - i]);
+      s := AnsiString(Format('STR_%0.4d', [SampleDataCount - i]));
       b.AppendStr(PAnsiChar('STRVAL'), PAnsiChar(s));
       FMongo.Insert(PAnsiChar(SampleDataDB), b.finish);
     end;
@@ -1194,7 +1194,7 @@ begin
     FMongoSecondary.find(SampleDataDB, FIMongoCursor);
     Fail('Call to FMongoSecondary.Find should error out and it didn''t because no option to read from Secondary was set');
   except
-    on E : Exception do Check(pos('not master', E.Message) > 0, 'Call should have errored our because Secondary option was not set');
+    on E : Exception do Check(pos('not master', AnsiString(E.Message)) > 0, 'Call should have errored our because Secondary option was not set');
   end;
   FIMongoCursor := nil;
   FIMongoCursor := NewMongoCursor;
@@ -1231,7 +1231,7 @@ end;
 
 procedure TestIMongoCursor.TestSetSort;
 var
-  Prev, Value : String;
+  Prev, Value : AnsiString;
   n : integer;
 begin
   SetupData;
@@ -1240,7 +1240,7 @@ begin
   n := 0;
   while FIMongoCursor.Next do
     begin
-      Value := FIMongoCursor.Value.Value('STRVAL');
+      Value := AnsiString(FIMongoCursor.Value.Value('STRVAL'));
       Check(Value < Prev, 'Value should be lesser than previous value');
       Prev := Value;
       inc(n);
@@ -1254,7 +1254,7 @@ begin
   n := 0;
   while FIMongoCursor.Next do
     begin
-      Value := FIMongoCursor.Value.Value('STRVAL');
+      Value := AnsiString(FIMongoCursor.Value.Value('STRVAL'));
       Check(Value > Prev, 'Value should be higher than previous value');
       Prev := Value;
       inc(n);
@@ -1322,7 +1322,7 @@ begin
       AMongo.Free;
     end;
   except
-    on E : Exception do ErrorStr := E.Message;
+    on E : Exception do ErrorStr := AnsiString(E.Message);
   end;
 end;
 

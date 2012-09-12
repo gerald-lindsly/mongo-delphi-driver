@@ -718,7 +718,7 @@ begin
     begin
       database := databases.subiterator;
       database.Next;
-      Name := database.Value;
+      Name := AnsiString(database.Value);
       if (Name <> SAdmin) and (Name <> SLocal) then
         Inc(Count);
     end;
@@ -729,7 +729,7 @@ begin
     begin
       database := databases.subiterator;
       database.Next;
-      Name := database.Value;
+      Name := AnsiString(database.Value);
       if (Name <> SAdmin) and (Name <> SLocal) then 
       begin
         Result[i] := Name;
@@ -753,7 +753,7 @@ begin
     while Cursor.Next do
     begin
       b := Cursor.Value;
-      Name := b.Value(SName);
+      Name := AnsiString(b.Value(SName));
       if (Pos(SSystem, Name) = 0) and (Pos('$', Name) = 0) then
         Inc(Count);
     end;
@@ -764,7 +764,7 @@ begin
     while Cursor.Next do
     begin
       b := Cursor.Value;
-      Name := b.Value(SName);
+      Name := AnsiString(b.Value(SName));
       if (Pos(SSystem, Name) = 0) and (Pos('$', Name) = 0) then
       begin
         Result[i] := Name;
