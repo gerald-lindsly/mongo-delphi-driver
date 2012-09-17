@@ -1292,6 +1292,13 @@ var
   OID : IBsonOID;
   n : Integer;
   Ids : array [0..ObjCount] of Integer;
+  procedure ReCreateConnection;
+  begin
+    FreeAndNil(AMongo);
+    AMongo := FMongoTest.CreateMongo;
+    if AMongo is TMongoReplset then
+      (AMongo as TMongoReplset).Connect;
+  end;
 begin
   try
     AMongo := FMongoTest.CreateMongo;
@@ -1309,6 +1316,8 @@ begin
           b := Buf.finish;
           Ids[i] := n;
           AMongo.Insert('test_db.test_thread', b);
+          if (Random(3) = 1) and not(AMongo is TMongoReplset) then
+            ReCreateConnection;
         end;
       for I := 0 to ObjCount do
         begin
@@ -1316,10 +1325,13 @@ begin
           b := AMongo.findOne('test_db.test_thread', q);
           if (b = nil) or (b.Value(PAnsiChar('NUM')) <> Ids[i]) then
             raise Exception.Create('Object not found');
-        end;  
-      Sleep(500);  
+          if Random(3) = 1 then
+            ReCreateConnection;
+        end;
+      Sleep(500);
     finally
-      AMongo.Free;
+      if AMongo <> nil then
+        AMongo.Free;
     end;
   except
     on E : Exception do ErrorStr := AnsiString(E.Message);

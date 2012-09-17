@@ -21,13 +21,18 @@ type
   // Test methods for class TGridFS
 
   TestGridFSBase = class(TestMongoBase)
+  private
+    FMustDropDatabase: Boolean;
   protected
     FGridFS: TGridFS;
     procedure CreateTestFile;
     procedure SetUp; override;
-    function StandardRemoteFileName: AnsiString;
+    function StandardRemoteFileName: AnsiString; virtual;
     function StandardTestFileName: AnsiString;
     procedure TearDown; override;
+  public
+    property MustDropDatabase: Boolean read FMustDropDatabase write
+        FMustDropDatabase;
   end;
 
   TestTGridFS = class(TestGridFSBase)
@@ -118,6 +123,7 @@ procedure TestGridFSBase.SetUp;
 begin
   inherited;
   FGridFS := TGridFS.Create(FMongo, FSDB);
+  MustDropDatabase := True;
 end;
 
 function TestGridFSBase.StandardRemoteFileName: AnsiString;
@@ -137,7 +143,8 @@ begin
   FGridFS.removeFile(StandardRemoteFileName);
   FGridFS.Free;
   FGridFS := nil;
-  FMongo.dropDatabase(FSDB);
+  if MustDropDatabase then
+    FMongo.dropDatabase(FSDB);
   inherited;
 end;
 
