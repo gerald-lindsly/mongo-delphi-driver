@@ -55,10 +55,26 @@ type
 
 implementation
 
+// START resource string wizard section
+const
+  SFs = 'fs';
+// END resource string wizard section
+
+
+// START resource string wizard section
+resourcestring
+  SFileNotFound = 'File %s not found';
+  SFGridFileIsNil = 'FGridFile is nil';
+  SFGridFSIsNil = 'FGridFS is nil';
+  SStreamNotCreatedForWriting = 'Stream not created for writing';
+  SStatusMustBeOKInOrderToAllowStre = 'Status must be OK in order to allow stream read operations';
+// END resource string wizard section
+
+
 constructor TMongoStream.Create(AMongo: TMongo; const ADB, AFileName:
     AnsiString; const AMode: TMongoStreamModeSet; ACompressed: Boolean);
 begin
-  Create(AMongo, ADB, 'fs', AFileName, AMode, True, ACompressed);
+  Create(AMongo, ADB, SFs, AFileName, AMode, True, ACompressed);
 end;
 
 constructor TMongoStream.Create(AMongo: TMongo; const ADB, APrefix, AFileName:
@@ -85,7 +101,7 @@ begin
     begin
       FGridFile := FGridFS.find(AFileName, msmWrite in AMode);
       if FGridFile = nil then
-        raise EMongo.CreateFmt('File %s not found', [AFileName]);
+        raise EMongo.CreateFmt(SFileNotFound, [AFileName]);
       if msmWrite in AMode then
         FGridFileWriter := FGridFile as IGridfileWriter;
       if FGridFile.getStoredChunkCount <> FGridFile.getChunkCount then
@@ -108,25 +124,25 @@ end;
 procedure TMongoStream.CheckGridFile;
 begin
   if FGridFile = nil then
-    raise EMongo.Create('FGridFile is nil');
+    raise EMongo.Create(SFGridFileIsNil);
 end;
 
 procedure TMongoStream.CheckGridFS;
 begin
   if FGridFS = nil then
-    raise EMongo.Create('FGridFS is nil');
+    raise EMongo.Create(SFGridFSIsNil);
 end;
 
 procedure TMongoStream.CheckWriteSupport;
 begin
   if FGridFileWriter = nil then
-    raise EMongo.Create('Stream not created for writing');
+    raise EMongo.Create(SStreamNotCreatedForWriting);
 end;
 
 procedure TMongoStream.EnforceStatusOK;
 begin
   if FStatus <> mssOK then
-    raise EMongo.Create('Status must be OK in order to allow stream read operations');
+    raise EMongo.Create(SStatusMustBeOKInOrderToAllowStre);
 end;
 
 function TMongoStream.GetCaseInsensitiveNames: Boolean;
@@ -209,3 +225,4 @@ begin
 end;
 
 end.
+

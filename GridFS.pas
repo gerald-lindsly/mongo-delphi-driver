@@ -29,7 +29,7 @@
 unit GridFS;
 
 interface
-  
+
 uses
   MongoDB, MongoBson;
 
@@ -181,18 +181,23 @@ type
   end;
 
 implementation
-  
+
 uses
   SysUtils, MongoAPI;
 
 // START resource string wizard section
 const
+  SFiles_id = 'files_id';
+  SChunks = '.chunks';
   SFs       = 'fs';
   SFilename = 'filename';
   // END resource string wizard section
 
-  // START resource string wizard section
+// START resource string wizard section
 resourcestring
+  SGridFSHandleIsNil = 'GridFS Handle is nil';
+  SGridFileHandleIsNil = 'GridFile Handle is nil';
+  SInternalErrorOIDDescriptorOfFile = 'Internal error. OID descriptor of file is nil';
   SUnableToCreateGridFS = 'Unable to create GridFS';
   // END resource string wizard section
 
@@ -327,7 +332,7 @@ end;
 procedure TGridFS.CheckHandle;
 begin
   if Handle = nil then
-    raise EMongo.Create('GridFS Handle is nil');
+    raise EMongo.Create(SGridFSHandleIsNil);
 end;
 
 function TGridFS.storeFile(const FileName, remoteName, contentType: AnsiString;
@@ -532,7 +537,7 @@ end;
 procedure TGridfile.CheckHandle;
 begin
   if FHandle = nil then
-    raise EMongo.Create('GridFile Handle is nil');
+    raise EMongo.Create(SGridFileHandleIsNil);
 end;
 
 procedure TGridfile.DestroyGridFile;
@@ -683,7 +688,7 @@ begin
   CheckHandle;
   poid := gridfile_get_id(FHandle);
   if poid = nil then
-    raise EMongo.Create('Internal error. OID descriptor of file is nil');
+    raise EMongo.Create(SInternalErrorOIDDescriptorOfFile);
   Result := NewBsonOID;
   Result.setValue(TBsonOIDValue(poid^));
 end;
@@ -705,9 +710,9 @@ begin
   oid := NewBsonOID;
   oid.setValue(TBsonOIDValue(id^));
   buf := NewBsonBuffer;
-  buf.Append(PAnsiChar('files_id'), oid);
+  buf.Append(PAnsiChar(SFiles_id), oid);
   q := buf.finish;
-  Result := Trunc(gfs.conn.count(gfs.fdb + '.' + gfs.FPrefix + '.chunks', q));
+  Result := Trunc(gfs.conn.count(gfs.fdb + '.' + gfs.FPrefix + SChunks, q));
 end;
 
 function TGridfile.Handle: Pointer;
@@ -729,3 +734,4 @@ end;
 
 
 end.
+

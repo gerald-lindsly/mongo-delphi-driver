@@ -426,12 +426,13 @@ function NewMongoCursor(query: IBson): IMongoCursor; overload;
 function NewWriteConcern: IWriteConcern;
 
 implementation
-  
+
 uses
   Windows {$IFDEF DELPHIXE2}, AnsiStrings {$ENDIF};
 
 // START resource string wizard section
 const
+  S27017 = ':27017';
   MongoCDLL = 'mongoc.dll';
   S127001 = '127.0.0.1';
   SAdmin = 'admin';
@@ -451,6 +452,7 @@ const
 
 // START resource string wizard section
 resourcestring
+  SMongoHandleIsNil = 'Mongo handle is nil';
   SCanTUseAnUnfinishedWriteConcern = 'Can''t use an unfinished WriteConcern';
   {$IFDEF OnDemandMongoCLoad}
   SFailedLoadingMongocDll = 'Failed loading mongoc.dll';
@@ -570,7 +572,7 @@ begin
   InitMongoDBLibrary;
   {$ENDIF}
   AutoCheckLastError := True;
-  InitMongo(S127001 + ':27017');
+  InitMongo(S127001 + S27017);
 end;
 
 constructor TMongo.Create(const host: AnsiString);
@@ -750,7 +752,7 @@ begin
       database := databases.subiterator;
       database.Next;
       Name := AnsiString(database.Value);
-      if (Name <> SAdmin) and (Name <> SLocal) then 
+      if (Name <> SAdmin) and (Name <> SLocal) then
       begin
         Result[i] := Name;
         Inc(i);
@@ -1055,7 +1057,7 @@ end;
 procedure TMongo.CheckHandle;
 begin
   if fhandle = nil then
-    raise EMongo.Create('Mongo handle is nil');
+    raise EMongo.Create(SMongoHandleIsNil);
 end;
 
 function TMongo.command(const db: AnsiString; command: IBson): IBson;
@@ -1149,7 +1151,7 @@ begin
       bson_dispose(h);
       Result := nil;
     end
-  else Result := NewBson(h);  
+  else Result := NewBson(h);
 end;
 
 procedure TMongo.cmdResetLastError(const db: AnsiString);
@@ -1272,7 +1274,7 @@ end;
 procedure TMongoCursor.CheckHandle;
 begin
   if FHandle = nil then
-    raise EMongo.Create('Mongo handle is nil');
+    raise EMongo.Create(SMongoHandleIsNil);
 end;
 
 procedure TMongoCursor.DestroyCursor;
@@ -1517,5 +1519,6 @@ begin
 end;
 
 end.
+
 
 
