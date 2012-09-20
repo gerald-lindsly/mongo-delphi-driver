@@ -9,7 +9,7 @@
 			<ProjectVersion>13.4</ProjectVersion>
 			<Base>True</Base>
 			<Config Condition="'$(Config)'==''">Debug</Config>
-			<Platform Condition="'$(Platform)'==''">Win64</Platform>
+			<Platform Condition="'$(Platform)'==''">Win32</Platform>
 			<TargetedPlatforms>3</TargetedPlatforms>
 			<AppType>Application</AppType>
 		</PropertyGroup>
@@ -90,8 +90,6 @@
 			<DCC_SYMBOL_DEPRECATED>false</DCC_SYMBOL_DEPRECATED>
 			<DCC_UNIT_PLATFORM>false</DCC_UNIT_PLATFORM>
 			<DCC_UNIT_EXPERIMENTAL>false</DCC_UNIT_EXPERIMENTAL>
-			<DCC_IMPLICIT_STRING_CAST_LOSS>false</DCC_IMPLICIT_STRING_CAST_LOSS>
-			<DCC_IMPLICIT_STRING_CAST>false</DCC_IMPLICIT_STRING_CAST>
 			<DCC_Namespace>System.Win;Data.Win;Datasnap.Win;Web.Win;Soap.Win;Xml.Win;$(DCC_Namespace)</DCC_Namespace>
 			<VerInfo_IncludeVerInfo>true</VerInfo_IncludeVerInfo>
 			<Icon_MainIcon>DelphiMongoClientTests_Icon.ico</Icon_MainIcon>
@@ -136,6 +134,7 @@ $(PreBuildEvent)]]></PreBuildEvent>
 $(PreBuildEvent)]]></PreBuildEvent>
 		</PropertyGroup>
 		<PropertyGroup Condition="'$(Cfg_2)'!=''">
+			<DCC_IMPLICIT_STRING_CAST>false</DCC_IMPLICIT_STRING_CAST>
 			<Manifest_File>None</Manifest_File>
 			<Version>7.0</Version>
 			<DCC_Define>DEBUG;$(DCC_Define)</DCC_Define>
@@ -156,6 +155,10 @@ $(PreBuildEvent)]]></PreBuildEvent>
 			<DCC_MapFile>3</DCC_MapFile>
 		</PropertyGroup>
 		<PropertyGroup Condition="'$(Cfg_2_Win64)'!=''">
+			<DCC_DebugDCUs>true</DCC_DebugDCUs>
+			<DCC_MapFile>0</DCC_MapFile>
+			<DCC_RemoteDebug>true</DCC_RemoteDebug>
+			<DCC_MaxStackSize>4000000</DCC_MaxStackSize>
 			<DCC_Optimize>false</DCC_Optimize>
 			<VerInfo_IncludeVerInfo>true</VerInfo_IncludeVerInfo>
 			<PreBuildEvent><![CDATA[copy X:\Lib\MongoClient\Run\Debugx64\MongoC.dll X:\Lib\D5\Tests\DelphiMongoClient

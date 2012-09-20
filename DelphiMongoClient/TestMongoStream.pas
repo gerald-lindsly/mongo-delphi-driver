@@ -23,12 +23,13 @@ type
   private
     FMongoStream: TMongoStream;
     procedure CheckMongoStreamPointer;
-    procedure CreateTestFile;
+    procedure CreateTestFile(ACreateMode: Boolean = True);
     {$IFDEF DELPHI2007}
     procedure TestSeek_Int64(AOrigin: TSeekOrigin; AOffset, AbsExpected: Int64);
     {$ENDIF}
     procedure TestSeek_Int32(AOrigin: Word; AOffset: Longint; AbsExpected: Int64);
   protected
+    procedure InternalRunMultiThreaded(AMethodAddr: Pointer; ALoops: Integer);
     function StandardRemoteFileName: AnsiString; override;
   public
     procedure SetUp; override;
@@ -56,6 +57,8 @@ type
     procedure TestStressFourThreads;
     procedure TestStressWriteReads;
     procedure TestWrite;
+    procedure TestWriteRead50MB;
+    procedure TestWriteRed50MBFourThreads;
   end;
 
 implementation
@@ -69,12 +72,15 @@ const
   FEW_BYTES_OF_DATA : AnsiString = 'this is just a few bytes of data';
 
 type
+  TTestProc = procedure of object;
   TMongoStreamThread = class(TThread)
   private
     FErrorMessage: AnsiString;
+    FLoops: Integer;
     FTestMongoStream: TestTMongoStream;
+    FTestProc: Pointer;
   public
-    constructor Create(ATestMongoStream: TestTMongoStream);
+    constructor Create(ATestProc: Pointer; ALoops: Integer);
     destructor Destroy; override;
     procedure Execute; override;
     property ErrorMessage: AnsiString read FErrorMessage;
@@ -85,9 +91,43 @@ begin
   Check(FMongoStream <> nil, 'FMongoStream should be <> nil');
 end;
 
-procedure TestTMongoStream.CreateTestFile;
+procedure TestTMongoStream.CreateTestFile(ACreateMode: Boolean = True);
+var
+  AMode : TMongoStreamModeSet;
 begin
-  FMongoStream := TMongoStream.Create(FMongo, FSDB, StandardRemoteFileName, [msmWrite, msmCreate], True);
+  if ACreateMode then
+    AMode := [msmWrite, msmCreate]
+  else AMode := [msmWrite];
+  FMongoStream := TMongoStream.Create(FMongo, FSDB, StandardRemoteFileName, AMode, True);
+end;
+
+procedure TestTMongoStream.InternalRunMultiThreaded(AMethodAddr: Pointer;
+    ALoops: Integer);
+var
+  AThreads : array [0..3] of TMongoStreamThread;
+  i : integer;
+  AErrorMessages : AnsiString;
+begin
+  AErrorMessages := '';
+  for i := Low(AThreads) to High(AThreads) do
+    AThreads[i] := nil;
+  for i := Low(AThreads) to High(AThreads) do
+    AThreads[i] := TMongoStreamThread.Create(AMethodAddr, ALoops);
+  try
+    for i := Low(AThreads) to High(AThreads) do
+      AThreads[i].Resume;
+    for i := Low(AThreads) to High(AThreads) do
+      AThreads[i].WaitFor;
+    for i := Low(AThreads) to High(AThreads) do
+      if AThreads[i].ErrorMessage <> '' then
+        AErrorMessages := AErrorMessages + AThreads[i].ErrorMessage + #13#10;
+    if AErrorMessages <> '' then
+      Fail(AErrorMessages);
+  finally
+    for i := Low(AThreads) to High(AThreads) do
+      if AThreads[i] <> nil then
+        AThreads[i].Free;
+  end;
 end;
 
 procedure TestTMongoStream.SetUp;
@@ -314,31 +354,8 @@ begin
 end;
 
 procedure TestTMongoStream.TestStressFourThreads;
-var
-  AThreads : array [0..3] of TMongoStreamThread;
-  i : integer;
-  AErrorMessages : AnsiString;
 begin
-  AErrorMessages := '';
-  for i := Low(AThreads) to High(AThreads) do
-    AThreads[i] := nil;
-  for i := Low(AThreads) to High(AThreads) do
-    AThreads[i] := TMongoStreamThread.Create(Self);
-  try
-    for i := Low(AThreads) to High(AThreads) do
-      AThreads[i].Resume;
-    for i := Low(AThreads) to High(AThreads) do
-      AThreads[i].WaitFor;
-    for i := Low(AThreads) to High(AThreads) do
-      if AThreads[i].ErrorMessage <> '' then
-        AErrorMessages := AErrorMessages + AThreads[i].ErrorMessage + #13#10;
-    if AErrorMessages <> '' then
-      Fail(AErrorMessages);
-  finally
-    for i := Low(AThreads) to High(AThreads) do
-      if AThreads[i] <> nil then
-        AThreads[i].Free;
-  end;
+  InternalRunMultiThreaded(@TestTMongoStream.TestStressWriteReads, 50);
 end;
 
 procedure TestTMongoStream.TestStressWriteReads;
@@ -394,12 +411,74 @@ begin
   CheckEquals(Count, ReturnValue, 'Write didn''t return that I wrote the same amount of bytes written');
 end;
 
+procedure TestTMongoStream.TestWriteRead50MB;
+type
+  PBuffer = ^TBuffer;
+  TBuffer = array [0..1024 * 1024 - 1 + 123] of AnsiChar; // I added 123 bytes to "complicate" buffering
+const
+  FIFTYMEGS = 50 * 1024 * 1024;
+var
+  ReturnValue: Integer;
+  Buffer, Buffer2: PBuffer;
+  i : integer;
+begin
+  CreateTestFile;
+  CheckMongoStreamPointer;
+  GetMem(Buffer, sizeof(TBuffer));
+  try
+    GetMem(Buffer2, sizeof(TBuffer));
+    try
+      for i := Low(Buffer^) to High(Buffer^) do
+        Buffer[i] := AnsiChar(Random(256));
+      for I := 0 to FIFTYMEGS div sizeof(Buffer^) do
+        begin
+          FMongoStream.Position := i * sizeof(TBuffer);
+          PInt64(Buffer)^ := i * sizeof(TBuffer);
+          FMongoStream.Write(Buffer^, sizeof(Buffer^));
+          if i mod 3 = 0 then
+            begin
+              FMongoStream.Free;
+              CreateTestFile(False);
+            end;
+          if i > 0 then
+            begin
+              FMongoStream.Position := (i - 1) * sizeof(TBuffer);
+              ReturnValue := FMongoStream.Read(Buffer2^, sizeof(TBuffer));
+              CheckEquals(Sizeof(Buffer^), ReturnValue, 'Number of bytes read dont''t match');
+              PInt64(Buffer)^ := (i - 1) * sizeof(TBuffer);
+              Check(CompareMem(Buffer, Buffer2, sizeof(Buffer^)), 'Memory read don''t match data written');
+              FMongoStream.Position := (i + 1) * sizeof(TBuffer);
+            end;
+        end;
+      FMongoStream.Position := 0;
+      for I := 0 to FIFTYMEGS div sizeof(Buffer^) do
+        begin
+          ReturnValue := FMongoStream.Read(Buffer2^, sizeof(Buffer^));
+          CheckEquals(Sizeof(Buffer^), ReturnValue, 'Number of bytes read dont''t match');
+          PInt64(Buffer)^ := i * sizeof(TBuffer);
+          Check(CompareMem(Buffer, Buffer2, sizeof(Buffer^)), 'Memory read don''t match data written');
+        end;
+    finally
+      FreeMem(Buffer2);
+    end;
+  finally
+    FreeMem(Buffer);
+  end;
+end;
+
+procedure TestTMongoStream.TestWriteRed50MBFourThreads;
+begin
+  InternalRunMultiThreaded(@TestTMongoStream.TestWriteRead50MB, 10);
+end;
+
 { TMongoStreamThread }
 
-constructor TMongoStreamThread.Create(ATestMongoStream: TestTMongoStream);
+constructor TMongoStreamThread.Create(ATestProc: Pointer; ALoops: Integer);
 begin
   inherited Create(True);
   FTestMongoStream := TestTMongoStream.Create('TestStressWriteReads');
+  FTestProc := ATestProc;
+  FLoops := ALoops;
 end;
 
 destructor TMongoStreamThread.Destroy;
@@ -411,17 +490,20 @@ end;
 procedure TMongoStreamThread.Execute;
 var
   i : integer;
+  AMethod : TMethod;
 begin
   try
-    for I := 0 to 100 do
+    AMethod.Data := FTestMongoStream;
+    AMethod.Code := FTestProc;
+    for I := 0 to FLoops - 1 do
       begin
         FTestMongoStream.SetUp;
-        FTestMongoStream.TestStressWriteReads;
+        TTestProc(AMethod);
         FTestMongoStream.MustDropDatabase := False;
         FTestMongoStream.TearDown;
       end;
   except
-    on E : Exception do FErrorMessage := E.Message;
+    on E : Exception do FErrorMessage := AnsiString(E.Message);
   end;
 end;
 
