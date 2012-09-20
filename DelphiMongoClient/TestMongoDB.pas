@@ -1309,7 +1309,7 @@ begin
         begin
           Buf := NewBsonBuffer;
           OID := NewBsonOID;
-          Buf.Append(PAnsiChar('ID'), OID);
+          Buf.Append(PAnsiChar('_id'), OID);
           n := Random(1024);
           Buf.Append(PAnsiChar('NUM'), n);
           Buf.AppendStr(PAnsiChar('STRDATA'), PAnsiChar('1234' + IntToStr(i)));
@@ -1324,8 +1324,8 @@ begin
           q := BSON(['NUM', Ids[i]]);
           b := AMongo.findOne('test_db.test_thread', q);
           if (b = nil) or (b.Value(PAnsiChar('NUM')) <> Ids[i]) then
-            raise Exception.Create('Object not found');
-          if Random(3) = 1 then
+            raise Exception.CreateFmt('Object not found. Value: %d, Array index: %d', [Ids[i], i]);
+          if (Random(3) = 1) and not(AMongo is TMongoReplset) then
             ReCreateConnection;
         end;
       Sleep(500);

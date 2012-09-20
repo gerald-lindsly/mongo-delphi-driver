@@ -1,6 +1,6 @@
 {
      Copyright 2009-2011 10gen Inc.
-                                                                              
+
     Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.
     You may obtain a copy of the License at
@@ -351,10 +351,12 @@ function IntToStr(i : integer) : AnsiString;
 implementation
 
 uses
-  SysUtils, Variants, Windows;
+  SysUtils, Variants, Windows, MongoDB;
 
-// START resource string wizard section
 resourcestring
+// START resource string wizard section
+  SIteratorHandleIsNil = 'Iterator Handle is nil';
+  STBsonHandleIsNil = 'TBson handle is nil';
   {$IFNDEF DELPHI2007}
   SCanTAccessAnInt64UsingAVariantOn = 'Can''t access an Int64 using a variant on old version of Delphi. Use AsInt64 instead';
   {$ENDIF}
@@ -416,6 +418,7 @@ type
   TBsonIterator = class(TInterfacedObject, IBsonIterator)
   private
     Handle: Pointer;
+    procedure CheckValidHandle;
     function GetAsInt64: Int64;
     procedure IterateAndFillArray(i: IBsonIterator; var Result; var j: Integer;
         BSonType: TBsonType);
@@ -534,6 +537,7 @@ type
   TBson = class(TInterfacedObject, IBson)
   private
     FHandle: Pointer;
+    procedure CheckHandle;
   protected
     function getHandle: Pointer;
   public
@@ -635,27 +639,41 @@ end;
 
 destructor TBsonIterator.Destroy;
 begin
-  bson_iterator_dispose(Handle);
+  if Handle <> nil then
+    begin
+      bson_iterator_dispose(Handle);
+      Handle := nil;
+    end;
   inherited;
+end;
+
+procedure TBsonIterator.CheckValidHandle;
+begin
+  if Handle = nil then
+    raise EMongo.Create(SIteratorHandleIsNil);
 end;
 
 function TBsonIterator.GetAsInt64: Int64;
 begin
+  CheckValidHandle;
   Result := bson_iterator_long(Handle);
 end;
 
 function TBsonIterator.Kind: TBsonType;
 begin
+  CheckValidHandle;
   Result := bson_iterator_type(Handle);
 end;
 
 function TBsonIterator.Next: Boolean;
 begin
+  CheckValidHandle;
   Result := bson_iterator_next(Handle) <> bsonEOO;
 end;
 
 function TBsonIterator.key: AnsiString;
 begin
+  CheckValidHandle;
   Result := AnsiString(bson_iterator_key(Handle));
 end;
 
@@ -664,6 +682,7 @@ var
   k: TBsonType;
   d: TDateTime;
 begin
+  CheckValidHandle;
   k := Kind();
   case k of
     bsonEOO, bsonNULL:
@@ -675,9 +694,9 @@ begin
       Result := AnsiString(bson_iterator_string(Handle));
     bsonINT:
       Result := bson_iterator_int(Handle);
-    bsonBOOL: 
+    bsonBOOL:
       Result := bson_iterator_bool(Handle);
-    bsonDATE: 
+    bsonDATE:
       begin
         d := Int64toDouble(bson_iterator_date(Handle)) / (1000 * 24 * 60 * 60) + DATE_ADJUSTER;
         Result := d;
@@ -694,26 +713,31 @@ end;
 
 function TBsonIterator.getOID: IBsonOID;
 begin
+  CheckValidHandle;
   Result := NewBsonOID(Self);
 end;
 
 function TBsonIterator.getCodeWScope: IBsonCodeWScope;
 begin
+  CheckValidHandle;
   Result := NewBsonCodeWScope(Self);
 end;
 
 function TBsonIterator.getRegex: IBsonRegex;
 begin
+  CheckValidHandle;
   Result := NewBsonRegex(Self);
 end;
 
 function TBsonIterator.getTimestamp: IBsonTimestamp;
 begin
+  CheckValidHandle;
   Result := NewBsonTimestamp(Self);
 end;
 
 function TBsonIterator.getBinary: IBsonBinary;
 begin
+  CheckValidHandle;
   Result := NewBsonBinary(Self);
 end;
 
@@ -721,6 +745,7 @@ function TBsonIterator.subiterator: IBsonIterator;
 var
   i: IBsonIterator;
 begin
+  CheckValidHandle;
   i := NewBsonIterator;
   bson_iterator_subiterator(Handle, i.getHandle);
   Result := i;
@@ -731,6 +756,7 @@ var
   i: IBsonIterator;
   j, Count: Integer;
 begin
+  CheckValidHandle;
   PrepareArrayIterator(i, j, count, bsonINT, AnsiString(SArrayComponentIsNotAnInteger));
   SetLength(Result, Count);
   IterateAndFillArray(i, Result, j, bsonINT);
@@ -741,6 +767,7 @@ var
   i: IBsonIterator;
   j, Count: Integer;
 begin
+  CheckValidHandle;
   PrepareArrayIterator(i, j, count, bsonDOUBLE, AnsiString(SArrayComponentIsNotADouble));
   SetLength(Result, Count);
   IterateAndFillArray(i, Result, j, bsonDOUBLE);
@@ -751,6 +778,7 @@ var
   i: IBsonIterator;
   j, Count: Integer;
 begin
+  CheckValidHandle;
   PrepareArrayIterator(i, j, count, bsonSTRING, AnsiString(SArrayComponentIsNotAString));
   SetLength(Result, Count);
   IterateAndFillArray(i, Result, j, bsonSTRING);
@@ -761,6 +789,7 @@ var
   i: IBsonIterator;
   j, Count: Integer;
 begin
+  CheckValidHandle;
   PrepareArrayIterator(i, j, count, bsonBOOL, AnsiString(SArrayComponentIsNotABoolean));
   SetLength(Result, Count);
   IterateAndFillArray(i, Result, j, bsonBOOL);
@@ -774,6 +803,7 @@ end;
 procedure TBsonIterator.IterateAndFillArray(i: IBsonIterator; var Result; var
     j: Integer; BSonType: TBsonType);
 begin
+  CheckValidHandle;
   while i.Next() do
   begin
     case BSonType of
@@ -790,6 +820,7 @@ end;
 procedure TBsonIterator.PrepareArrayIterator(var i: IBsonIterator; var j,
     count: Integer; BSonType: TBsonType; const ATypeErrorMsg: AnsiString);
 begin
+  CheckValidHandle;
   if Kind <> bsonArray then
     raise Exception.Create(SIteratorDoesNotPointToAnArray);
   i := subiterator;
@@ -818,8 +849,12 @@ end;
 
 destructor TBsonBuffer.Destroy;
 begin
-  bson_destroy(Handle);
-  bson_dispose(Handle);
+  if Handle <> nil then
+    begin
+      bson_destroy(Handle);
+      bson_dispose(Handle);
+      Handle := nil;
+    end;
   inherited Destroy;
 end;
 
@@ -1106,8 +1141,12 @@ end;
 
 destructor TBson.Destroy();
 begin
-  bson_destroy(FHandle);
-  bson_dispose(FHandle);
+  if FHandle <> nil then
+    begin
+      bson_destroy(FHandle);
+      bson_dispose(FHandle);
+      FHandle := nil;
+    end;
   inherited Destroy();
 end;
 
@@ -1124,11 +1163,13 @@ end;
 
 function TBson.iterator: IBsonIterator;
 begin
+  CheckHandle;
   Result := NewBsonIterator(Self);
 end;
 
 function TBson.size: Integer;
 begin
+  CheckHandle;
   Result := bson_size(FHandle);
 end;
 
@@ -1136,6 +1177,7 @@ function TBson.find(Name: PAnsiChar): IBsonIterator;
 var
   i: IBsonIterator;
 begin
+  CheckHandle;
   i := NewBsonIterator;
   if bson_find(i.getHandle, FHandle, Name) = bsonEOO then
     i := nil;
@@ -1152,7 +1194,7 @@ var
   bin: IBsonBinary;
   p: PByte;
 begin
-  while i.Next() do 
+  while i.Next() do
   begin
     t := i.Kind();
     if t = bsonEOO then
@@ -1165,30 +1207,30 @@ begin
       bsonSTRING, bsonSYMBOL, bsonCODE,
       bsonBOOL, bsonDATE, bsonINT, bsonLONG:
         Write(i.Value);
-      bsonUNDEFINED: 
+      bsonUNDEFINED:
         Write(SUNDEFINED);
-      bsonNULL: 
+      bsonNULL:
         Write(SNULL);
       bsonOBJECT, bsonARRAY:
         begin
           Writeln;
           _display(i.subiterator, depth + 1);
         end;
-      bsonOID: 
+      bsonOID:
         Write(i.getOID().AsString());
-      bsonCODEWSCOPE: 
+      bsonCODEWSCOPE:
         begin
           Write(SCODEWSCOPE);
           cws := i.getCodeWScope();
           Writeln(cws.getCode);
           _display(cws.getScope.iterator, depth + 1);
         end;
-      bsonREGEX: 
+      bsonREGEX:
         begin
           regex := i.getRegex();
           Write(regex.getPattern, ', ', regex.getOptions);
         end;
-      bsonTIMESTAMP: 
+      bsonTIMESTAMP:
         begin
           ts := i.getTimestamp();
           Write(DateTimeToStr(ts.getTime), ' (', ts.getIncrement, ')');
@@ -1200,7 +1242,7 @@ begin
           p := bin.getData;
           for j := 0 to bin.getLen - 1 do
           begin
-            if j and 15 = 0 then 
+            if j and 15 = 0 then
             begin
               Writeln;
               for k := 1 to depth + 1 do
@@ -1217,9 +1259,15 @@ begin
   end;
 end;
 
+procedure TBson.CheckHandle;
+begin
+  if FHandle = nil then
+    raise EMongo.Create(STBsonHandleIsNil);
+end;
+
 procedure TBson.display;
 begin
-  if Self = nil then
+  if FHandle = nil then
     Writeln(SNilBSON)
   else
     _display(iterator, 0);
@@ -1408,7 +1456,12 @@ end;
 
 destructor TBsonBinary.Destroy;
 begin
-  FreeMem(Data);
+  if Data <> nil then
+    begin
+      FreeMem(Data);
+      Data := nil;
+      Len := 0;
+    end;
   inherited;
 end;
 
@@ -1441,7 +1494,7 @@ begin
 end;
 
 function ByteToHex(InByte: Byte): AnsiString;
-const 
+const
   digits: array[0..15] of AnsiChar = '0123456789ABCDEF';
 begin
   Result := digits[InByte shr 4] + digits[InByte and $0F];
@@ -1602,4 +1655,5 @@ initialization
 finalization
   absonEmpty := nil;
 end.
+
 

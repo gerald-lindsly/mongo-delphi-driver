@@ -51,6 +51,7 @@ type
     conn: TMongo;
     fdb : AnsiString;
     FPrefix: AnsiString;
+    procedure CheckHandle;
     procedure setAutoCheckLastError(value : Boolean);
     function getAutoCheckLastError : Boolean;
     function GetCaseInsensitiveFileNames: Boolean;
@@ -198,6 +199,8 @@ resourcestring
 type
   {  Objects of class TGridfile are used to access gridfiles and read from them. }
   TGridfile = class(TInterfacedObject, IGridFile)
+  private
+    procedure CheckHandle;
   protected
     { Pointer to externally managed data representing the gridfile }
     FHandle: Pointer;
@@ -312,8 +315,19 @@ end;
 
 destructor TGridFS.Destroy;
 begin
-  gridfs_destroy(Handle);
-  gridfs_dispose(Handle);
+  if Handle <> nil then
+    begin
+      gridfs_destroy(Handle);
+      gridfs_dispose(Handle);
+      Handle := nil;
+    end;
+  inherited;
+end;
+
+procedure TGridFS.CheckHandle;
+begin
+  if Handle = nil then
+    raise EMongo.Create('GridFS Handle is nil');
 end;
 
 function TGridFS.storeFile(const FileName, remoteName, contentType: AnsiString;
@@ -321,6 +335,7 @@ function TGridFS.storeFile(const FileName, remoteName, contentType: AnsiString;
 var
   RetVal : Integer;
 begin
+  CheckHandle;
   conn.autoCmdResetLastError(PAnsiChar(fdb), False);
   RetVal := gridfs_store_file(Handle, PAnsiChar(FileName), PAnsiChar(remoteName), PAnsiChar(contentType), Flags);
   Result := RetVal = 0;
@@ -341,6 +356,7 @@ end;
 
 procedure TGridFS.removeFile(const remoteName: AnsiString);
 begin
+  CheckHandle;
   gridfs_remove_filename(Handle, PAnsiChar(remoteName));
 end;
 
@@ -352,6 +368,7 @@ end;
 function TGridFS.store(p: Pointer; Length: Int64; const remoteName,
     contentType: AnsiString; Flags: Integer = GRIDFILE_DEFAULT): Boolean;
 begin
+  CheckHandle;
   Result := (gridfs_store_buffer(Handle, p, Length, PAnsiChar(remoteName), PAnsiChar(contentType), Flags) = 0);
 end;
 
@@ -364,6 +381,7 @@ end;
 function TGridFS.writerCreate(const remoteName, contentType: AnsiString; Flags:
     Integer = GRIDFILE_DEFAULT): IGridfileWriter;
 begin
+  CheckHandle;
   Result := TGridfileWriter.Create(Self, remoteName, contentType, True, bsonEmpty.Handle, Flags);
 end;
 
@@ -375,6 +393,7 @@ end;
 
 function TGridFS.createGridFile: IGridFile;
 begin
+  CheckHandle;
   Result := TGridFile.Create(Self);
 end;
 
@@ -384,6 +403,7 @@ var
   AHandle : Pointer;
   meta : Pointer;
 begin
+  CheckHandle;
   gf := nil;
   if not AWriteMode then
     begin
@@ -429,11 +449,13 @@ end;
 
 function TGridFS.GetCaseInsensitiveFileNames: Boolean;
 begin
+  CheckHandle;
   Result := gridfs_get_caseInsensitive(Handle);
 end;
 
 procedure TGridFS.SetCaseInsensitiveFileNames(const Value: Boolean);
 begin
+  CheckHandle;
   gridfs_set_caseInsensitive(Handle, Value);
 end;
 
@@ -459,6 +481,7 @@ end;
 
 procedure TGridfileWriter.Write(p: Pointer; Length: Int64);
 begin
+  CheckHandle;
   gridfile_write_buffer(Handle, p, Length);
 end;
 
@@ -487,6 +510,7 @@ end;
 
 function TGridfileWriter.Truncate(newSize : int64): Int64;
 begin
+  CheckHandle;
   Result := gridfile_truncate(Handle, newSize);
 end;
 
@@ -505,6 +529,12 @@ begin
   inherited;
 end;
 
+procedure TGridfile.CheckHandle;
+begin
+  if FHandle = nil then
+    raise EMongo.Create('GridFile Handle is nil');
+end;
+
 procedure TGridfile.DestroyGridFile;
 begin
   if FHandle <> nil then
@@ -517,31 +547,37 @@ end;
 
 function TGridfile.getFilename: AnsiString;
 begin
+  CheckHandle;
   Result := AnsiString(gridfile_get_filename(FHandle));
 end;
 
 function TGridfile.getChunkSize: Integer;
 begin
+  CheckHandle;
   Result := gridfile_get_chunksize(FHandle);
 end;
 
 function TGridfile.getLength: Int64;
 begin
+  CheckHandle;
   Result := gridfile_get_contentlength(FHandle);
 end;
 
 function TGridfile.getContentType: AnsiString;
 begin
+  CheckHandle;
   Result := AnsiString(gridfile_get_contenttype(FHandle));
 end;
 
 function TGridfile.getUploadDate: TDateTime;
 begin
+  CheckHandle;
   Result := Int64toDouble(gridfile_get_uploaddate(FHandle)) / (1000 * 24 * 60 * 60) + 25569;
 end;
 
 function TGridfile.getMD5: AnsiString;
 begin
+  CheckHandle;
   Result := AnsiString(gridfile_get_md5(FHandle));
 end;
 
@@ -551,6 +587,7 @@ var
   res: IBson;
   h : Pointer;
 begin
+  CheckHandle;
   b := bson_create;
   try
     gridfile_get_metadata(FHandle, b);
@@ -575,6 +612,7 @@ end;
 
 function TGridfile.getChunkCount: Integer;
 begin
+  CheckHandle;
   Result := gridfile_get_numchunks(FHandle);
 end;
 
@@ -584,6 +622,7 @@ var
   res: IBson;
   h : Pointer;
 begin
+  CheckHandle;
   b := bson_create;
   try
     gridfile_get_descriptor(FHandle, b);
@@ -606,6 +645,7 @@ var
   b: IBson;
   h : Pointer;
 begin
+  CheckHandle;
   h := bson_create;
   try
     b := NewBson(h);
@@ -624,6 +664,7 @@ function TGridfile.getChunks(i: Integer; Count: Integer): IMongoCursor;
 var
   Cursor: IMongoCursor;
 begin
+  CheckHandle;
   Cursor := NewMongoCursor;
   Cursor.Handle := gridfile_get_chunks(FHandle, i, Count);
   if Cursor.Handle = nil then
@@ -639,6 +680,7 @@ function TGridfile.getID: IBsonOID;
 var
   poid : pointer;
 begin
+  CheckHandle;
   poid := gridfile_get_id(FHandle);
   if poid = nil then
     raise EMongo.Create('Internal error. OID descriptor of file is nil');
@@ -653,6 +695,7 @@ var
   id : Pointer;
   oid : IBsonOID;
 begin
+  CheckHandle;
   id := gridfile_get_id(FHandle);
   if id = nil then
     begin
@@ -674,11 +717,13 @@ end;
 
 function TGridfile.Read(p: Pointer; Length: Int64): Int64;
 begin
+  CheckHandle;
   Result := gridfile_read(FHandle, Length, p);
 end;
 
 function TGridfile.Seek(offset: Int64): Int64;
 begin
+  CheckHandle;
   Result := gridfile_seek(FHandle, offset);
 end;
 

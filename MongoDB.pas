@@ -64,6 +64,7 @@ type
   private
     FAutoCheckLastError: Boolean;
     FWriteConcern: IWriteConcern;
+    procedure CheckHandle;
   protected
       { Pointer to externally managed data describing the connection.
         User code should not access this.  It is public only for
@@ -498,6 +499,7 @@ type
     fskip: Integer;
     foptions: Integer;
     fconn: TMongo;
+    procedure CheckHandle;
     function GetConn: TMongo;
     function GetFields: IBson;
     function GetHandle: Pointer;
@@ -583,8 +585,12 @@ end;
 
 destructor TMongo.Destroy;
 begin
-  mongo_destroy(fhandle);
-  mongo_dispose(fhandle);
+  if fhandle <> nil then
+    begin
+      mongo_destroy(fhandle);
+      mongo_dispose(fhandle);
+      fhandle := nil;
+    end;
   inherited;
 end;
 
@@ -598,6 +604,7 @@ var
   hosturl: AnsiString;
   port: Integer;
 begin
+  CheckHandle;
   parseHost(host, hosturl, port);
   mongo_replset_add_seed(Handle, PAnsiChar(hosturl), port);
 end;
@@ -607,6 +614,7 @@ var
   Ret : integer;
   Err : integer;
 begin
+  CheckHandle;
   Ret := mongo_replset_connect(Handle);
   if Ret <> 0 then
     Err := getErr
@@ -616,41 +624,49 @@ end;
 
 function TMongo.isConnected: Boolean;
 begin
+  CheckHandle;
   Result := mongo_is_connected(fhandle);
 end;
 
 function TMongo.checkConnection: Boolean;
 begin
+  CheckHandle;
   Result := mongo_check_connection(fhandle) = 0;
 end;
 
 function TMongo.isMaster: Boolean;
 begin
+  CheckHandle;
   Result := mongo_cmd_ismaster(fhandle, nil);
 end;
 
 procedure TMongo.disconnect;
 begin
+  CheckHandle;
   mongo_disconnect(fhandle);
 end;
 
 function TMongo.reconnect: Boolean;
 begin
+  CheckHandle;
   Result := mongo_reconnect(fhandle) = 0;
 end;
 
 function TMongo.getErr: Integer;
 begin
+  CheckHandle;
   Result := mongo_get_err(fhandle);
 end;
 
 function TMongo.setTimeout(millis: Integer): Boolean;
 begin
+  CheckHandle;
   Result := mongo_set_op_timeout(fhandle, millis) = 0;
 end;
 
 function TMongo.getTimeout: Integer;
 begin
+  CheckHandle;
   Result := mongo_get_op_timeout(fhandle);
 end;
 
@@ -658,6 +674,7 @@ function TMongo.getPrimary: AnsiString;
 var
   APrimary : PAnsiChar;
 begin
+  CheckHandle;
   APrimary := mongo_get_primary(fhandle);
   try
     Result := AnsiString(APrimary);
@@ -669,6 +686,7 @@ end;
 
 function TMongo.getSocket: Integer;
 begin
+  CheckHandle;
   Result := mongo_get_socket(fhandle);
 end;
 
@@ -676,6 +694,7 @@ end;
 
 function TMongoReplset.getHostCount: Integer;
 begin
+  CheckHandle;
   Result := mongo_get_host_count(Handle);
 end;
 
@@ -683,6 +702,7 @@ function TMongoReplset.getHost(i: Integer): AnsiString;
 var
   AHost : PAnsiChar;
 begin
+  CheckHandle;
   AHost := mongo_get_host(Handle, i);
   try
     Result := AnsiString(AHost);
@@ -795,6 +815,7 @@ end;
 
 function TMongo.dropDatabase(const db: AnsiString): Boolean;
 begin
+  CheckHandle;
   autoCmdResetLastError(db, False);
   Result := mongo_cmd_drop_db(fhandle, PAnsiChar(db)) = 0;
   autoCheckCmdLastError(db, False);
@@ -802,6 +823,7 @@ end;
 
 function TMongo.Insert(const ns: AnsiString; b: IBson): Boolean;
 begin
+  CheckHandle;
   autoCmdResetLastError(ns, True);
   Result := mongo_insert(fhandle, PAnsiChar(ns), b.Handle, nil) = 0;
   autoCheckCmdLastError(ns, True);
@@ -816,6 +838,7 @@ var
   i: Integer;
   Len: Integer;
 begin
+  CheckHandle;
   Len := Length(bs);
   GetMem(ps, Len * sizeof(Pointer));
   try
@@ -832,6 +855,7 @@ end;
 function TMongo.Update(const ns: AnsiString; criteria, objNew: IBson; flags:
     Integer): Boolean;
 begin
+  CheckHandle;
   autoCmdResetLastError(ns, True);
   Result := mongo_update(fhandle, PAnsiChar(ns), criteria.Handle, objNew.Handle, flags, nil) = 0;
   autoCheckCmdLastError(ns, True);
@@ -844,6 +868,7 @@ end;
 
 function TMongo.remove(const ns: AnsiString; criteria: IBson): Boolean;
 begin
+  CheckHandle;
   autoCmdResetLastError(ns, True);
   Result := mongo_remove(fhandle, PAnsiChar(ns), criteria.Handle, nil) = 0;
   autoCheckCmdLastError(ns, True);
@@ -853,6 +878,7 @@ function TMongo.findOne(const ns: AnsiString; query, fields: IBson): IBson;
 var
   res: Pointer;
 begin
+  CheckHandle;
   res := bson_create;
   try
     autoCmdResetLastError(ns, True);
@@ -881,6 +907,7 @@ var
   bb: IBsonBuffer;
   ch: Pointer;
 begin
+  CheckHandle;
   if Cursor.fields = nil then
     Cursor.fields := bsonEmpty;
   q := Cursor.query;
@@ -915,6 +942,7 @@ var
   db: AnsiString;
   collection: AnsiString;
 begin
+  CheckHandle;
   parseNamespace(ns, db, collection);
   if db = '' then
     raise EMongo.Create(SExpectedAInTheNamespace);
@@ -936,6 +964,7 @@ var
   created: Boolean;
   h : pointer;
 begin
+  CheckHandle;
   h := bson_create;
   try
     res := NewBson(h);
@@ -969,6 +998,7 @@ end;
 
 function TMongo.addUser(const Name, password, db: AnsiString): Boolean;
 begin
+  CheckHandle;
   Result := mongo_cmd_add_user(fhandle, PAnsiChar(db), PAnsiChar(Name), PAnsiChar(password)) = 0;
 end;
 
@@ -979,6 +1009,7 @@ end;
 
 function TMongo.authenticate(const Name, password, db: AnsiString): Boolean;
 begin
+  CheckHandle;
   Result := mongo_cmd_authenticate(fhandle, PAnsiChar(db), PAnsiChar(Name), PAnsiChar(password)) = 0;
 end;
 
@@ -1021,12 +1052,19 @@ begin
   cmdResetLastError(db);
 end;
 
+procedure TMongo.CheckHandle;
+begin
+  if fhandle = nil then
+    raise EMongo.Create('Mongo handle is nil');
+end;
+
 function TMongo.command(const db: AnsiString; command: IBson): IBson;
 var
   b: IBson;
   res: Pointer;
   h : Pointer;
 begin
+  CheckHandle;
   res := bson_create;
   try
     if mongo_run_command(fhandle, PAnsiChar(db), command.Handle, res) = 0 then
@@ -1076,6 +1114,7 @@ var
   res: Pointer;
   h : pointer;
 begin
+  CheckHandle;
   res := bson_create;
   try
     if mongo_cmd_get_last_error(fhandle, PAnsiChar(db), res) <> 0 then
@@ -1102,6 +1141,7 @@ function TMongo.cmdGetLastError(const db: AnsiString): IBson;
 var
   h : Pointer;
 begin
+  CheckHandle;
   h := bson_create;
   if mongo_cmd_get_last_error(fHandle, PAnsiChar(db), h) = 0 then
     begin
@@ -1114,6 +1154,7 @@ end;
 
 procedure TMongo.cmdResetLastError(const db: AnsiString);
 begin
+  CheckHandle;
   mongo_cmd_reset_error(fHandle, PAnsiChar(db));
 end;
 
@@ -1123,6 +1164,7 @@ var
   res: Pointer;
   h : pointer;
 begin
+  CheckHandle;
   res := bson_create;
   try
     if mongo_cmd_get_prev_error(fhandle, PAnsiChar(db), res) <> 0 then
@@ -1152,11 +1194,13 @@ end;
 
 function TMongo.getServerErr: Integer;
 begin
+  CheckHandle;
   Result := mongo_get_server_err(fhandle);
 end;
 
 function TMongo.getServerErrString: AnsiString;
 begin
+  CheckHandle;
   Result := AnsiString(mongo_get_server_err_string(fhandle));
 end;
 
@@ -1189,6 +1233,7 @@ end;
 
 procedure TMongo.setWriteConcern(AWriteConcern: IWriteConcern);
 begin
+  CheckHandle;
   if AWriteConcern <> nil then
     if AWriteConcern.finished then
       mongo_set_write_concern(FHandle, AWriteConcern.Handle)
@@ -1222,6 +1267,12 @@ destructor TMongoCursor.Destroy;
 begin
   DestroyCursor;
   inherited;
+end;
+
+procedure TMongoCursor.CheckHandle;
+begin
+  if FHandle = nil then
+    raise EMongo.Create('Mongo handle is nil');
 end;
 
 procedure TMongoCursor.DestroyCursor;
@@ -1295,6 +1346,7 @@ end;
 
 function TMongoCursor.Next: Boolean;
 begin
+  CheckHandle;
   Result := mongo_cursor_next(Handle) = 0;
 end;
 
@@ -1345,6 +1397,7 @@ var
   b: IBson;
   h: Pointer;
 begin
+  CheckHandle;
   h := bson_create;
   try
     b := NewBson(h);
@@ -1380,6 +1433,7 @@ end;
 destructor TWriteConcern.Destroy;
 begin
   mongo_write_concern_destroy(@FWriteConcern);
+  FWriteConcern.mode := nil;
   inherited;
 end;
 
@@ -1411,7 +1465,9 @@ end;
 
 function TWriteConcern.Getmode: AnsiString;
 begin
-  Result := AnsiString(FWriteConcern.mode);
+  if FWriteConcern.mode <> nil then
+    Result := AnsiString(FWriteConcern.mode)
+  else Result := '';
 end;
 
 function TWriteConcern.Getw: Integer;

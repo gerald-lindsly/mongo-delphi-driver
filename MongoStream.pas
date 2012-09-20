@@ -19,6 +19,8 @@ type
     FGridFileWriter : IGridfileWriter;
     FStatus: TMongoStreamStatus;
     FMongo : TMongo;
+    procedure CheckGridFile;
+    procedure CheckGridFS;
     procedure CheckWriteSupport;
     procedure EnforceStatusOK;
     function GetCaseInsensitiveNames: Boolean;
@@ -96,8 +98,23 @@ begin
   FGridFileWriter := nil;
   FGridFile := nil;
   if FGridFS <> nil then
-    FGridFS.Free;
+    begin
+      FGridFS.Free;
+      FGridFS := nil;
+    end;
   inherited;
+end;
+
+procedure TMongoStream.CheckGridFile;
+begin
+  if FGridFile = nil then
+    raise EMongo.Create('FGridFile is nil');
+end;
+
+procedure TMongoStream.CheckGridFS;
+begin
+  if FGridFS = nil then
+    raise EMongo.Create('FGridFS is nil');
 end;
 
 procedure TMongoStream.CheckWriteSupport;
@@ -114,22 +131,26 @@ end;
 
 function TMongoStream.GetCaseInsensitiveNames: Boolean;
 begin
+  CheckGridFS;
   Result := FGridFS.CaseInsensitiveFileNames;
 end;
 
 function TMongoStream.GetID: IBsonOID;
 begin
+  CheckGridFile;
   Result := FGridFile.getId;
 end;
 
 function TMongoStream.GetSize: Int64;
 begin
+  CheckGridFile;
   Result := FGridFile.getLength;
 end;
 
 function TMongoStream.Read(var Buffer; Count: Longint): Longint;
 begin
   EnforceStatusOK;
+  CheckGridFile;
   Result := FGridFile.Read(@Buffer, Count);
   inc(FCurPos, Result);
 end;
@@ -140,6 +161,7 @@ function TMongoStream.Seek(Offset: longint; Origin: Word ): longint;
 function TMongoStream.Seek(Offset: {$IFDef Enterprise} Int64 {$Else} longint {$EndIf}; Origin: TSeekOrigin ): {$IFDef Enterprise} Int64 {$Else} longint {$EndIf};
 {$ENDIF}
 begin
+  CheckGridFile;
   case Origin of
     soFromBeginning : FCurPos := Offset;
     soFromCurrent : FCurPos := FCurPos + Offset;
