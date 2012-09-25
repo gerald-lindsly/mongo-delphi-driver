@@ -63,7 +63,7 @@ type
 
   { TMongo objects establish a connection to a MongoDB server and are
     used for subsequent database operations on that server. }
-  TMongo = class(TMongoNonInterfacedBaseClass)
+  TMongo = class(TMongoObject)
   private
     FAutoCheckLastError: Boolean;
     FWriteConcern: IWriteConcern;
@@ -496,7 +496,7 @@ begin
 end;
 
 type
-  TMongoCursor = class(TMongoBaseClass, IMongoCursor)
+  TMongoCursor = class(TMongoInterfacedObject, IMongoCursor)
   private
     FFindCalledFlag: Boolean;
     FHandle: Pointer;
@@ -545,7 +545,7 @@ type
     property Sort: IBson read GetSort write SetSort;
   end;
 
-  TWriteConcern = class(TMongoBaseClass, IWriteConcern)
+  TWriteConcern = class(TMongoInterfacedObject, IWriteConcern)
   private
     FMode: AnsiString;
     FWriteConcern: Tmongo_write_concern;
@@ -593,7 +593,7 @@ end;
 
 destructor TMongo.Destroy;
 begin
-  CheckValid;
+  {$IFDEF MONGO_MEMORY_PROTECTION} CheckValid; {$ENDIF}
   if fhandle <> nil then
   begin
     mongo_destroy(fhandle);
@@ -735,7 +735,7 @@ var
   Name: AnsiString;
   Count, i: Integer;
 begin
-  CheckValid;
+  {$IFDEF MONGO_MEMORY_PROTECTION} CheckValid; {$ENDIF}
   b := command(SAdmin, SListDatabases, true);
   if b = nil then
     Result := nil
@@ -777,7 +777,7 @@ var
   ns, Name: AnsiString;
   b: IBson;
 begin
-  CheckValid;
+  {$IFDEF MONGO_MEMORY_PROTECTION} CheckValid; {$ENDIF}
   Count := 0;
   ns := db + SSystemNamespaces;
   Cursor := NewMongoCursor;
@@ -807,7 +807,7 @@ end;
 
 function TMongo.Rename(const from_ns, to_ns: AnsiString): Boolean;
 begin
-  CheckValid;
+  {$IFDEF MONGO_MEMORY_PROTECTION} CheckValid; {$ENDIF}
   autoCmdResetLastError(from_ns, true);
   Result := command(SAdmin, BSON([SRenameCollection, from_ns, STo, to_ns])) <> nil;
   autoCheckCmdLastError(from_ns, true);
@@ -818,7 +818,7 @@ var
   db: AnsiString;
   collection: AnsiString;
 begin
-  CheckValid;
+  {$IFDEF MONGO_MEMORY_PROTECTION} CheckValid; {$ENDIF}
   parseNamespace(ns, db, collection);
   if db = '' then
     raise EMongo.Create(STMongoDropExpectedAInTheNamespac);
@@ -876,7 +876,7 @@ end;
 
 function TMongo.Update(const ns: AnsiString; criteria, objNew: IBson): Boolean;
 begin
-  CheckValid;
+  {$IFDEF MONGO_MEMORY_PROTECTION} CheckValid; {$ENDIF}
   Result := Update(ns, criteria, objNew, 0);
 end;
 
@@ -912,7 +912,7 @@ end;
 
 function TMongo.findOne(const ns: AnsiString; query: IBson): IBson;
 begin
-  CheckValid;
+  {$IFDEF MONGO_MEMORY_PROTECTION} CheckValid; {$ENDIF}
   Result := findOne(ns, query, NewBson(nil));
 end;
 
@@ -968,7 +968,7 @@ end;
 
 function TMongo.Count(const ns: AnsiString): Double;
 begin
-  CheckValid;
+  {$IFDEF MONGO_MEMORY_PROTECTION} CheckValid; {$ENDIF}
   autoCmdResetLastError(ns, true);
   Result := Count(ns, NewBson(nil));
   autoCheckCmdLastError(ns, true);
@@ -999,19 +999,19 @@ end;
 
 function TMongo.indexCreate(const ns: AnsiString; key: IBson): IBson;
 begin
-  CheckValid;
+  {$IFDEF MONGO_MEMORY_PROTECTION} CheckValid; {$ENDIF}
   Result := indexCreate(ns, key, 0);
 end;
 
 function TMongo.indexCreate(const ns, key: AnsiString; options: Integer): IBson;
 begin
-  CheckValid;
+  {$IFDEF MONGO_MEMORY_PROTECTION} CheckValid; {$ENDIF}
   Result := indexCreate(ns, BSON([key, true]), options);
 end;
 
 function TMongo.indexCreate(const ns, key: AnsiString): IBson;
 begin
-  CheckValid;
+  {$IFDEF MONGO_MEMORY_PROTECTION} CheckValid; {$ENDIF}
   Result := indexCreate(ns, key, 0);
 end;
 
@@ -1023,7 +1023,7 @@ end;
 
 function TMongo.addUser(const Name, password: AnsiString): Boolean;
 begin
-  CheckValid;
+  {$IFDEF MONGO_MEMORY_PROTECTION} CheckValid; {$ENDIF}
   Result := addUser(Name, password, SAdmin);
 end;
 
@@ -1035,7 +1035,7 @@ end;
 
 function TMongo.authenticate(const Name, password: AnsiString): Boolean;
 begin
-  CheckValid;
+  {$IFDEF MONGO_MEMORY_PROTECTION} CheckValid; {$ENDIF}
   Result := authenticate(Name, password, SAdmin);
 end;
 
@@ -1046,7 +1046,7 @@ var
   collection: AnsiString;
   it: IBsonIterator;
 begin
-  CheckValid;
+  {$IFDEF MONGO_MEMORY_PROTECTION} CheckValid; {$ENDIF}
   if not FAutoCheckLastError then
     Exit;
   if ANeedsParsing then
@@ -1067,7 +1067,7 @@ var
   db: AnsiString;
   collection: AnsiString;
 begin
-  CheckValid;
+  {$IFDEF MONGO_MEMORY_PROTECTION} CheckValid; {$ENDIF}
   if not FAutoCheckLastError then
     Exit;
   if ANeedsParsing then
@@ -1079,7 +1079,7 @@ end;
 
 procedure TMongo.CheckHandle;
 begin
-  CheckValid;
+  {$IFDEF MONGO_MEMORY_PROTECTION} CheckValid; {$ENDIF}
   if fhandle = nil then
     raise EMongo.Create(SMongoHandleIsNil);
 end;
@@ -1119,7 +1119,7 @@ var
   buf: IBsonBuffer;
   db, collection: AnsiString;
 begin
-  CheckValid;
+  {$IFDEF MONGO_MEMORY_PROTECTION} CheckValid; {$ENDIF}
   parseNamespace(ns, db, collection);
   if db = '' then
     raise EMongo.Create(SExpectedAInTheNamespace);
@@ -1132,7 +1132,7 @@ end;
 
 function TMongo.command(const db, cmdstr: AnsiString; const arg: Variant): IBson;
 begin
-  CheckValid;
+  {$IFDEF MONGO_MEMORY_PROTECTION} CheckValid; {$ENDIF}
   Result := command(db, BSON([cmdstr, arg]));
 end;
 
@@ -1218,7 +1218,7 @@ end;
 
 procedure TMongo.resetErr(const db: AnsiString);
 begin
-  CheckValid;
+  {$IFDEF MONGO_MEMORY_PROTECTION} CheckValid; {$ENDIF}
   command(db, SReseterror, true);
 end;
 
@@ -1239,7 +1239,7 @@ var
   hosturl: AnsiString;
   port: Integer;
 begin
-  CheckValid;
+  {$IFDEF MONGO_MEMORY_PROTECTION} CheckValid; {$ENDIF}
   fhandle := mongo_create;
   parseHost(AHost, hosturl, port);
   mongo_connect(fhandle, PAnsiChar(hosturl), port);
@@ -1249,7 +1249,7 @@ procedure TMongo.parseNamespace(const ns: AnsiString; var db: AnsiString; var Co
 var
   i: Integer;
 begin
-  CheckValid;
+  {$IFDEF MONGO_MEMORY_PROTECTION} CheckValid; {$ENDIF}
   i := Pos('.', ns);
   if i > 0 then
   begin
@@ -1299,21 +1299,21 @@ end;
 
 destructor TMongoCursor.Destroy;
 begin
-  CheckValid;
+  {$IFDEF MONGO_MEMORY_PROTECTION} CheckValid; {$ENDIF}
   DestroyCursor;
   inherited;
 end;
 
 procedure TMongoCursor.CheckHandle;
 begin
-  CheckValid;
+  {$IFDEF MONGO_MEMORY_PROTECTION} CheckValid; {$ENDIF}
   if FHandle = nil then
     raise EMongo.Create(SMongoHandleIsNil);
 end;
 
 procedure TMongoCursor.DestroyCursor;
 begin
-  CheckValid;
+  {$IFDEF MONGO_MEMORY_PROTECTION} CheckValid; {$ENDIF}
   if FHandle <> nil then
   begin
     mongo_cursor_destroy(FHandle);
@@ -1326,61 +1326,61 @@ end;
 
 procedure TMongoCursor.FindCalled;
 begin
-  CheckValid;
+  {$IFDEF MONGO_MEMORY_PROTECTION} CheckValid; {$ENDIF}
   FindCalledFlag := true;
 end;
 
 function TMongoCursor.GetConn: TMongo;
 begin
-  CheckValid;
+  {$IFDEF MONGO_MEMORY_PROTECTION} CheckValid; {$ENDIF}
   Result := FConn;
 end;
 
 function TMongoCursor.GetFields: IBson;
 begin
-  CheckValid;
+  {$IFDEF MONGO_MEMORY_PROTECTION} CheckValid; {$ENDIF}
   Result := FFields;
 end;
 
 function TMongoCursor.GetHandle: Pointer;
 begin
-  CheckValid;
+  {$IFDEF MONGO_MEMORY_PROTECTION} CheckValid; {$ENDIF}
   Result := FHandle;
 end;
 
 function TMongoCursor.GetLimit: Integer;
 begin
-  CheckValid;
+  {$IFDEF MONGO_MEMORY_PROTECTION} CheckValid; {$ENDIF}
   Result := FLimit;
 end;
 
 function TMongoCursor.GetOptions: Integer;
 begin
-  CheckValid;
+  {$IFDEF MONGO_MEMORY_PROTECTION} CheckValid; {$ENDIF}
   Result := FOptions;
 end;
 
 function TMongoCursor.GetQuery: IBson;
 begin
-  CheckValid;
+  {$IFDEF MONGO_MEMORY_PROTECTION} CheckValid; {$ENDIF}
   Result := FQuery;
 end;
 
 function TMongoCursor.GetSkip: Integer;
 begin
-  CheckValid;
+  {$IFDEF MONGO_MEMORY_PROTECTION} CheckValid; {$ENDIF}
   Result := FSkip;
 end;
 
 function TMongoCursor.GetSort: IBson;
 begin
-  CheckValid;
+  {$IFDEF MONGO_MEMORY_PROTECTION} CheckValid; {$ENDIF}
   Result := FSort;
 end;
 
 procedure TMongoCursor.Init;
 begin
-  CheckValid;
+  {$IFDEF MONGO_MEMORY_PROTECTION} CheckValid; {$ENDIF}
   Handle := nil;
   query := nil;
   Sort := nil;
@@ -1399,19 +1399,19 @@ end;
 
 procedure TMongoCursor.SetConn(const Value: TMongo);
 begin
-  CheckValid;
+  {$IFDEF MONGO_MEMORY_PROTECTION} CheckValid; {$ENDIF}
   FConn := Value;
 end;
 
 procedure TMongoCursor.SetFields(const Value: IBson);
 begin
-  CheckValid;
+  {$IFDEF MONGO_MEMORY_PROTECTION} CheckValid; {$ENDIF}
   FFields := Value;
 end;
 
 procedure TMongoCursor.SetHandle(const Value: Pointer);
 begin
-  CheckValid;
+  {$IFDEF MONGO_MEMORY_PROTECTION} CheckValid; {$ENDIF}
   if FHandle <> nil then
     DestroyCursor;
   FHandle := Value;
@@ -1419,31 +1419,31 @@ end;
 
 procedure TMongoCursor.SetLimit(const Value: Integer);
 begin
-  CheckValid;
+  {$IFDEF MONGO_MEMORY_PROTECTION} CheckValid; {$ENDIF}
   FLimit := Value;
 end;
 
 procedure TMongoCursor.SetOptions(const Value: Integer);
 begin
-  CheckValid;
+  {$IFDEF MONGO_MEMORY_PROTECTION} CheckValid; {$ENDIF}
   FOptions := Value;
 end;
 
 procedure TMongoCursor.SetQuery(const Value: IBson);
 begin
-  CheckValid;
+  {$IFDEF MONGO_MEMORY_PROTECTION} CheckValid; {$ENDIF}
   FQuery := Value;
 end;
 
 procedure TMongoCursor.SetSkip(const Value: Integer);
 begin
-  CheckValid;
+  {$IFDEF MONGO_MEMORY_PROTECTION} CheckValid; {$ENDIF}
   FSkip := Value;
 end;
 
 procedure TMongoCursor.SetSort(const Value: IBson);
 begin
-  CheckValid;
+  {$IFDEF MONGO_MEMORY_PROTECTION} CheckValid; {$ENDIF}
   FSort := Value;
 end;
 
@@ -1489,7 +1489,7 @@ end;
 
 destructor TWriteConcern.Destroy;
 begin
-  CheckValid;
+  {$IFDEF MONGO_MEMORY_PROTECTION} CheckValid; {$ENDIF}
   mongo_write_concern_destroy(@FWriteConcern);
   FWriteConcern.mode := nil;
   inherited;
@@ -1497,38 +1497,38 @@ end;
 
 procedure TWriteConcern.finish;
 begin
-  CheckValid;
+  {$IFDEF MONGO_MEMORY_PROTECTION} CheckValid; {$ENDIF}
   mongo_write_concern_finish(@FWriteConcern);
   FFinished := true;
 end;
 
 function TWriteConcern.Getfinished: Boolean;
 begin
-  CheckValid;
+  {$IFDEF MONGO_MEMORY_PROTECTION} CheckValid; {$ENDIF}
   Result := FFinished;
 end;
 
 function TWriteConcern.Getfsync: Integer;
 begin
-  CheckValid;
+  {$IFDEF MONGO_MEMORY_PROTECTION} CheckValid; {$ENDIF}
   Result := FWriteConcern.fsync;
 end;
 
 function TWriteConcern.GetHandle: Pointer;
 begin
-  CheckValid;
+  {$IFDEF MONGO_MEMORY_PROTECTION} CheckValid; {$ENDIF}
   Result := @FWriteConcern;
 end;
 
 function TWriteConcern.Getj: Integer;
 begin
-  CheckValid;
+  {$IFDEF MONGO_MEMORY_PROTECTION} CheckValid; {$ENDIF}
   Result := FWriteConcern.j;
 end;
 
 function TWriteConcern.Getmode: AnsiString;
 begin
-  CheckValid;
+  {$IFDEF MONGO_MEMORY_PROTECTION} CheckValid; {$ENDIF}
   if FWriteConcern.mode <> nil then
     Result := AnsiString(FWriteConcern.mode)
   else 
@@ -1537,39 +1537,39 @@ end;
 
 function TWriteConcern.Getw: Integer;
 begin
-  CheckValid;
+  {$IFDEF MONGO_MEMORY_PROTECTION} CheckValid; {$ENDIF}
   Result := FWriteConcern.w;
 end;
 
 function TWriteConcern.Getwtimeout: Integer;
 begin
-  CheckValid;
+  {$IFDEF MONGO_MEMORY_PROTECTION} CheckValid; {$ENDIF}
   Result := FWriteConcern.wtimeout;
 end;
 
 procedure TWriteConcern.Modified;
 begin
-  CheckValid;
+  {$IFDEF MONGO_MEMORY_PROTECTION} CheckValid; {$ENDIF}
   FFinished := false;
 end;
 
 procedure TWriteConcern.Setfsync(const Value: Integer);
 begin
-  CheckValid;
+  {$IFDEF MONGO_MEMORY_PROTECTION} CheckValid; {$ENDIF}
   FWriteConcern.fsync := Value;
   Modified;
 end;
 
 procedure TWriteConcern.Setj(const Value: Integer);
 begin
-  CheckValid;
+  {$IFDEF MONGO_MEMORY_PROTECTION} CheckValid; {$ENDIF}
   FWriteConcern.j := Value;
   Modified;
 end;
 
 procedure TWriteConcern.Setmode(const Value: AnsiString);
 begin
-  CheckValid;
+  {$IFDEF MONGO_MEMORY_PROTECTION} CheckValid; {$ENDIF}
   FMode := Value;
   FWriteConcern.mode := PAnsiChar(FMode);
   Modified;
@@ -1577,14 +1577,14 @@ end;
 
 procedure TWriteConcern.Setw(const Value: Integer);
 begin
-  CheckValid;
+  {$IFDEF MONGO_MEMORY_PROTECTION} CheckValid; {$ENDIF}
   FWriteConcern.w := Value;
   Modified;
 end;
 
 procedure TWriteConcern.Setwtimeout(const Value: Integer);
 begin
-  CheckValid;
+  {$IFDEF MONGO_MEMORY_PROTECTION} CheckValid; {$ENDIF}
   FWriteConcern.wtimeout := Value;
   Modified;
 end;

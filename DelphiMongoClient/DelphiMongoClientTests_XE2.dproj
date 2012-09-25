@@ -9,7 +9,7 @@
 			<ProjectVersion>13.4</ProjectVersion>
 			<Base>True</Base>
 			<Config Condition="'$(Config)'==''">Debug</Config>
-			<Platform Condition="'$(Platform)'==''">Win64</Platform>
+			<Platform Condition="'$(Platform)'==''">Win32</Platform>
 			<TargetedPlatforms>3</TargetedPlatforms>
 			<AppType>Application</AppType>
 		</PropertyGroup>
@@ -60,6 +60,19 @@
 			<Cfg_2>true</Cfg_2>
 			<Base>true</Base>
 		</PropertyGroup>
+		<PropertyGroup Condition="'$(Config)'=='Debug no Overrun' or '$(Cfg_5)'!=''">
+			<Cfg_5>true</Cfg_5>
+			<CfgParent>Cfg_2</CfgParent>
+			<Cfg_2>true</Cfg_2>
+			<Base>true</Base>
+		</PropertyGroup>
+		<PropertyGroup Condition="('$(Platform)'=='Win32' and '$(Cfg_5)'=='true') or '$(Cfg_5_Win32)'!=''">
+			<Cfg_5_Win32>true</Cfg_5_Win32>
+			<CfgParent>Cfg_5</CfgParent>
+			<Cfg_5>true</Cfg_5>
+			<Cfg_2>true</Cfg_2>
+			<Base>true</Base>
+		</PropertyGroup>
 		<PropertyGroup Condition="'$(Config)'=='DebugOnDemand' or '$(Cfg_3)'!=''">
 			<Cfg_3>true</Cfg_3>
 			<CfgParent>Base</CfgParent>
@@ -96,6 +109,7 @@
 			<Manifest_File>$(BDS)\bin\default_app.manifest</Manifest_File>
 		</PropertyGroup>
 		<PropertyGroup Condition="'$(Base_Win32)'!=''">
+			<PreBuildEvent><![CDATA[]]></PreBuildEvent>
 			<DCC_SYMBOL_EXPERIMENTAL>false</DCC_SYMBOL_EXPERIMENTAL>
 			<DCC_UNIT_DEPRECATED>false</DCC_UNIT_DEPRECATED>
 			<DCC_SYMBOL_PLATFORM>false</DCC_SYMBOL_PLATFORM>
@@ -110,8 +124,7 @@
 		</PropertyGroup>
 		<PropertyGroup Condition="'$(Cfg_1)'!=''">
 			<DCC_DcuOutput>X:\DCU\DEX2\Default\</DCC_DcuOutput>
-			<PreBuildEvent><![CDATA[copy X:\Lib\MongoClient\Run\Debugx64\MongoC.dll X:\Lib\D5\Tests\DelphiMongoClient
-$(PreBuildEvent)]]></PreBuildEvent>
+			<PreBuildEvent><![CDATA[copy X:\Lib\MongoClient\Run\Debugx64\MongoC.dll X:\Lib\D5\Tests\DelphiMongoClient]]></PreBuildEvent>
 			<Manifest_File>None</Manifest_File>
 			<DCC_ExeOutput>X:\Lib\D5\Tests\DelphiMongoClient\</DCC_ExeOutput>
 			<Version>7.0</Version>
@@ -121,6 +134,7 @@ $(PreBuildEvent)]]></PreBuildEvent>
 			<DCC_Define>RELEASE;$(DCC_Define)</DCC_Define>
 		</PropertyGroup>
 		<PropertyGroup Condition="'$(Cfg_1_Win64)'!=''">
+			<DCC_Define>MONGO_MEMORY_PROTECTION;$(DCC_Define)</DCC_Define>
 			<DCC_IMPLICIT_STRING_CAST_LOSS>false</DCC_IMPLICIT_STRING_CAST_LOSS>
 			<DCC_IMPLICIT_STRING_CAST>false</DCC_IMPLICIT_STRING_CAST>
 			<VerInfo_IncludeVerInfo>true</VerInfo_IncludeVerInfo>
@@ -129,14 +143,14 @@ $(PreBuildEvent)]]></PreBuildEvent>
 		</PropertyGroup>
 		<PropertyGroup Condition="'$(Cfg_1_Win32)'!=''">
 			<VerInfo_IncludeVerInfo>true</VerInfo_IncludeVerInfo>
-			<PreBuildEvent><![CDATA[copy X:\Lib\MongoClient\Run\ReleaseWin32\MongoC.dll X:\Lib\D5\Tests\DelphiMongoClient
-$(PreBuildEvent)]]></PreBuildEvent>
+			<PreBuildEvent><![CDATA[copy X:\Lib\MongoClient\Run\ReleaseX64\MongoC.dll X:\Lib\D5\Tests\DelphiMongoClient]]></PreBuildEvent>
 		</PropertyGroup>
 		<PropertyGroup Condition="'$(Cfg_2)'!=''">
+			<PreBuildEvent><![CDATA[]]></PreBuildEvent>
 			<DCC_IMPLICIT_STRING_CAST>false</DCC_IMPLICIT_STRING_CAST>
 			<Manifest_File>None</Manifest_File>
 			<Version>7.0</Version>
-			<DCC_Define>DEBUG;$(DCC_Define)</DCC_Define>
+			<DCC_Define>DEBUG</DCC_Define>
 			<DCC_ExeOutput>X:\Lib\D5\Tests\DelphiMongoClient</DCC_ExeOutput>
 			<DCC_DcuOutput>X:\DCU\DEX2\Default\</DCC_DcuOutput>
 			<DCC_ObjOutput>X:\DCU\D2007</DCC_ObjOutput>
@@ -169,11 +183,19 @@ $(PreBuildEvent)]]></PreBuildEvent>
 			<DCC_Define>MONGO_MEMORY_PROTECTION;$(DCC_Define)</DCC_Define>
 			<DCC_UnitSearchPath>x:\Lib\D5;$(DCC_UnitSearchPath)</DCC_UnitSearchPath>
 			<VerInfo_IncludeVerInfo>true</VerInfo_IncludeVerInfo>
-			<PreBuildEvent><![CDATA[copy X:\Lib\MongoClient\Run\DebugWin32\MongoC.dll X:\Lib\D5\Tests\DelphiMongoClient
-$(PreBuildEvent)]]></PreBuildEvent>
+			<PreBuildEvent><![CDATA[copy X:\Lib\MongoClient\Run\DebugWin32\MongoC.dll X:\Lib\D5\Tests\DelphiMongoClient]]></PreBuildEvent>
 			<DCC_DebugInfoInExe>true</DCC_DebugInfoInExe>
 		</PropertyGroup>
+		<PropertyGroup Condition="'$(Cfg_5)'!=''">
+			<PreBuildEvent><![CDATA[]]></PreBuildEvent>
+		</PropertyGroup>
+		<PropertyGroup Condition="'$(Cfg_5_Win32)'!=''">
+			<DCC_Define>DEBUG</DCC_Define>
+			<VerInfo_IncludeVerInfo>true</VerInfo_IncludeVerInfo>
+			<PreBuildEvent><![CDATA[copy X:\Lib\MongoClient\Run\DebugWin32\MongoC.dll X:\Lib\D5\Tests\DelphiMongoClient]]></PreBuildEvent>
+		</PropertyGroup>
 		<PropertyGroup Condition="'$(Cfg_3)'!=''">
+			<PreBuildEvent><![CDATA[]]></PreBuildEvent>
 			<DCC_ExeOutput>X:\Lib\D5\Tests\DelphiMongoClient</DCC_ExeOutput>
 			<DCC_DcuOutput>X:\DCU\DEX2\Default\</DCC_DcuOutput>
 			<DCC_Define>DEBUG;OnDemandMongoCLoad;$(DCC_Define)</DCC_Define>
@@ -187,12 +209,11 @@ $(PostBuildEvent)]]></PostBuildEvent>
 			<VerInfo_IncludeVerInfo>true</VerInfo_IncludeVerInfo>
 		</PropertyGroup>
 		<PropertyGroup Condition="'$(Cfg_3_Win32)'!=''">
+			<PreBuildEvent><![CDATA[copy X:\Lib\MongoClient\Run\DebugWin32\MongoC.dll X:\Lib\D5\Tests\DelphiMongoClient]]></PreBuildEvent>
 			<DCC_GenerateStackFrames>true</DCC_GenerateStackFrames>
 			<DCC_RemoteDebug>true</DCC_RemoteDebug>
 			<DCC_ImportedDataReferences>false</DCC_ImportedDataReferences>
 			<VerInfo_IncludeVerInfo>true</VerInfo_IncludeVerInfo>
-			<PostBuildEvent><![CDATA[copy X:\Lib\MongoClient\Run\DebugWin32\MongoC.dll X:\Lib\D5\Tests\DelphiMongoClient
-$(PostBuildEvent)]]></PostBuildEvent>
 			<DCC_DebugInfoInExe>true</DCC_DebugInfoInExe>
 		</PropertyGroup>
 		<ProjectExtensions>
@@ -275,6 +296,10 @@ $(PostBuildEvent)]]></PostBuildEvent>
 				<Key>Cfg_2</Key>
 				<CfgParent>Base</CfgParent>
 			</BuildConfiguration>
+			<BuildConfiguration Include="Debug no Overrun">
+				<Key>Cfg_5</Key>
+				<CfgParent>Cfg_2</CfgParent>
+			</BuildConfiguration>
 			<BuildConfiguration Include="DebugOnDemand">
 				<Key>Cfg_3</Key>
 				<CfgParent>Base</CfgParent>
@@ -289,7 +314,7 @@ $(PostBuildEvent)]]></PostBuildEvent>
 		</ItemGroup>
 		<Import Condition="Exists('$(APPDATA)\Embarcadero\$(BDSAPPDATABASEDIR)\$(PRODUCTVERSION)\UserTools.proj')" Project="$(APPDATA)\Embarcadero\$(BDSAPPDATABASEDIR)\$(PRODUCTVERSION)\UserTools.proj"/>
 		<PropertyGroup Condition="'$(Config)'=='Release' And '$(Platform)'=='Win64'">
-			<PreBuildEvent>copy X:\Lib\MongoClient\Run\Releasex64\MongoC.dll X:\Lib\D5\Tests\DelphiMongoClient&amp;&amp;copy X:\Lib\MongoClient\Run\Debugx64\MongoC.dll X:\Lib\D5\Tests\DelphiMongoClient</PreBuildEvent>
+			<PreBuildEvent>copy X:\Lib\MongoClient\Run\Releasex64\MongoC.dll X:\Lib\D5\Tests\DelphiMongoClient&amp;&amp;&lt;![CDATA[copy X:\Lib\MongoClient\Run\Debugx64\MongoC.dll X:\Lib\D5\Tests\DelphiMongoClient]]&gt;</PreBuildEvent>
 			<PreBuildEventIgnoreExitCode>False</PreBuildEventIgnoreExitCode>
 			<PreLinkEvent/>
 			<PreLinkEventIgnoreExitCode>False</PreLinkEventIgnoreExitCode>
@@ -297,7 +322,7 @@ $(PostBuildEvent)]]></PostBuildEvent>
 			<PostBuildEventIgnoreExitCode>False</PostBuildEventIgnoreExitCode>
 		</PropertyGroup>
 		<PropertyGroup Condition="'$(Config)'=='Release' And '$(Platform)'=='Win32'">
-			<PreBuildEvent>copy X:\Lib\MongoClient\Run\ReleaseWin32\MongoC.dll X:\Lib\D5\Tests\DelphiMongoClient&amp;&amp;copy X:\Lib\MongoClient\Run\Debugx64\MongoC.dll X:\Lib\D5\Tests\DelphiMongoClient</PreBuildEvent>
+			<PreBuildEvent><![CDATA[copy X:\Lib\MongoClient\Run\ReleaseX64\MongoC.dll X:\Lib\D5\Tests\DelphiMongoClient]]></PreBuildEvent>
 			<PreBuildEventIgnoreExitCode>False</PreBuildEventIgnoreExitCode>
 			<PreLinkEvent/>
 			<PreLinkEventIgnoreExitCode>False</PreLinkEventIgnoreExitCode>
@@ -305,7 +330,7 @@ $(PostBuildEvent)]]></PostBuildEvent>
 			<PostBuildEventIgnoreExitCode>False</PostBuildEventIgnoreExitCode>
 		</PropertyGroup>
 		<PropertyGroup Condition="'$(Config)'=='Debug' And '$(Platform)'=='Win64'">
-			<PreBuildEvent>copy X:\Lib\MongoClient\Run\Debugx64\MongoC.dll X:\Lib\D5\Tests\DelphiMongoClient</PreBuildEvent>
+			<PreBuildEvent>copy X:\Lib\MongoClient\Run\Debugx64\MongoC.dll X:\Lib\D5\Tests\DelphiMongoClient&amp;&amp;&lt;![CDATA[]]&gt;</PreBuildEvent>
 			<PreBuildEventIgnoreExitCode>False</PreBuildEventIgnoreExitCode>
 			<PreLinkEvent/>
 			<PreLinkEventIgnoreExitCode>False</PreLinkEventIgnoreExitCode>
@@ -320,8 +345,16 @@ $(PostBuildEvent)]]></PostBuildEvent>
 			<PostBuildEvent/>
 			<PostBuildEventIgnoreExitCode>False</PostBuildEventIgnoreExitCode>
 		</PropertyGroup>
+		<PropertyGroup Condition="'$(Config)'=='Debug no Overrun' And '$(Platform)'=='Win32'">
+			<PreBuildEvent>copy X:\Lib\MongoClient\Run\DebugWin32\MongoC.dll X:\Lib\D5\Tests\DelphiMongoClient</PreBuildEvent>
+			<PreBuildEventIgnoreExitCode>False</PreBuildEventIgnoreExitCode>
+			<PreLinkEvent/>
+			<PreLinkEventIgnoreExitCode>False</PreLinkEventIgnoreExitCode>
+			<PostBuildEvent/>
+			<PostBuildEventIgnoreExitCode>False</PostBuildEventIgnoreExitCode>
+		</PropertyGroup>
 		<PropertyGroup Condition="'$(Config)'=='DebugOnDemand' And '$(Platform)'=='Win64'">
-			<PreBuildEvent/>
+			<PreBuildEvent><![CDATA[]]></PreBuildEvent>
 			<PreBuildEventIgnoreExitCode>False</PreBuildEventIgnoreExitCode>
 			<PreLinkEvent/>
 			<PreLinkEventIgnoreExitCode>False</PreLinkEventIgnoreExitCode>
@@ -329,11 +362,11 @@ $(PostBuildEvent)]]></PostBuildEvent>
 			<PostBuildEventIgnoreExitCode>False</PostBuildEventIgnoreExitCode>
 		</PropertyGroup>
 		<PropertyGroup Condition="'$(Config)'=='DebugOnDemand' And '$(Platform)'=='Win32'">
-			<PreBuildEvent/>
+			<PreBuildEvent><![CDATA[copy X:\Lib\MongoClient\Run\DebugWin32\MongoC.dll X:\Lib\D5\Tests\DelphiMongoClient]]></PreBuildEvent>
 			<PreBuildEventIgnoreExitCode>False</PreBuildEventIgnoreExitCode>
 			<PreLinkEvent/>
 			<PreLinkEventIgnoreExitCode>False</PreLinkEventIgnoreExitCode>
-			<PostBuildEvent>copy X:\Lib\MongoClient\Run\DebugWin32\MongoC.dll X:\Lib\D5\Tests\DelphiMongoClient</PostBuildEvent>
+			<PostBuildEvent/>
 			<PostBuildEventIgnoreExitCode>False</PostBuildEventIgnoreExitCode>
 		</PropertyGroup>
 	</Project>
