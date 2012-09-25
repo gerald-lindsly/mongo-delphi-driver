@@ -1,11 +1,14 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <BorlandProject>
 	<Transactions>
-    <Transaction>2012/06/10 00:12:40.000.167,X:\Lib\D5\Tests\DelphiMongoClient\DelphiMongoClientTests_XE2.dproj=X:\Lib\D5\Tests\DelphiMongoClient\DelphiMongoClientTests.dproj</Transaction>
+    <Transaction>2012/06/10 00:12:40.000.167,X:\Lib\D5\Tests\DelphiMongoClient\DelphiMongoClientTests.dproj=X:\Lib\D5\Tests\DelphiMongoClient\DelphiMongoClientTests_XE2.dproj</Transaction>
     <Transaction>2012/07/05 17:25:50.000.333,=X:\Lib\D5\Tests\DelphiMongoClient\Unit1.pas</Transaction>
-    <Transaction>2012/07/05 17:26:07.000.637,X:\Lib\D5\Tests\DelphiMongoClient\Unit1.pas=X:\Lib\D5\MongoStream.pas</Transaction>
+    <Transaction>2012/07/05 17:26:07.000.637,X:\Lib\D5\MongoStream.pas=X:\Lib\D5\Tests\DelphiMongoClient\Unit1.pas</Transaction>
     <Transaction>2012/07/05 17:40:13.000.470,=X:\Lib\D5\Tests\DelphiMongoClient\TestMongoStream.pas</Transaction>
     <Transaction>2012/07/06 17:03:40.000.445,=X:\Lib\D5\Tests\DelphiMongoClient\Unit1.pas</Transaction>
-    <Transaction>2012/07/06 17:03:52.000.877,X:\Lib\D5\Tests\DelphiMongoClient\Unit1.pas=X:\Lib\D5\MongoAPI.pas</Transaction>
+    <Transaction>2012/07/06 17:03:52.000.877,X:\Lib\D5\MongoAPI.pas=X:\Lib\D5\Tests\DelphiMongoClient\Unit1.pas</Transaction>
+    <Transaction>2012/09/22 14:56:22.633,=X:\Lib\D5\Tests\DelphiMongoClient\Unit1.pas</Transaction>
+    <Transaction>2012/09/22 14:56:37.069,X:\Lib\D5\MongoPool.pas=X:\Lib\D5\Tests\DelphiMongoClient\Unit1.pas</Transaction>
+    <Transaction>2012/09/22 15:02:28.786,=X:\Lib\D5\Tests\DelphiMongoClient\TestMongoPool.pas</Transaction>
   </Transactions>
 </BorlandProject>

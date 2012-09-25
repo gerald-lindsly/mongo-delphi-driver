@@ -31,7 +31,7 @@ unit GridFS;
 interface
 
 uses
-  MongoDB, MongoBson;
+  MongoDB, MongoBson, MongoApi;
 
 const
   GRIDFILE_DEFAULT = 0;
@@ -42,7 +42,7 @@ type
   IGridfile       = interface;
   IGridfileWriter = interface;
 
-  TGridFS = class(TObject)
+  TGridFS = class(TMongoNonInterfacedBaseClass)
   private
     { Pointer to externally managed data representing the GridFS }
     Handle: Pointer;
@@ -118,6 +118,7 @@ type
     property AutoCheckLastError: Boolean read getAutoCheckLastError write setAutoCheckLastError;
     property CaseInsensitiveFileNames: Boolean read GetCaseInsensitiveFileNames
         write SetCaseInsensitiveFileNames;
+    property Mongo: TMongo read conn;
   end;
 
   IGridFile = interface
@@ -183,7 +184,7 @@ type
 implementation
 
 uses
-  SysUtils, MongoAPI;
+  SysUtils;
 
 // START resource string wizard section
 const
@@ -203,7 +204,7 @@ resourcestring
 
 type
   {  Objects of class TGridfile are used to access gridfiles and read from them. }
-  TGridfile = class(TInterfacedObject, IGridFile)
+  TGridfile = class(TMongoBaseClass, IGridFile)
   private
     procedure CheckHandle;
   protected
@@ -320,6 +321,7 @@ end;
 
 destructor TGridFS.Destroy;
 begin
+  CheckValid;
   if Handle <> nil then
     begin
       gridfs_destroy(Handle);
@@ -331,6 +333,7 @@ end;
 
 procedure TGridFS.CheckHandle;
 begin
+  CheckValid;
   if Handle = nil then
     raise EMongo.Create(SGridFSHandleIsNil);
 end;
@@ -350,12 +353,14 @@ end;
 function TGridFS.storeFile(const FileName, remoteName: AnsiString; Flags:
     Integer = GRIDFILE_DEFAULT): Boolean;
 begin
+  CheckValid;
   Result := storeFile(FileName, remoteName, '', Flags);
 end;
 
 function TGridFS.storeFile(const FileName: AnsiString; Flags: Integer =
     GRIDFILE_DEFAULT): Boolean;
 begin
+  CheckValid;
   Result := storeFile(FileName, FileName, '', Flags);
 end;
 
@@ -367,6 +372,7 @@ end;
 
 procedure TGridFS.setAutoCheckLastError(value: Boolean);
 begin
+  CheckValid;
   conn.AutoCheckLastError := Value;
 end;
 
@@ -380,6 +386,7 @@ end;
 function TGridFS.store(p: Pointer; Length: Int64; const remoteName: AnsiString;
     Flags: Integer = GRIDFILE_DEFAULT): Boolean;
 begin
+  CheckValid;
   Result := store(p, Length, remoteName, '', Flags);
 end;
 
@@ -393,6 +400,7 @@ end;
 function TGridFS.writerCreate(const remoteName: AnsiString; Flags: Integer =
     GRIDFILE_DEFAULT): IGridfileWriter;
 begin
+  CheckValid;
   Result := writerCreate(remoteName, '', Flags);
 end;
 
@@ -441,12 +449,14 @@ end;
 
 function TGridFS.getAutoCheckLastError: Boolean;
 begin
+  CheckValid;
   Result := conn.AutoCheckLastError;
 end;
 
 function TGridFS.find(const remoteName: AnsiString; AWriteMode: Boolean):
     IGridfile;
 begin
+  CheckValid;
   if CaseInsensitiveFileNames then
     Result := find(BSON([SFilename, UpperCase(remoteName)]), AWriteMode)
   else Result := find(BSON([SFilename, remoteName]), AWriteMode);
@@ -492,6 +502,7 @@ end;
 
 function TGridfileWriter.finish: Boolean;
 begin
+  CheckValid;
   if Handle = nil then
     Result := true
   else
@@ -509,6 +520,7 @@ end;
 
 destructor TGridfileWriter.Destroy;
 begin
+  CheckValid;
   finish;
   inherited;
 end;
@@ -530,18 +542,21 @@ end;
 
 destructor TGridfile.Destroy;
 begin
+  CheckValid;
   DestroyGridFile;
   inherited;
 end;
 
 procedure TGridfile.CheckHandle;
 begin
+  CheckValid;
   if FHandle = nil then
     raise EMongo.Create(SGridFileHandleIsNil);
 end;
 
 procedure TGridfile.DestroyGridFile;
 begin
+  CheckValid;
   if FHandle <> nil then
   begin
     gridfile_destroy(FHandle);
@@ -717,6 +732,7 @@ end;
 
 function TGridfile.Handle: Pointer;
 begin
+  CheckValid;
   Result := FHandle;
 end;
 

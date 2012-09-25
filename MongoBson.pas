@@ -387,7 +387,7 @@ const
   DATE_ADJUSTER = 25569;
 
 type
-  TBsonOID = class(TInterfacedObject, IBsonOID)
+  TBsonOID = class(TMongoBaseClass, IBsonOID)
   private
     Value: TBsonOIDValue;
   public
@@ -399,7 +399,7 @@ type
     procedure setValue(const AValue: TBsonOIDValue);
   end;
 
-  TBsonBinary = class(TInterfacedObject, IBsonBinary)
+  TBsonBinary = class(TMongoBaseClass, IBsonBinary)
   private
     Data: Pointer;
     Len: Integer;
@@ -415,7 +415,7 @@ type
     procedure setKind(AKind: Integer);
   end;
 
-  TBsonIterator = class(TInterfacedObject, IBsonIterator)
+  TBsonIterator = class(TMongoBaseClass, IBsonIterator)
   private
     Handle: Pointer;
     procedure CheckValidHandle;
@@ -445,7 +445,7 @@ type
     destructor Destroy; override;
   end;
 
-  TBsonCodeWScope = class(TInterfacedObject, IBsonCodeWScope)
+  TBsonCodeWScope = class(TMongoBaseClass, IBsonCodeWScope)
   private
     code: AnsiString;
     scope: IBson;
@@ -458,7 +458,7 @@ type
     procedure setScope(AScope: IBson);
   end;
 
-  TBsonRegex = class(TInterfacedObject, IBsonRegex)
+  TBsonRegex = class(TMongoBaseClass, IBsonRegex)
   private
     pattern: AnsiString;
     options: AnsiString;
@@ -471,7 +471,7 @@ type
     procedure setPattern(const APattern: AnsiString);
   end;
 
-  TBsonTimestamp = class(TInterfacedObject, IBsonTimestamp)
+  TBsonTimestamp = class(TMongoBaseClass, IBsonTimestamp)
   private
     Time: TDateTime;
     increment: Integer;
@@ -484,7 +484,7 @@ type
     procedure setTime(ATime: TDateTime);
   end;
 
-  TBsonBuffer = class(TInterfacedObject, IBsonBuffer)
+  TBsonBuffer = class(TMongoBaseClass, IBsonBuffer)
   private
     Handle: Pointer;
     function AppendIntCallback(i: Integer; const Arr): Boolean;
@@ -534,7 +534,7 @@ type
     destructor Destroy; override;
   end;
 
-  TBson = class(TInterfacedObject, IBson)
+  TBson = class(TMongoBaseClass, IBson)
   private
     FHandle: Pointer;
     procedure CheckHandle;
@@ -602,17 +602,20 @@ function TBsonOID.AsString: AnsiString;
 var
   buf: array[0..24] of AnsiChar;
 begin
+  CheckValid;
   bson_oid_to_string(@Value, @buf);
   Result := AnsiString(buf);
 end;
 
 function TBsonOID.getValue: PBsonOIDValue;
 begin
+  CheckValid;
   Result := @Value;
 end;
 
 procedure TBsonOID.setValue(const AValue: TBsonOIDValue);
 begin
+  CheckValid;
   Value := AValue;
 end;
 
@@ -639,6 +642,7 @@ end;
 
 destructor TBsonIterator.Destroy;
 begin
+  CheckValid;
   if Handle <> nil then
     begin
       bson_iterator_dispose(Handle);
@@ -649,6 +653,7 @@ end;
 
 procedure TBsonIterator.CheckValidHandle;
 begin
+  CheckValid;
   if Handle = nil then
     raise EMongo.Create(SIteratorHandleIsNil);
 end;
@@ -797,6 +802,7 @@ end;
 
 function TBsonIterator.getHandle: Pointer;
 begin
+  CheckValid;
   Result := Handle;
 end;
 
@@ -849,6 +855,7 @@ end;
 
 destructor TBsonBuffer.Destroy;
 begin
+  CheckValid;
   if Handle <> nil then
     begin
       bson_destroy(Handle);
@@ -861,6 +868,7 @@ end;
 {$IFDEF DELPHI2009}
 function TBsonBuffer.Append(Name: PAnsiChar; Value: PAnsiChar): Boolean;
 begin
+  CheckValid;
   Result := AppendStr(Name, Value);
 end;
 {$EndIf}
@@ -953,6 +961,7 @@ end;
 {$IFDEF DELPHI2007}
 function TBsonBuffer.Append(Name: PAnsiChar; const Value: Variant): Boolean;
 begin
+  CheckValid;
   Result := AppendVariant(Name, Value);
 end;
 {$ENDIF}
@@ -966,6 +975,7 @@ var
   {$ENDIF}
   {$ENDIF}
 begin
+  CheckValid;
   case VarType(Value) of
     varNull:
       Result := appendNull(Name);
@@ -1019,6 +1029,7 @@ end;
 
 function TBsonBuffer.Append(Name: PAnsiChar; Value: IBson): Boolean;
 begin
+  CheckBsonBuffer;
   Result := (bson_append_bson(Handle, Name, Value.Handle) = 0);
 end;
 
@@ -1027,21 +1038,25 @@ type
 
 function TBsonBuffer.AppendIntCallback(i: Integer; const Arr): Boolean;
 begin
+  CheckValid;
   Result := bson_append_int(Handle, PAnsiChar(IntToStr(i)), TIntegerArray(Arr)[i]) = 0;
 end;
 
 function TBsonBuffer.AppendDoubleCallback(i: Integer; const Arr): Boolean;
 begin
+  CheckValid;
   Result := bson_append_double(Handle, PAnsiChar(IntToStr(i)), TDoubleArray(Arr)[i]) = 0;
 end;
 
 function TBsonBuffer.AppendBooleanCallback(i: Integer; const Arr): Boolean;
 begin
+  CheckValid;
   Result := bson_append_bool(Handle, PAnsiChar(IntToStr(i)), TBooleanArray(Arr)[i]) = 0;
 end;
 
 function TBsonBuffer.AppendStringCallback(i: Integer; const Arr): Boolean;
 begin
+  CheckValid;
   Result := bson_append_string(Handle, PAnsiChar(IntToStr(i)), PAnsiChar(TStringArray(Arr)[i])) = 0;
 end;
 
@@ -1052,6 +1067,7 @@ var
   i : Integer;
   AppendElementMethod : TAppendElementCallback;
 begin
+  CheckValid;
   success := (bson_append_start_array(Handle, Name) = 0);
   i := 0;
   TMethod(AppendElementMethod).Data := Self;
@@ -1068,26 +1084,31 @@ end;
 
 function TBsonBuffer.appendArray(Name: PAnsiChar; const Value: TIntegerArray): Boolean;
 begin
+  CheckValid;
   Result := InternalAppendArray(Name, Value, length(Value), @TBsonBuffer.AppendIntCallback);
 end;
 
 function TBsonBuffer.appendArray(Name: PAnsiChar; const Value: TDoubleArray): Boolean;
 begin
+  CheckValid;
   Result := InternalAppendArray(Name, Value, length(Value), @TBsonBuffer.AppendDoubleCallback);
 end;
 
 function TBsonBuffer.appendArray(Name: PAnsiChar; const Value: TBooleanArray): Boolean;
 begin
+  CheckValid;
   Result := InternalAppendArray(Name, Value, length(Value), @TBsonBuffer.AppendBooleanCallback);
 end;
 
 function TBsonBuffer.appendArray(Name: PAnsiChar; const Value: TStringArray): Boolean;
 begin
+  CheckValid;
   Result := InternalAppendArray(Name, Value, length(Value), @TBsonBuffer.AppendStringCallback);
 end;
 
 procedure TBsonBuffer.CheckBsonBuffer;
 begin
+  CheckValid;
   if Handle = nil then
     raise Exception.Create(SBsonBufferAlreadyFinished);
 end;
@@ -1141,6 +1162,7 @@ end;
 
 destructor TBson.Destroy();
 begin
+  CheckValid;
   if FHandle <> nil then
     begin
       bson_destroy(FHandle);
@@ -1261,12 +1283,14 @@ end;
 
 procedure TBson.CheckHandle;
 begin
+  CheckValid;
   if FHandle = nil then
     raise EMongo.Create(STBsonHandleIsNil);
 end;
 
 procedure TBson.display;
 begin
+  CheckValid;
   if FHandle = nil then
     Writeln(SNilBSON)
   else
@@ -1275,6 +1299,7 @@ end;
 
 function TBson.getHandle: Pointer;
 begin
+  CheckValid;
   Result := FHandle;
 end;
 
@@ -1323,21 +1348,25 @@ end;
 
 function TBsonCodeWScope.getCode: AnsiString;
 begin
+  CheckValid;
   Result := Code;
 end;
 
 function TBsonCodeWScope.getScope: IBson;
 begin
+  CheckValid;
   Result := Scope;
 end;
 
 procedure TBsonCodeWScope.setCode(const ACode: AnsiString);
 begin
+  CheckValid;
   Code := ACode;
 end;
 
 procedure TBsonCodeWScope.setScope(AScope: IBson);
 begin
+  CheckValid;
   Scope := AScope;
 end;
 
@@ -1365,21 +1394,25 @@ end;
 
 function TBsonRegex.getOptions: AnsiString;
 begin
+  CheckValid;
   Result := Options;
 end;
 
 function TBsonRegex.getPattern: AnsiString;
 begin
+  CheckValid;
   Result := Pattern;
 end;
 
 procedure TBsonRegex.setOptions(const AOptions: AnsiString);
 begin
+  CheckValid;
   Options := AOptions;
 end;
 
 procedure TBsonRegex.setPattern(const APattern: AnsiString);
 begin
+  CheckValid;
   Pattern := APattern;
 end;
 
@@ -1407,21 +1440,25 @@ end;
 
 function TBsonTimestamp.getIncrement: Integer;
 begin
+  CheckValid;
   Result := Increment;
 end;
 
 function TBsonTimestamp.getTime: TDateTime;
 begin
+  CheckValid;
   Result := Time;
 end;
 
 procedure TBsonTimestamp.setIncrement(AIncrement: Integer);
 begin
+  CheckValid;
   Increment := AIncrement;
 end;
 
 procedure TBsonTimestamp.setTime(ATime: TDateTime);
 begin
+  CheckValid;
   Time := ATime;
 end;
 
@@ -1456,6 +1493,7 @@ end;
 
 destructor TBsonBinary.Destroy;
 begin
+  CheckValid;
   if Data <> nil then
     begin
       FreeMem(Data);
@@ -1467,21 +1505,25 @@ end;
 
 function TBsonBinary.getData: Pointer;
 begin
+  CheckValid;
   Result := Data;
 end;
 
 function TBsonBinary.getKind: Integer;
 begin
+  CheckValid;
   Result := Kind;
 end;
 
 function TBsonBinary.getLen: Integer;
 begin
+  CheckValid;
   Result := Len;
 end;
 
 procedure TBsonBinary.setData(AData: Pointer; ALen: Integer);
 begin
+  CheckValid;
   if ALen > Len then
     ReallocMem(Data, ALen);
   Move(AData^, Data^, ALen);
@@ -1490,6 +1532,7 @@ end;
 
 procedure TBsonBinary.setKind(AKind: Integer);
 begin
+  CheckValid;
   Kind := AKind;
 end;
 

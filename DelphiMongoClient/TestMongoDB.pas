@@ -30,9 +30,11 @@ type
   end;
 
   TestMongoBase = class(TTestCase)
+  private
   protected
     FMongo: TMongo;
     function CreateMongo: TMongo; virtual;
+    procedure RemoveUser(const AUser, APwd: AnsiString);
     procedure SetUp; override;
     procedure TearDown; override;
   public
@@ -296,6 +298,15 @@ begin
   Result := TMongo.Create;
 end;
 
+procedure TestMongoBase.RemoveUser(const AUser, APwd: AnsiString);
+var
+  usr : IBson;
+begin
+  usr := BSON(['user', AUser]);
+  FMongo.remove('admin.system.users', usr);
+  Check(not FMongo.authenticate(AUser, APwd), 'Call to Mongo.authenticate with removed user should return False');
+end;
+
 procedure TestMongoBase.SetUp;
 begin
   inherited;
@@ -375,12 +386,8 @@ begin
 end;
 
 procedure TestTMongo.RemoveTest_user;
-var
-  usr : IBson;
 begin
-  usr := BSON(['user', 'test_user']);
-  Check(FMongo.remove('admin.system.users', usr), 'Call to Mongo.remove should return true removing user');
-  Check(not FMongo.authenticate('test_user', 'test_password'), 'Call to Mongo.authenticate with removed user should return False');
+  RemoveUser('test_user', 'test_password');
 end;
 
 procedure TestTMongo.SetUp;

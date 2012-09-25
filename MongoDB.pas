@@ -15,7 +15,10 @@
 }
 
 { Use define OnDemandMongoCLoad if you want the MongoC.dll library to be loaded dynamically upon first use of a TMongo or
-  TMongoReplset object }
+  TMongoReplset object
+
+  VERY IMPORTANT!!! If MongoC was compiled with memory protection you have to define MONGO_MEMORY_PROTECTION to compile this file
+  otherwise WriteConcerns are not going to work }
 
 { This unit implements the TMongo connection class for connecting to a MongoDB server
   and performing database operations on that server. }
@@ -31,13 +34,13 @@ uses
 
 const
   updateUpsert = 1;
-  updateMulti  = 2;
-  updateBasic  = 4;
+  updateMulti = 2;
+  updateBasic = 4;
 
-  indexUnique     = 1;
-  indexDropDups   = 4;
+  indexUnique = 1;
+  indexDropDups = 4;
   indexBackground = 8;
-  indexSparse     = 16;
+  indexSparse = 16;
 
   { Create a tailable cursor. }
   cursorTailable = 2;
@@ -60,7 +63,7 @@ type
 
   { TMongo objects establish a connection to a MongoDB server and are
     used for subsequent database operations on that server. }
-  TMongo = class(TObject)
+  TMongo = class(TMongoNonInterfacedBaseClass)
   private
     FAutoCheckLastError: Boolean;
     FWriteConcern: IWriteConcern;
@@ -295,9 +298,9 @@ type
       { Get the server error string.  As a convenience, this is saved here after calling
         getLastErr() or getPrevErr(). }
     function getServerErrString: AnsiString;
-      { Get the specified database last error Bson object }
+    { Get the specified database last error Bson object }
     function cmdGetLastError(const db: AnsiString): IBson;
-      { Resets the specified database error state }
+    { Resets the specified database error state }
     procedure cmdResetLastError(const db: AnsiString);
       { Sets de default write concern for the connection. Pass nil on AWriteConcern to set a NULL write concern
         at the driver level }
@@ -361,7 +364,7 @@ type
     procedure SetQuery(const Value: IBson);
     procedure SetSkip(const Value: Integer);
     procedure SetSort(const Value: IBson);
-   { Return the current document of the result set }
+    { Return the current document of the result set }
     function Value: IBson;
     { hold ref to the TMongo object of the find.  Prevents release of the
       TMongo object until after this cursor is destroyed. }
@@ -418,11 +421,11 @@ type
     property finished: Boolean read Getfinished;
   end;
 
-{ Create a cursor with a empty query (which matches everything) }
+  { Create a cursor with a empty query (which matches everything) }
 function NewMongoCursor: IMongoCursor; overload;
-{ Create a cursor with the given query. }
+  { Create a cursor with the given query. }
 function NewMongoCursor(query: IBson): IMongoCursor; overload;
-{ Create a WriteConcern object to be used as default write concern for the Mongo connection }
+  { Create a WriteConcern object to be used as default write concern for the Mongo connection }
 function NewWriteConcern: IWriteConcern;
 
 implementation
@@ -448,9 +451,9 @@ const
   SDistinct = 'distinct';
   SKey = 'key';
   SReseterror = 'reseterror';
-// END resource string wizard section
+  // END resource string wizard section
 
-// START resource string wizard section
+  // START resource string wizard section
 resourcestring
   SMongoHandleIsNil = 'Mongo handle is nil';
   SCanTUseAnUnfinishedWriteConcern = 'Can''t use an unfinished WriteConcern';
@@ -460,16 +463,19 @@ resourcestring
   {$ENDIF}
   STMongoDropExpectedAInTheNamespac = 'TMongo.drop: expected a ''.'' in the namespace.';
   SExpectedAInTheNamespace = 'Expected a ''.'' in the namespace';
-// END resource string wizard section
+  // END resource string wizard section
 
 type
   Tmongo_write_concern = record
-    w : integer;
-    wtimeout : integer;
-    j : integer;
-    fsync : integer;
-    mode : PAnsiChar;
-    cmd : pointer;
+    {$IFDEF MONGO_MEMORY_PROTECTION}
+    mongo_sig: Integer;
+    {$ENDIF}
+    w: Integer;
+    wtimeout: Integer;
+    j: Integer;
+    fsync: Integer;
+    mode: PAnsiChar;
+    cmd: Pointer;
   end;
 
 procedure parseHost(const host: AnsiString; var hosturl: AnsiString; var port: Integer);
@@ -480,17 +486,17 @@ begin
   if i = 0 then
   begin
     hosturl := host;
-    port    := 27017;
+    port := 27017;
   end
   else
   begin
     hosturl := Copy(host, 1, i - 1);
-    port    := StrToInt(Copy(host, i + 1, Length(host) - i));
+    port := StrToInt(Copy(host, i + 1, Length(host) - i));
   end;
 end;
 
 type
-  TMongoCursor = class(TInterfacedObject, IMongoCursor)
+  TMongoCursor = class(TMongoBaseClass, IMongoCursor)
   private
     FFindCalledFlag: Boolean;
     FHandle: Pointer;
@@ -539,11 +545,11 @@ type
     property Sort: IBson read GetSort write SetSort;
   end;
 
-  TWriteConcern = class(TInterfacedObject, IWriteConcern)
+  TWriteConcern = class(TMongoBaseClass, IWriteConcern)
   private
     FMode: AnsiString;
-    FWriteConcern : Tmongo_write_concern;
-    FFinished : Boolean;
+    FWriteConcern: Tmongo_write_concern;
+    FFinished: Boolean;
     procedure finish;
     function Getfsync: Integer;
     function GetHandle: Pointer;
@@ -563,7 +569,7 @@ type
     destructor Destroy; override;
   end;
 
-{ TMongo }
+  { TMongo }
 
 constructor TMongo.Create;
 begin
@@ -571,7 +577,7 @@ begin
   {$IFDEF OnDemandMongoCLoad}
   InitMongoDBLibrary;
   {$ENDIF}
-  AutoCheckLastError := True;
+  AutoCheckLastError := true;
   InitMongo(S127001 + S27017);
 end;
 
@@ -581,18 +587,19 @@ begin
   {$IFDEF OnDemandMongoCLoad}
   InitMongoDBLibrary;
   {$ENDIF}
-  AutoCheckLastError := True;
+  AutoCheckLastError := true;
   InitMongo(host);
 end;
 
 destructor TMongo.Destroy;
 begin
+  CheckValid;
   if fhandle <> nil then
-    begin
-      mongo_destroy(fhandle);
-      mongo_dispose(fhandle);
-      fhandle := nil;
-    end;
+  begin
+    mongo_destroy(fhandle);
+    mongo_dispose(fhandle);
+    fhandle := nil;
+  end;
   inherited;
 end;
 
@@ -613,14 +620,15 @@ end;
 
 function TMongoReplset.Connect: Boolean;
 var
-  Ret : integer;
-  Err : integer;
+  Ret: Integer;
+  Err: Integer;
 begin
   CheckHandle;
   Ret := mongo_replset_connect(Handle);
   if Ret <> 0 then
     Err := getErr
-  else Err := 0;
+  else 
+    Err := 0;
   Result := (Ret = 0) and (Err = 0);
 end;
 
@@ -674,7 +682,7 @@ end;
 
 function TMongo.getPrimary: AnsiString;
 var
-  APrimary : PAnsiChar;
+  APrimary: PAnsiChar;
 begin
   CheckHandle;
   APrimary := mongo_get_primary(fhandle);
@@ -702,7 +710,7 @@ end;
 
 function TMongoReplset.getHost(i: Integer): AnsiString;
 var
-  AHost : PAnsiChar;
+  AHost: PAnsiChar;
 begin
   CheckHandle;
   AHost := mongo_get_host(Handle, i);
@@ -727,6 +735,7 @@ var
   Name: AnsiString;
   Count, i: Integer;
 begin
+  CheckValid;
   b := command(SAdmin, SListDatabases, true);
   if b = nil then
     Result := nil
@@ -734,7 +743,7 @@ begin
   begin
     it := b.iterator;
     it.Next;
-    Count     := 0;
+    Count := 0;
     databases := it.subiterator;
     while databases.Next do
     begin
@@ -745,7 +754,7 @@ begin
         Inc(Count);
     end;
     SetLength(Result, Count);
-    i         := 0;
+    i := 0;
     databases := it.subiterator;
     while databases.Next do
     begin
@@ -765,9 +774,10 @@ function TMongo.getDatabaseCollections(const db: AnsiString): TStringArray;
 var
   Cursor: IMongoCursor;
   Count, i: Integer;
-  ns, Name : AnsiString;
+  ns, Name: AnsiString;
   b: IBson;
 begin
+  CheckValid;
   Count := 0;
   ns := db + SSystemNamespaces;
   Cursor := NewMongoCursor;
@@ -797,9 +807,10 @@ end;
 
 function TMongo.Rename(const from_ns, to_ns: AnsiString): Boolean;
 begin
-  autoCmdResetLastError(from_ns, True);
+  CheckValid;
+  autoCmdResetLastError(from_ns, true);
   Result := command(SAdmin, BSON([SRenameCollection, from_ns, STo, to_ns])) <> nil;
-  autoCheckCmdLastError(from_ns, True);
+  autoCheckCmdLastError(from_ns, true);
 end;
 
 function TMongo.drop(const ns: AnsiString): Boolean;
@@ -807,34 +818,35 @@ var
   db: AnsiString;
   collection: AnsiString;
 begin
+  CheckValid;
   parseNamespace(ns, db, collection);
   if db = '' then
     raise EMongo.Create(STMongoDropExpectedAInTheNamespac);
-  autoCmdResetLastError(db, False);
+  autoCmdResetLastError(db, false);
   Result := mongo_cmd_drop_collection(fhandle, PAnsiChar(db), PAnsiChar(collection), nil) = 0;
-  autoCheckCmdLastError(db, False);
+  autoCheckCmdLastError(db, false);
 end;
 
 function TMongo.dropDatabase(const db: AnsiString): Boolean;
 begin
   CheckHandle;
-  autoCmdResetLastError(db, False);
+  autoCmdResetLastError(db, false);
   Result := mongo_cmd_drop_db(fhandle, PAnsiChar(db)) = 0;
-  autoCheckCmdLastError(db, False);
+  autoCheckCmdLastError(db, false);
 end;
 
 function TMongo.Insert(const ns: AnsiString; b: IBson): Boolean;
 begin
   CheckHandle;
-  autoCmdResetLastError(ns, True);
+  autoCmdResetLastError(ns, true);
   Result := mongo_insert(fhandle, PAnsiChar(ns), b.Handle, nil) = 0;
-  autoCheckCmdLastError(ns, True);
+  autoCheckCmdLastError(ns, true);
 end;
 
 function TMongo.Insert(const ns: AnsiString; const bs: array of IBson): Boolean;
 type
   PPointerClosedArray = ^TPointerClosedArray;
-  TPointerClosedArray = array [0..MaxInt div sizeof(Pointer) - 1] of Pointer;
+  TPointerClosedArray = array [0..MaxInt div SizeOf(Pointer) - 1] of Pointer;
 var
   ps: PPointerClosedArray;
   i: Integer;
@@ -842,38 +854,38 @@ var
 begin
   CheckHandle;
   Len := Length(bs);
-  GetMem(ps, Len * sizeof(Pointer));
+  GetMem(ps, Len * SizeOf(Pointer));
   try
     for i := 0 to Len - 1 do
       ps^[i] := bs[i].Handle;
-    autoCmdResetLastError(ns, True);
+    autoCmdResetLastError(ns, true);
     Result := mongo_insert_batch(fhandle, PAnsiChar(ns), ps, Len, nil, 0) = 0;
-    autoCheckCmdLastError(ns, True);
+    autoCheckCmdLastError(ns, true);
   finally
     FreeMem(ps);
   end;
 end;
 
-function TMongo.Update(const ns: AnsiString; criteria, objNew: IBson; flags:
-    Integer): Boolean;
+function TMongo.Update(const ns: AnsiString; criteria, objNew: IBson; flags: Integer): Boolean;
 begin
   CheckHandle;
-  autoCmdResetLastError(ns, True);
+  autoCmdResetLastError(ns, true);
   Result := mongo_update(fhandle, PAnsiChar(ns), criteria.Handle, objNew.Handle, flags, nil) = 0;
-  autoCheckCmdLastError(ns, True);
+  autoCheckCmdLastError(ns, true);
 end;
 
 function TMongo.Update(const ns: AnsiString; criteria, objNew: IBson): Boolean;
 begin
+  CheckValid;
   Result := Update(ns, criteria, objNew, 0);
 end;
 
 function TMongo.remove(const ns: AnsiString; criteria: IBson): Boolean;
 begin
   CheckHandle;
-  autoCmdResetLastError(ns, True);
+  autoCmdResetLastError(ns, true);
   Result := mongo_remove(fhandle, PAnsiChar(ns), criteria.Handle, nil) = 0;
-  autoCheckCmdLastError(ns, True);
+  autoCheckCmdLastError(ns, true);
 end;
 
 function TMongo.findOne(const ns: AnsiString; query, fields: IBson): IBson;
@@ -883,7 +895,7 @@ begin
   CheckHandle;
   res := bson_create;
   try
-    autoCmdResetLastError(ns, True);
+    autoCmdResetLastError(ns, true);
     if mongo_find_one(fhandle, PAnsiChar(ns), query.Handle, fields.Handle, res) = 0 then
       Result := NewBson(res)
     else
@@ -891,7 +903,7 @@ begin
       bson_dispose(res);
       Result := nil;
     end;
-    autoCheckCmdLastError(ns, True);
+    autoCheckCmdLastError(ns, true);
   except
     bson_dispose(res);
     raise;
@@ -900,6 +912,7 @@ end;
 
 function TMongo.findOne(const ns: AnsiString; query: IBson): IBson;
 begin
+  CheckValid;
   Result := findOne(ns, query, NewBson(nil));
 end;
 
@@ -923,14 +936,14 @@ begin
     q := bb.finish;
   end;
   Cursor.conn := Self;
-  autoCmdResetLastError(ns, True);
-  ch := mongo_find(fhandle, PAnsiChar(ns), q.Handle, Cursor.fields.Handle, Cursor.limit, Cursor.skip, Cursor.options);
+  autoCmdResetLastError(ns, true);
   try
-    autoCheckCmdLastError(ns, True);
+    ch := mongo_find(fhandle, PAnsiChar(ns), q.Handle, Cursor.fields.Handle, Cursor.limit, Cursor.skip, Cursor.options);
+    autoCheckCmdLastError(ns, true);
     if ch <> nil then
     begin
       Cursor.Handle := ch;
-      Result        := true;
+      Result := true;
     end
     else
       Result := false;
@@ -948,23 +961,24 @@ begin
   parseNamespace(ns, db, collection);
   if db = '' then
     raise EMongo.Create(SExpectedAInTheNamespace);
-  autoCmdResetLastError(db, False);
+  autoCmdResetLastError(db, false);
   Result := mongo_count(fhandle, PAnsiChar(db), PAnsiChar(collection), query.Handle);
-  autoCheckCmdLastError(db, False);
+  autoCheckCmdLastError(db, false);
 end;
 
 function TMongo.Count(const ns: AnsiString): Double;
 begin
-  autoCmdResetLastError(ns, True);
+  CheckValid;
+  autoCmdResetLastError(ns, true);
   Result := Count(ns, NewBson(nil));
-  autoCheckCmdLastError(ns, True);
+  autoCheckCmdLastError(ns, true);
 end;
 
 function TMongo.indexCreate(const ns: AnsiString; key: IBson; options: Integer): IBson;
 var
   res: IBson;
   created: Boolean;
-  h : pointer;
+  h: Pointer;
 begin
   CheckHandle;
   h := bson_create;
@@ -974,9 +988,9 @@ begin
     bson_dispose(h);
     raise;
   end;
-  autoCmdResetLastError(ns, True);
+  autoCmdResetLastError(ns, true);
   created := mongo_create_index(fhandle, PAnsiChar(ns), key.Handle, options, res.Handle) = 0;
-  autoCheckCmdLastError(ns, True);
+  autoCheckCmdLastError(ns, true);
   if not created then
     Result := res
   else
@@ -985,16 +999,19 @@ end;
 
 function TMongo.indexCreate(const ns: AnsiString; key: IBson): IBson;
 begin
+  CheckValid;
   Result := indexCreate(ns, key, 0);
 end;
 
 function TMongo.indexCreate(const ns, key: AnsiString; options: Integer): IBson;
 begin
+  CheckValid;
   Result := indexCreate(ns, BSON([key, true]), options);
 end;
 
 function TMongo.indexCreate(const ns, key: AnsiString): IBson;
 begin
+  CheckValid;
   Result := indexCreate(ns, key, 0);
 end;
 
@@ -1006,6 +1023,7 @@ end;
 
 function TMongo.addUser(const Name, password: AnsiString): Boolean;
 begin
+  CheckValid;
   Result := addUser(Name, password, SAdmin);
 end;
 
@@ -1017,28 +1035,31 @@ end;
 
 function TMongo.authenticate(const Name, password: AnsiString): Boolean;
 begin
+  CheckValid;
   Result := authenticate(Name, password, SAdmin);
 end;
 
 procedure TMongo.autoCheckCmdLastError(const ns: AnsiString; ANeedsParsing: Boolean);
 var
-  Err : IBson;
+  Err: IBson;
   db: AnsiString;
   collection: AnsiString;
-  it : IBsonIterator;
+  it: IBsonIterator;
 begin
+  CheckValid;
   if not FAutoCheckLastError then
-    exit;
-   if ANeedsParsing then
+    Exit;
+  if ANeedsParsing then
     parseNamespace(ns, db, collection)
-  else db := ns;
+  else 
+    db := ns;
   Err := cmdGetLastError(db);
   if Err <> nil then
-    begin
-      it := Err.iterator;
-      it.Next;
-      raise EMongo.Create(it.Value);
-    end;
+  begin
+    it := Err.iterator;
+    it.Next;
+    raise EMongo.Create(it.Value);
+  end;
 end;
 
 procedure TMongo.autoCmdResetLastError(const ns: AnsiString; ANeedsParsing: Boolean);
@@ -1046,16 +1067,19 @@ var
   db: AnsiString;
   collection: AnsiString;
 begin
+  CheckValid;
   if not FAutoCheckLastError then
-    exit;
+    Exit;
   if ANeedsParsing then
     parseNamespace(ns, db, collection)
-  else db := ns;
+  else 
+    db := ns;
   cmdResetLastError(db);
 end;
 
 procedure TMongo.CheckHandle;
 begin
+  CheckValid;
   if fhandle = nil then
     raise EMongo.Create(SMongoHandleIsNil);
 end;
@@ -1064,7 +1088,7 @@ function TMongo.command(const db: AnsiString; command: IBson): IBson;
 var
   b: IBson;
   res: Pointer;
-  h : Pointer;
+  h: Pointer;
 begin
   CheckHandle;
   res := bson_create;
@@ -1095,6 +1119,7 @@ var
   buf: IBsonBuffer;
   db, collection: AnsiString;
 begin
+  CheckValid;
   parseNamespace(ns, db, collection);
   if db = '' then
     raise EMongo.Create(SExpectedAInTheNamespace);
@@ -1107,6 +1132,7 @@ end;
 
 function TMongo.command(const db, cmdstr: AnsiString; const arg: Variant): IBson;
 begin
+  CheckValid;
   Result := command(db, BSON([cmdstr, arg]));
 end;
 
@@ -1114,7 +1140,7 @@ function TMongo.getLastErr(const db: AnsiString): IBson;
 var
   b: IBson;
   res: Pointer;
-  h : pointer;
+  h: Pointer;
 begin
   CheckHandle;
   res := bson_create;
@@ -1141,17 +1167,18 @@ end;
 
 function TMongo.cmdGetLastError(const db: AnsiString): IBson;
 var
-  h : Pointer;
+  h: Pointer;
 begin
   CheckHandle;
   h := bson_create;
   if mongo_cmd_get_last_error(fHandle, PAnsiChar(db), h) = 0 then
-    begin
-      bson_destroy(h);
-      bson_dispose(h);
-      Result := nil;
-    end
-  else Result := NewBson(h);
+  begin
+    bson_destroy(h);
+    bson_dispose(h);
+    Result := nil;
+  end
+  else 
+    Result := NewBson(h);
 end;
 
 procedure TMongo.cmdResetLastError(const db: AnsiString);
@@ -1164,7 +1191,7 @@ function TMongo.getPrevErr(const db: AnsiString): IBson;
 var
   b: IBson;
   res: Pointer;
-  h : pointer;
+  h: Pointer;
 begin
   CheckHandle;
   res := bson_create;
@@ -1191,6 +1218,7 @@ end;
 
 procedure TMongo.resetErr(const db: AnsiString);
 begin
+  CheckValid;
   command(db, SReseterror, true);
 end;
 
@@ -1211,6 +1239,7 @@ var
   hosturl: AnsiString;
   port: Integer;
 begin
+  CheckValid;
   fhandle := mongo_create;
   parseHost(AHost, hosturl, port);
   mongo_connect(fhandle, PAnsiChar(hosturl), port);
@@ -1218,19 +1247,20 @@ end;
 
 procedure TMongo.parseNamespace(const ns: AnsiString; var db: AnsiString; var Collection: AnsiString);
 var
-  i : integer;
+  i: Integer;
 begin
+  CheckValid;
   i := Pos('.', ns);
   if i > 0 then
-    begin
-      db := Copy(ns, 1, i - 1);
-      collection := Copy(ns, i + 1, Length(ns) - i);
-    end
-    else
-    begin
-      db := '';
-      Collection := ns;
-    end;
+  begin
+    db := Copy(ns, 1, i - 1);
+    collection := Copy(ns, i + 1, Length(ns) - i);
+  end
+  else
+  begin
+    db := '';
+    Collection := ns;
+  end;
 end;
 
 procedure TMongo.setWriteConcern(AWriteConcern: IWriteConcern);
@@ -1239,8 +1269,10 @@ begin
   if AWriteConcern <> nil then
     if AWriteConcern.finished then
       mongo_set_write_concern(FHandle, AWriteConcern.Handle)
-    else raise EMongo.Create(SCanTUseAnUnfinishedWriteConcern)
-  else mongo_set_write_concern(FHandle, nil);
+    else 
+      raise EMongo.Create(SCanTUseAnUnfinishedWriteConcern)
+  else 
+    mongo_set_write_concern(FHandle, nil);
   FWriteConcern := AWriteConcern;
 end;
 
@@ -1267,75 +1299,88 @@ end;
 
 destructor TMongoCursor.Destroy;
 begin
+  CheckValid;
   DestroyCursor;
   inherited;
 end;
 
 procedure TMongoCursor.CheckHandle;
 begin
+  CheckValid;
   if FHandle = nil then
     raise EMongo.Create(SMongoHandleIsNil);
 end;
 
 procedure TMongoCursor.DestroyCursor;
 begin
+  CheckValid;
   if FHandle <> nil then
-    begin
-      mongo_cursor_destroy (FHandle);
-      if not FFindCalledFlag then
-        mongo_cursor_dispose (FHandle);
-      FHandle := nil;
-      FFindCalledFlag := False;
-    end;
+  begin
+    mongo_cursor_destroy(FHandle);
+    if not FFindCalledFlag then
+      mongo_cursor_dispose(FHandle);
+    FHandle := nil;
+    FFindCalledFlag := false;
+  end;
 end;
 
 procedure TMongoCursor.FindCalled;
 begin
-  FindCalledFlag := True;
+  CheckValid;
+  FindCalledFlag := true;
 end;
 
 function TMongoCursor.GetConn: TMongo;
 begin
+  CheckValid;
   Result := FConn;
 end;
 
 function TMongoCursor.GetFields: IBson;
 begin
+  CheckValid;
   Result := FFields;
 end;
 
 function TMongoCursor.GetHandle: Pointer;
 begin
+  CheckValid;
   Result := FHandle;
 end;
 
 function TMongoCursor.GetLimit: Integer;
 begin
+  CheckValid;
   Result := FLimit;
 end;
 
 function TMongoCursor.GetOptions: Integer;
 begin
+  CheckValid;
   Result := FOptions;
 end;
 
 function TMongoCursor.GetQuery: IBson;
 begin
+  CheckValid;
   Result := FQuery;
 end;
 
 function TMongoCursor.GetSkip: Integer;
 begin
+  CheckValid;
   Result := FSkip;
 end;
 
 function TMongoCursor.GetSort: IBson;
 begin
+  CheckValid;
   Result := FSort;
 end;
 
 procedure TMongoCursor.Init;
 begin
+  CheckValid;
   Handle := nil;
   query := nil;
   Sort := nil;
@@ -1354,16 +1399,19 @@ end;
 
 procedure TMongoCursor.SetConn(const Value: TMongo);
 begin
+  CheckValid;
   FConn := Value;
 end;
 
 procedure TMongoCursor.SetFields(const Value: IBson);
 begin
+  CheckValid;
   FFields := Value;
 end;
 
 procedure TMongoCursor.SetHandle(const Value: Pointer);
 begin
+  CheckValid;
   if FHandle <> nil then
     DestroyCursor;
   FHandle := Value;
@@ -1371,26 +1419,31 @@ end;
 
 procedure TMongoCursor.SetLimit(const Value: Integer);
 begin
+  CheckValid;
   FLimit := Value;
 end;
 
 procedure TMongoCursor.SetOptions(const Value: Integer);
 begin
+  CheckValid;
   FOptions := Value;
 end;
 
 procedure TMongoCursor.SetQuery(const Value: IBson);
 begin
+  CheckValid;
   FQuery := Value;
 end;
 
 procedure TMongoCursor.SetSkip(const Value: Integer);
 begin
+  CheckValid;
   FSkip := Value;
 end;
 
 procedure TMongoCursor.SetSort(const Value: IBson);
 begin
+  CheckValid;
   FSort := Value;
 end;
 
@@ -1426,6 +1479,8 @@ begin
   Result := TWriteConcern.Create;
 end;
 
+{ TWriteConcern }
+
 constructor TWriteConcern.Create;
 begin
   inherited Create;
@@ -1434,6 +1489,7 @@ end;
 
 destructor TWriteConcern.Destroy;
 begin
+  CheckValid;
   mongo_write_concern_destroy(@FWriteConcern);
   FWriteConcern.mode := nil;
   inherited;
@@ -1441,66 +1497,79 @@ end;
 
 procedure TWriteConcern.finish;
 begin
+  CheckValid;
   mongo_write_concern_finish(@FWriteConcern);
-  FFinished := True;
+  FFinished := true;
 end;
 
 function TWriteConcern.Getfinished: Boolean;
 begin
+  CheckValid;
   Result := FFinished;
 end;
 
 function TWriteConcern.Getfsync: Integer;
 begin
+  CheckValid;
   Result := FWriteConcern.fsync;
 end;
 
 function TWriteConcern.GetHandle: Pointer;
 begin
+  CheckValid;
   Result := @FWriteConcern;
 end;
 
 function TWriteConcern.Getj: Integer;
 begin
+  CheckValid;
   Result := FWriteConcern.j;
 end;
 
 function TWriteConcern.Getmode: AnsiString;
 begin
+  CheckValid;
   if FWriteConcern.mode <> nil then
     Result := AnsiString(FWriteConcern.mode)
-  else Result := '';
+  else 
+    Result := '';
 end;
 
 function TWriteConcern.Getw: Integer;
 begin
+  CheckValid;
   Result := FWriteConcern.w;
 end;
 
 function TWriteConcern.Getwtimeout: Integer;
 begin
+  CheckValid;
   Result := FWriteConcern.wtimeout;
 end;
 
 procedure TWriteConcern.Modified;
 begin
-  FFinished := False;
+  CheckValid;
+  FFinished := false;
 end;
 
 procedure TWriteConcern.Setfsync(const Value: Integer);
 begin
+  CheckValid;
   FWriteConcern.fsync := Value;
   Modified;
 end;
 
 procedure TWriteConcern.Setj(const Value: Integer);
 begin
+  CheckValid;
   FWriteConcern.j := Value;
   Modified;
 end;
 
 procedure TWriteConcern.Setmode(const Value: AnsiString);
 begin
+  CheckValid;
   FMode := Value;
   FWriteConcern.mode := PAnsiChar(FMode);
   Modified;
@@ -1508,17 +1577,16 @@ end;
 
 procedure TWriteConcern.Setw(const Value: Integer);
 begin
+  CheckValid;
   FWriteConcern.w := Value;
   Modified;
 end;
 
 procedure TWriteConcern.Setwtimeout(const Value: Integer);
 begin
+  CheckValid;
   FWriteConcern.wtimeout := Value;
   Modified;
 end;
 
 end.
-
-
-

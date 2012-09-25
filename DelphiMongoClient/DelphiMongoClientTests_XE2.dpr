@@ -27,7 +27,9 @@ uses
   GridFS in '..\..\GridFS.pas',
   MongoStream in '..\..\MongoStream.pas',
   TestMongoStream in 'TestMongoStream.pas',
-  MongoAPI in '..\..\MongoAPI.pas';
+  MongoAPI in '..\..\MongoAPI.pas',
+  MongoPool in '..\..\MongoPool.pas',
+  TestMongoPool in 'TestMongoPool.pas';
 
 {$R *.RES}
 

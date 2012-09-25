@@ -33,6 +33,29 @@ type
     bsonTIMESTAMP,      // 17
     bsonLONG);          // 18
 
+const
+  DELPHI_MONGO_SIGNATURE = $EFEFAFAF;
+
+type
+  TMongoBaseClass = class(TInterfacedObject)
+  protected
+    MongoSignature : cardinal;
+    procedure CheckValid;
+  public
+    constructor Create;
+    destructor Destroy; override;
+  end;
+
+type
+  TMongoNonInterfacedBaseClass = class(TObject)
+  protected
+    MongoSignature : cardinal;
+    procedure CheckValid;
+  public
+    constructor Create;
+    destructor Destroy; override;
+  end;
+
 {$IFDEF OnDemandMongoCLoad}
 type
   // MongoDB declarations
@@ -664,7 +687,50 @@ begin
       HMongoDBDll := 0;
     end;
 end;
+
 {$ENDIF}
+
+{ TMongoBaseClass }
+
+constructor TMongoBaseClass.Create;
+begin
+  inherited;
+  MongoSignature := DELPHI_MONGO_SIGNATURE;
+end;
+
+destructor TMongoBaseClass.Destroy;
+begin
+  CheckValid;
+  inherited;
+  MongoSignature := 0;
+end;
+
+procedure TMongoBaseClass.CheckValid;
+begin
+  if (Self = nil) or (MongoSignature <> DELPHI_MONGO_SIGNATURE) then
+    raise EMongoFatalError.Create('Delphi Mongo error failed signature validation');
+end;
+
+{ TMongoNonInterfacedBaseClass }
+
+constructor TMongoNonInterfacedBaseClass.Create;
+begin
+  inherited;
+  MongoSignature := DELPHI_MONGO_SIGNATURE;
+end;
+
+destructor TMongoNonInterfacedBaseClass.Destroy;
+begin
+  CheckValid;
+  inherited;
+  MongoSignature := 0;
+end;
+
+procedure TMongoNonInterfacedBaseClass.CheckValid;
+begin
+  if (Self = nil) or (MongoSignature <> DELPHI_MONGO_SIGNATURE) then
+    raise EMongoFatalError.Create('Delphi Mongo error failed signature validation');
+end;
 
 initialization
 {$IFNDEF OnDemandMongoCLoad}

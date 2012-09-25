@@ -3,7 +3,7 @@ unit MongoStream;
 interface
 
 uses
-  Classes, MongoDB, GridFS, MongoBson;
+  Classes, MongoDB, GridFS, MongoBson, MongoApi;
 
 {$I MongoC_defines.inc}
 
@@ -18,7 +18,7 @@ type
     FGridFile : IGridFile;
     FGridFileWriter : IGridfileWriter;
     FStatus: TMongoStreamStatus;
-    FMongo : TMongo;
+    FMongo: TMongo;
     procedure CheckGridFile;
     procedure CheckGridFS;
     procedure CheckWriteSupport;
@@ -26,6 +26,8 @@ type
     function GetCaseInsensitiveNames: Boolean;
     function GetID: IBsonOID;
   protected
+    MongoSignature: cardinal;
+    procedure CheckValid;
     function GetSize: Int64; override;
     {$IFDEF DELPHI2007}
     procedure SetSize(NewSize: longint); override;
@@ -50,6 +52,7 @@ type
     function Write(const Buffer; Count: Longint): Longint; override;
     property CaseInsensitiveNames: Boolean read GetCaseInsensitiveNames;
     property ID: IBsonOID read GetID;
+    property Mongo: TMongo read FMongo;
     property Status: TMongoStreamStatus read FStatus;
   end;
 
@@ -84,6 +87,7 @@ var
   AFlags : Integer;
 begin
   inherited Create;
+  MongoSignature := DELPHI_MONGO_SIGNATURE;
   FMongo := AMongo;
   FStatus := mssOK;
   FGridFS := TGridFS.Create(AMongo, ADB, APrefix);
@@ -111,6 +115,7 @@ end;
 
 destructor TMongoStream.Destroy;
 begin
+  CheckValid;
   FGridFileWriter := nil;
   FGridFile := nil;
   if FGridFS <> nil then
@@ -119,28 +124,39 @@ begin
       FGridFS := nil;
     end;
   inherited;
+  MongoSignature := 0;
 end;
 
 procedure TMongoStream.CheckGridFile;
 begin
+  CheckValid;
   if FGridFile = nil then
     raise EMongo.Create(SFGridFileIsNil);
 end;
 
 procedure TMongoStream.CheckGridFS;
 begin
+  CheckValid;
   if FGridFS = nil then
     raise EMongo.Create(SFGridFSIsNil);
 end;
 
+procedure TMongoStream.CheckValid;
+begin
+  if MongoSignature <> DELPHI_MONGO_SIGNATURE then
+    raise EMongoFatalError.Create('Delphi Mongo error failed signature validation');
+end;
+
 procedure TMongoStream.CheckWriteSupport;
 begin
+  CheckValid;
   if FGridFileWriter = nil then
     raise EMongo.Create(SStreamNotCreatedForWriting);
 end;
 
 procedure TMongoStream.EnforceStatusOK;
 begin
+  CheckValid;
   if FStatus <> mssOK then
     raise EMongo.Create(SStatusMustBeOKInOrderToAllowStre);
 end;
@@ -189,6 +205,7 @@ end;
 {$IFDEF DELPHI2007}
 function TMongoStream.Seek(const Offset: Int64; Origin: TSeekOrigin): Int64;
 begin
+  CheckValid;
   case Origin of
     soBeginning : FCurPos := Offset;
     soCurrent : FCurPos := FCurPos + Offset;
@@ -196,6 +213,7 @@ begin
   end;
   Result := FGridFile.Seek(FCurPos);
 end;
+
 {$ENDIF}
 
 {$IFDEF DELPHI2007}
