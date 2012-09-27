@@ -57,8 +57,11 @@ type
     procedure TestStressFourThreads;
     procedure TestStressWriteReads;
     procedure TestWrite;
+    procedure TestWriteAndReadFromSameChunk;
+    procedure TestWriteAndReadBackSomeChunks;
+    procedure TestWriteAndReadBackSomeChunksTryBoundaries;
     procedure TestWriteRead50MB;
-    procedure TestWriteRed50MBFourThreads;
+    procedure TestWriteRead50MBFourThreads;
   end;
 
 implementation
@@ -407,8 +410,117 @@ begin
   CheckMongoStreamPointer;
   Count := length(FEW_BYTES_OF_DATA);
   Buffer := PAnsiChar(FEW_BYTES_OF_DATA);
-  ReturnValue := FMongoStream.Write(Buffer, Count);
+  ReturnValue := FMongoStream.Write(Buffer^, Count);
   CheckEquals(Count, ReturnValue, 'Write didn''t return that I wrote the same amount of bytes written');
+end;
+
+procedure TestTMongoStream.TestWriteAndReadFromSameChunk;
+var
+  ReturnValue: Integer;
+  Count: Integer;
+  Buffer: Pointer;
+begin
+  CreateTestFile;
+  CheckMongoStreamPointer;
+  Count := length(FEW_BYTES_OF_DATA);
+  Buffer := PAnsiChar(FEW_BYTES_OF_DATA);
+  ReturnValue := FMongoStream.Write(Buffer^, Count);
+  CheckEquals(Count, ReturnValue, 'Write didn''t return that I wrote the same amount of bytes written');
+  FMongoStream.Seek(1, soFromBeginning);
+  GetMem(Buffer, length(FEW_BYTES_OF_DATA));
+  try
+    PAnsiChar(Buffer)[Count - 1] := #0;
+    FMongoStream.Read(Buffer^, Count - 1);
+    CheckEqualsString(copy(FEW_BYTES_OF_DATA, 2, length(FEW_BYTES_OF_DATA)), AnsiString(PAnsiChar(Buffer)), 'String read after writing didn''t match');
+  finally
+    FreeMem(Buffer);
+  end;
+end;
+
+procedure TestTMongoStream.TestWriteAndReadBackSomeChunks;
+const
+  BufSize = 1024 * 1024;
+  ReadStart = 123;
+  ReadReduction = 123 * 2;
+var
+  ReturnValue: Integer;
+  Buffer, Buffer2: PAnsiChar;
+  i : integer;
+begin
+  CreateTestFile;
+  CheckMongoStreamPointer;
+  GetMem(Buffer, BufSize + 1);
+  try
+    Buffer[BufSize] := #0;
+    for i := 0 to BufSize - 1 do
+      if (i + 1) mod 128 <> 0 then
+        Buffer[i] := AnsiChar(Random(29) + ord('A'))
+      else Buffer[i] := #13;
+    ReturnValue := FMongoStream.Write(Buffer^, BufSize - 1);
+    CheckEquals(BufSize - 1, ReturnValue, 'Write didn''t return that I wrote the same amount of bytes written');
+    FMongoStream.Seek(ReadStart, soFromBeginning);
+    Buffer[ReadStart] := 'Z';
+    Buffer[ReadStart + 1] := 'A';
+    Buffer[ReadStart + 2] := 'P';
+    FMongoStream.Write(Buffer[ReadStart], 3);
+    FMongoStream.Seek(ReadStart, soFromBeginning);
+    GetMem(Buffer2, BufSize + 1);
+    try
+      Buffer2[BufSize - ReadStart - ReadReduction] := #0;
+      FMongoStream.Read(Buffer2^, BufSize - ReadReduction - ReadStart);
+      CheckEqualsString(copy(AnsiString(PAnsiChar(@Buffer[ReadStart])), 1, BufSize - ReadReduction - ReadStart), AnsiString(PAnsiChar(Buffer2)), 'String read after writing didn''t match');
+    finally
+      FreeMem(Buffer2);
+    end;
+  finally
+    FreeMem(Buffer);
+  end;
+end;
+
+procedure TestTMongoStream.TestWriteAndReadBackSomeChunksTryBoundaries;
+const
+  BufSize = 1024 * 1024;
+  ReadStart = 123;
+  ReadReduction = 123 * 2;
+var
+  ReturnValue: Integer;
+  Buffer, Buffer2: PAnsiChar;
+  i : integer;
+begin
+  CreateTestFile;
+  CheckMongoStreamPointer;
+  GetMem(Buffer, BufSize + 1);
+  try
+    Buffer[BufSize] := #0;
+    for i := 0 to BufSize - 1 do
+      if (i + 1) mod 128 <> 0 then
+        Buffer[i] := AnsiChar(Random(29) + ord('A'))
+      else Buffer[i] := #13;
+    ReturnValue := FMongoStream.Write(Buffer^, BufSize - 1);
+    CheckEquals(BufSize - 1, ReturnValue, 'Write didn''t return that I wrote the same amount of bytes written');
+    FMongoStream.Seek(ReadStart, soFromBeginning);
+    Buffer[ReadStart] := 'Z';
+    Buffer[ReadStart + 1] := 'A';
+    Buffer[ReadStart + 2] := 'P';
+    Buffer[256 * 1024 - 1] := '+';
+    FMongoStream.Write(Buffer[ReadStart], 3);
+    FMongoStream.Seek(256 * 1024 - 1, soFromBeginning);
+    FMongoStream.Write(Buffer[256 * 1024 - 1], 1);
+    FMongoStream.Seek(ReadStart, soFromBeginning);
+    FMongoStream.Write(Buffer[ReadStart], 3);
+    FMongoStream.Seek(256 * 1024, soFromBeginning);
+    FMongoStream.Seek(ReadStart, soFromBeginning);
+    GetMem(Buffer2, BufSize + 1);
+    try
+      Buffer2[BufSize - ReadStart - ReadReduction] := #0;
+      FMongoStream.Read(Buffer2^, BufSize - ReadReduction - ReadStart);
+      CheckEqualsString(copy(AnsiString(PAnsiChar(@Buffer[ReadStart])), 1, BufSize - ReadReduction - ReadStart), AnsiString(PAnsiChar(Buffer2)), 'String read after writing didn''t match');
+    finally
+      FreeMem(Buffer2);
+    end;
+  finally
+    FreeMem(Buffer);
+  end;
 end;
 
 procedure TestTMongoStream.TestWriteRead50MB;
@@ -466,9 +578,9 @@ begin
   end;
 end;
 
-procedure TestTMongoStream.TestWriteRed50MBFourThreads;
+procedure TestTMongoStream.TestWriteRead50MBFourThreads;
 begin
-  InternalRunMultiThreaded(@TestTMongoStream.TestWriteRead50MB, 10);
+  InternalRunMultiThreaded(@TestTMongoStream.TestWriteRead50MB, 5);
 end;
 
 { TMongoStreamThread }
