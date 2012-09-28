@@ -1,0 +1,10 @@
+/mongo.exe
+/mongod.exe
+/mongodump.exe
+/mongoexport.exe
+/mongofiles.exe
+/mongoimport.exe
+/mongorestore.exe
+/mongos.exe
+/mongostat.exe
+/mongotop.exe
