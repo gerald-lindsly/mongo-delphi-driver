@@ -1,3 +1,23 @@
+{
+    Copyright 2009-2012 Convey Compliance Systems, Inc.
+
+    Licensed under the Apache License, Version 2.0 (the "License");
+    you may not use this file except in compliance with the License.
+    You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing, software
+    distributed under the License is distributed on an "AS IS" BASIS,
+    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+    See the License for the specific language governing permissions and
+    limitations under the License.
+}
+
+{ Use the option SerializedWithJournal set to True if you want to synchronize
+  write operations with Journal writing to prevent overflowing Mongo database
+  memory }
+
 unit MongoStream;
 
 interface
@@ -6,6 +26,16 @@ uses
   Classes, MongoDB, GridFS, MongoBson, MongoApi;
 
 {$I MongoC_defines.inc}
+
+const
+  SERIALIZE_WITH_JOURNAL_LOOP_COUNT = 10;
+
+resourcestring
+  SFGridFileIsNil = 'FGridFile is nil';
+  SFGridFSIsNil = 'FGridFS is nil';
+  SStreamNotCreatedForWriting = 'Stream not created for writing';
+  SStatusMustBeOKInOrderToAllowStre = 'Status must be OK in order to allow stream read operations';
+  SDelphiMongoErrorFailedSignature = 'Delphi Mongo error failed signature validation';
 
 type
   TMongoStreamMode = (msmWrite, msmCreate);
@@ -19,15 +49,22 @@ type
     FGridFileWriter : IGridfileWriter;
     FStatus: TMongoStreamStatus;
     FMongo: TMongo;
-    procedure CheckGridFile;
-    procedure CheckGridFS;
-    procedure CheckWriteSupport;
-    procedure EnforceStatusOK;
-    function GetCaseInsensitiveNames: Boolean;
-    function GetID: IBsonOID;
+    FSerializedWithJournal: Boolean;
+    FWriteOperationCount: Cardinal;
+    FDB : AnsiString;
+    FLastSerializeWithJournalResult: IBson;
+    FSerializeWithJournalWriteOpCount: Cardinal;
+    procedure CheckGridFile; {$IFDEF DELPHI2007} inline; {$ENDIF}
+    procedure CheckGridFS; {$IFDEF DELPHI2007} inline; {$ENDIF}
+    procedure CheckSerializeWithJournal; {$IFDEF DELPHI2007} inline; {$ENDIF}
+    procedure CheckWriteSupport; {$IFDEF DELPHI2007} inline; {$ENDIF}
+    procedure EnforceStatusOK; {$IFDEF DELPHI2007} inline; {$ENDIF}
+    function GetCaseInsensitiveNames: Boolean; {$IFDEF DELPHI2007} inline; {$ENDIF}
+    function GetID: IBsonOID; {$IFDEF DELPHI2007} inline; {$ENDIF}
+    procedure SerializeWithJournal;
   protected
     MongoSignature: cardinal;
-    procedure CheckValid;
+    procedure CheckValid; {$IFDEF DELPHI2007} inline; {$ENDIF}
     function GetSize: Int64; override;
     {$IFDEF DELPHI2007}
     procedure SetSize(NewSize: longint); override;
@@ -52,27 +89,22 @@ type
     function Write(const Buffer; Count: Longint): Longint; override;
     property CaseInsensitiveNames: Boolean read GetCaseInsensitiveNames;
     property ID: IBsonOID read GetID;
+    property LastSerializeWithJournalResult: IBson read FLastSerializeWithJournalResult;
     property Mongo: TMongo read FMongo;
+    property SerializedWithJournal: Boolean read FSerializedWithJournal write FSerializedWithJournal default False;
+    property SerializeWithJournalWriteOpCount: Cardinal read FSerializeWithJournalWriteOpCount write FSerializeWithJournalWriteOpCount default SERIALIZE_WITH_JOURNAL_LOOP_COUNT;
     property Status: TMongoStreamStatus read FStatus;
   end;
 
 implementation
 
-// START resource string wizard section
 const
   SFs = 'fs';
-// END resource string wizard section
+  GET_LAST_ERROR_CMD = 'getLastError';
+  WAIT_FOR_JOURNAL_OPTION = 'j';
 
-
-// START resource string wizard section
 resourcestring
   SFileNotFound = 'File %s not found';
-  SFGridFileIsNil = 'FGridFile is nil';
-  SFGridFSIsNil = 'FGridFS is nil';
-  SStreamNotCreatedForWriting = 'Stream not created for writing';
-  SStatusMustBeOKInOrderToAllowStre = 'Status must be OK in order to allow stream read operations';
-// END resource string wizard section
-
 
 constructor TMongoStream.Create(AMongo: TMongo; const ADB, AFileName:
     AnsiString; const AMode: TMongoStreamModeSet; ACompressed: Boolean);
@@ -87,10 +119,12 @@ var
   AFlags : Integer;
 begin
   inherited Create;
+  FSerializeWithJournalWriteOpCount := SERIALIZE_WITH_JOURNAL_LOOP_COUNT;
+  FDB := ADB;
   MongoSignature := DELPHI_MONGO_SIGNATURE;
   FMongo := AMongo;
   FStatus := mssOK;
-  FGridFS := TGridFS.Create(AMongo, ADB, APrefix);
+  FGridFS := TGridFS.Create(AMongo, FDB, APrefix);
   FGridFS.CaseInsensitiveFileNames := ACaseInsensitiveFileNames;
   if msmCreate in AMode then
     begin
@@ -144,7 +178,7 @@ end;
 procedure TMongoStream.CheckValid;
 begin
   if MongoSignature <> DELPHI_MONGO_SIGNATURE then
-    raise EMongoFatalError.Create('Delphi Mongo error failed signature validation');
+    raise EMongoFatalError.Create(SDelphiMongoErrorFailedSignature);
 end;
 
 procedure TMongoStream.CheckWriteSupport;
@@ -213,7 +247,6 @@ begin
   end;
   Result := FGridFile.Seek(FCurPos);
 end;
-
 {$ENDIF}
 
 {$IFDEF DELPHI2007}
@@ -234,12 +267,29 @@ begin
 end;
 {$ENDIF}
 
+procedure TMongoStream.SerializeWithJournal;
+var
+  Cmd : IBson;
+begin
+  (* This command will cause Mongo database to wait until Journal file is written before returning *)
+  Cmd := BSON([GET_LAST_ERROR_CMD, 1, WAIT_FOR_JOURNAL_OPTION, 1]);
+  FLastSerializeWithJournalResult := FMongo.command(FDB, Cmd);
+end;
+
+procedure TMongoStream.CheckSerializeWithJournal;
+begin
+  if FSerializedWithJournal and (FWriteOperationCount mod FSerializeWithJournalWriteOpCount = 0) then
+    SerializeWithJournal;
+end;
+
 function TMongoStream.Write(const Buffer; Count: Longint): Longint;
 begin
   CheckWriteSupport;
   FGridFileWriter.Write(@Buffer, Count);
+  inc(FWriteOperationCount);
   Result := Count;
   inc(FCurPos, Result);
+  CheckSerializeWithJournal;
 end;
 
 end.

@@ -57,17 +57,19 @@ type
     procedure TestStressFourThreads;
     procedure TestStressWriteReads;
     procedure TestWrite;
+    procedure TestWriteInALoopSerializedWithJournal;
+    procedure TestWriteInALoopNotSerializedWithJournal;
+    procedure TestWriteRead50MB;
+    procedure TestWriteRead50MBFourThreads;
     procedure TestWriteAndReadFromSameChunk;
     procedure TestWriteAndReadBackSomeChunks;
     procedure TestWriteAndReadBackSomeChunksTryBoundaries;
-    procedure TestWriteRead50MB;
-    procedure TestWriteRead50MBFourThreads;
   end;
 
 implementation
 
 uses
-  uFileManagement, FileCtrl, SysUtils, MongoBson;
+  uFileManagement, FileCtrl, SysUtils, MongoBson, Dialogs, Variants;
 
 const
   FILESIZE = 512 * 1024;
@@ -414,6 +416,169 @@ begin
   CheckEquals(Count, ReturnValue, 'Write didn''t return that I wrote the same amount of bytes written');
 end;
 
+procedure TestTMongoStream.TestWriteInALoopSerializedWithJournal;
+var
+  ReturnValue : Integer;
+  Count, n : Integer;
+  i : Cardinal;
+  Buffer: Pointer;
+  it : IBsonIterator;
+  LastGetLastErrorResult : IBson;
+begin
+  CreateTestFile;
+  CheckMongoStreamPointer;
+  FMongoStream.SerializedWithJournal := True;
+  LastGetLastErrorResult := nil;
+  Check(FMongoStream.SerializedWithJournal, 'FMongoStream.SerializedWithJournal should be equals to true');
+  Check(FMongoStream.SerializeWithJournalWriteOpCount > 0, 'FMongoStream.SerializeWithJournalWriteOpCount should be higher than zero');
+  for i := 1 to 100 do
+    begin
+      Count := length(FEW_BYTES_OF_DATA);
+      Buffer := PAnsiChar(FEW_BYTES_OF_DATA);
+      ReturnValue := FMongoStream.Write(Buffer, Count);
+      if i mod FMongoStream.SerializeWithJournalWriteOpCount = 0  then
+        begin
+          Check(FMongoStream.LastSerializeWithJournalResult <> nil, 'Serialize with journal command should had to been called');
+          Check(LastGetLastErrorResult <> FMongoStream.LastSerializeWithJournalResult, 'GetLastError result bson object should have changed from last iteration set');
+          LastGetLastErrorResult := FMongoStream.LastSerializeWithJournalResult;
+          it := LastGetLastErrorResult.iterator;
+          n := 0;
+          while it.Next do
+            if it.Key = 'ok' then
+              begin
+               Check(it.Value = 1, 'ok return value from call to getLastError should return 1');
+               inc(n);
+              end
+            else if it.key = 'err' then
+              begin
+                Check(VarIsNull(it.Value), 'Value of err property of return value for getLastError should be null');
+                inc(n);
+              end;
+          CheckEquals(2, n, 'Nunber of matching properties on result of getLastError should be equals to 2');
+        end
+        else Check(LastGetLastErrorResult = FMongoStream.LastSerializeWithJournalResult, 'Last cached getLastError bson object should still be the same on Stream object');
+      CheckEquals(Count, ReturnValue, 'Write didn''t return that I wrote the same amount of bytes written');
+    end;
+end;
+
+procedure TestTMongoStream.TestWriteInALoopNotSerializedWithJournal;
+var
+  ReturnValue : Integer;
+  Count : Integer;
+  i : Cardinal;
+  Buffer: Pointer;
+begin
+  CreateTestFile;
+  CheckMongoStreamPointer;
+  FMongoStream.SerializedWithJournal := False;
+  Check(not FMongoStream.SerializedWithJournal, 'FMongoStream.SerializedWithJournal should be equals to true');
+  Check(FMongoStream.SerializeWithJournalWriteOpCount > 0, 'FMongoStream.SerializeWithJournalWriteOpCount should be higher than zero');
+  for i := 1 to 100 do
+    begin
+      Count := length(FEW_BYTES_OF_DATA);
+      Buffer := PAnsiChar(FEW_BYTES_OF_DATA);
+      ReturnValue := FMongoStream.Write(Buffer, Count);
+      CheckEquals(Count, ReturnValue, 'Write didn''t return that I wrote the same amount of bytes written');
+    end;
+  Check(FMongoStream.LastSerializeWithJournalResult = nil, 'Serialize with journal command result be equals to nil');
+end;
+
+procedure TestTMongoStream.TestWriteRead50MB;
+type
+  PBuffer = ^TBuffer;
+  TBuffer = array [0..1024 * 1024 - 1 + 123] of AnsiChar; // I added 123 bytes to "complicate" buffering
+const
+  FIFTYMEGS = 50 * 1024 * 1024;
+var
+  ReturnValue: Integer;
+  Buffer, Buffer2: PBuffer;
+  i : integer;
+begin
+  CreateTestFile;
+  CheckMongoStreamPointer;
+  GetMem(Buffer, sizeof(TBuffer));
+  try
+    GetMem(Buffer2, sizeof(TBuffer));
+    try
+      for i := Low(Buffer^) to High(Buffer^) do
+        Buffer[i] := AnsiChar(Random(256));
+      for I := 0 to FIFTYMEGS div sizeof(Buffer^) do
+        begin
+          FMongoStream.Position := i * sizeof(TBuffer);
+          PInt64(Buffer)^ := i * sizeof(TBuffer);
+          FMongoStream.Write(Buffer^, sizeof(Buffer^));
+          if i mod 3 = 0 then
+            begin
+              FMongoStream.Free;
+              CreateTestFile(False);
+            end;
+          if i > 0 then
+            begin
+              FMongoStream.Position := (i - 1) * sizeof(TBuffer);
+              ReturnValue := FMongoStream.Read(Buffer2^, sizeof(TBuffer));
+              CheckEquals(Sizeof(Buffer^), ReturnValue, 'Number of bytes read dont''t match');
+              PInt64(Buffer)^ := (i - 1) * sizeof(TBuffer);
+              Check(CompareMem(Buffer, Buffer2, sizeof(Buffer^)), 'Memory read don''t match data written');
+              FMongoStream.Position := (i + 1) * sizeof(TBuffer);
+            end;
+        end;
+      FMongoStream.Position := 0;
+      for I := 0 to FIFTYMEGS div sizeof(Buffer^) do
+        begin
+          ReturnValue := FMongoStream.Read(Buffer2^, sizeof(Buffer^));
+          CheckEquals(Sizeof(Buffer^), ReturnValue, 'Number of bytes read dont''t match');
+          PInt64(Buffer)^ := i * sizeof(TBuffer);
+          Check(CompareMem(Buffer, Buffer2, sizeof(Buffer^)), 'Memory read don''t match data written');
+        end;
+    finally
+      FreeMem(Buffer2);
+    end;
+  finally
+    FreeMem(Buffer);
+  end;
+end;
+
+procedure TestTMongoStream.TestWriteRead50MBFourThreads;
+begin
+  InternalRunMultiThreaded(@TestTMongoStream.TestWriteRead50MB, 5);
+end;
+
+{ TMongoStreamThread }
+
+constructor TMongoStreamThread.Create(ATestProc: Pointer; ALoops: Integer);
+begin
+  inherited Create(True);
+  FTestMongoStream := TestTMongoStream.Create('TestStressWriteReads');
+  FTestProc := ATestProc;
+  FLoops := ALoops;
+end;
+
+destructor TMongoStreamThread.Destroy;
+begin
+  FTestMongoStream.Free;
+  inherited;
+end;
+
+procedure TMongoStreamThread.Execute;
+var
+  i : integer;
+  AMethod : TMethod;
+begin
+  try
+    AMethod.Data := FTestMongoStream;
+    AMethod.Code := FTestProc;
+    for I := 0 to FLoops - 1 do
+      begin
+        FTestMongoStream.SetUp;
+        TTestProc(AMethod);
+        FTestMongoStream.MustDropDatabase := False;
+        FTestMongoStream.TearDown;
+      end;
+  except
+    on E : Exception do FErrorMessage := AnsiString(E.Message);
+  end;
+end;
+
 procedure TestTMongoStream.TestWriteAndReadFromSameChunk;
 var
   ReturnValue: Integer;
@@ -520,102 +685,6 @@ begin
     end;
   finally
     FreeMem(Buffer);
-  end;
-end;
-
-procedure TestTMongoStream.TestWriteRead50MB;
-type
-  PBuffer = ^TBuffer;
-  TBuffer = array [0..1024 * 1024 - 1 + 123] of AnsiChar; // I added 123 bytes to "complicate" buffering
-const
-  FIFTYMEGS = 50 * 1024 * 1024;
-var
-  ReturnValue: Integer;
-  Buffer, Buffer2: PBuffer;
-  i : integer;
-begin
-  CreateTestFile;
-  CheckMongoStreamPointer;
-  GetMem(Buffer, sizeof(TBuffer));
-  try
-    GetMem(Buffer2, sizeof(TBuffer));
-    try
-      for i := Low(Buffer^) to High(Buffer^) do
-        Buffer[i] := AnsiChar(Random(256));
-      for I := 0 to FIFTYMEGS div sizeof(Buffer^) do
-        begin
-          FMongoStream.Position := i * sizeof(TBuffer);
-          PInt64(Buffer)^ := i * sizeof(TBuffer);
-          FMongoStream.Write(Buffer^, sizeof(Buffer^));
-          if i mod 3 = 0 then
-            begin
-              FMongoStream.Free;
-              CreateTestFile(False);
-            end;
-          if i > 0 then
-            begin
-              FMongoStream.Position := (i - 1) * sizeof(TBuffer);
-              ReturnValue := FMongoStream.Read(Buffer2^, sizeof(TBuffer));
-              CheckEquals(Sizeof(Buffer^), ReturnValue, 'Number of bytes read dont''t match');
-              PInt64(Buffer)^ := (i - 1) * sizeof(TBuffer);
-              Check(CompareMem(Buffer, Buffer2, sizeof(Buffer^)), 'Memory read don''t match data written');
-              FMongoStream.Position := (i + 1) * sizeof(TBuffer);
-            end;
-        end;
-      FMongoStream.Position := 0;
-      for I := 0 to FIFTYMEGS div sizeof(Buffer^) do
-        begin
-          ReturnValue := FMongoStream.Read(Buffer2^, sizeof(Buffer^));
-          CheckEquals(Sizeof(Buffer^), ReturnValue, 'Number of bytes read dont''t match');
-          PInt64(Buffer)^ := i * sizeof(TBuffer);
-          Check(CompareMem(Buffer, Buffer2, sizeof(Buffer^)), 'Memory read don''t match data written');
-        end;
-    finally
-      FreeMem(Buffer2);
-    end;
-  finally
-    FreeMem(Buffer);
-  end;
-end;
-
-procedure TestTMongoStream.TestWriteRead50MBFourThreads;
-begin
-  InternalRunMultiThreaded(@TestTMongoStream.TestWriteRead50MB, 5);
-end;
-
-{ TMongoStreamThread }
-
-constructor TMongoStreamThread.Create(ATestProc: Pointer; ALoops: Integer);
-begin
-  inherited Create(True);
-  FTestMongoStream := TestTMongoStream.Create('TestStressWriteReads');
-  FTestProc := ATestProc;
-  FLoops := ALoops;
-end;
-
-destructor TMongoStreamThread.Destroy;
-begin
-  FTestMongoStream.Free;
-  inherited;
-end;
-
-procedure TMongoStreamThread.Execute;
-var
-  i : integer;
-  AMethod : TMethod;
-begin
-  try
-    AMethod.Data := FTestMongoStream;
-    AMethod.Code := FTestProc;
-    for I := 0 to FLoops - 1 do
-      begin
-        FTestMongoStream.SetUp;
-        TTestProc(AMethod);
-        FTestMongoStream.MustDropDatabase := False;
-        FTestMongoStream.TearDown;
-      end;
-  except
-    on E : Exception do FErrorMessage := AnsiString(E.Message);
   end;
 end;
 
