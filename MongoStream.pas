@@ -28,7 +28,7 @@ uses
 {$I MongoC_defines.inc}
 
 const
-  SERIALIZE_WITH_JOURNAL_LOOP_COUNT = 10;
+  SERIALIZE_WITH_JOURNAL_BYTES_WRITTEN = 1024 * 10; (* Serialize with Journal every 10 megs written by default *)
 
 resourcestring
   SFGridFileIsNil = 'FGridFile is nil';
@@ -50,10 +50,10 @@ type
     FStatus: TMongoStreamStatus;
     FMongo: TMongo;
     FSerializedWithJournal: Boolean;
-    FWriteOperationCount: Cardinal;
+    FBytesWritten: Cardinal;
     FDB : AnsiString;
     FLastSerializeWithJournalResult: IBson;
-    FSerializeWithJournalWriteOpCount: Cardinal;
+    FSerializeWithJournalByteWritten: Cardinal;
     procedure CheckGridFile; {$IFDEF DELPHI2007} inline; {$ENDIF}
     procedure CheckGridFS; {$IFDEF DELPHI2007} inline; {$ENDIF}
     procedure CheckSerializeWithJournal; {$IFDEF DELPHI2007} inline; {$ENDIF}
@@ -87,12 +87,13 @@ type
     function Seek(Offset: {$IFDef Enterprise} Int64 {$Else} longint {$EndIf}; Origin: TSeekOrigin ): {$IFDef Enterprise} Int64 {$Else} longint {$EndIf}; override;
     {$ENDIF}
     function Write(const Buffer; Count: Longint): Longint; override;
+
     property CaseInsensitiveNames: Boolean read GetCaseInsensitiveNames;
     property ID: IBsonOID read GetID;
     property LastSerializeWithJournalResult: IBson read FLastSerializeWithJournalResult;
     property Mongo: TMongo read FMongo;
     property SerializedWithJournal: Boolean read FSerializedWithJournal write FSerializedWithJournal default False;
-    property SerializeWithJournalWriteOpCount: Cardinal read FSerializeWithJournalWriteOpCount write FSerializeWithJournalWriteOpCount default SERIALIZE_WITH_JOURNAL_LOOP_COUNT;
+    property SerializeWithJournalByteWritten : Cardinal read FSerializeWithJournalByteWritten write FSerializeWithJournalByteWritten default SERIALIZE_WITH_JOURNAL_BYTES_WRITTEN;
     property Status: TMongoStreamStatus read FStatus;
   end;
 
@@ -119,7 +120,7 @@ var
   AFlags : Integer;
 begin
   inherited Create;
-  FSerializeWithJournalWriteOpCount := SERIALIZE_WITH_JOURNAL_LOOP_COUNT;
+  FSerializeWithJournalByteWritten := SERIALIZE_WITH_JOURNAL_BYTES_WRITTEN;
   FDB := ADB;
   MongoSignature := DELPHI_MONGO_SIGNATURE;
   FMongo := AMongo;
@@ -278,17 +279,20 @@ end;
 
 procedure TMongoStream.CheckSerializeWithJournal;
 begin
-  if FSerializedWithJournal and (FWriteOperationCount mod FSerializeWithJournalWriteOpCount = 0) then
-    SerializeWithJournal;
+  if FSerializedWithJournal and (FBytesWritten > FSerializeWithJournalByteWritten) then
+    begin
+      FBytesWritten := 0;
+      SerializeWithJournal;
+    end;
 end;
 
 function TMongoStream.Write(const Buffer; Count: Longint): Longint;
 begin
   CheckWriteSupport;
   FGridFileWriter.Write(@Buffer, Count);
-  inc(FWriteOperationCount);
   Result := Count;
   inc(FCurPos, Result);
+  inc(FBytesWritten, Result);
   CheckSerializeWithJournal;
 end;
 

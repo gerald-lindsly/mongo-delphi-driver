@@ -424,20 +424,26 @@ var
   Buffer: Pointer;
   it : IBsonIterator;
   LastGetLastErrorResult : IBson;
+  bytesWritten : integer;
 begin
+  n := 0;
+  bytesWritten := 0;
   CreateTestFile;
   CheckMongoStreamPointer;
   FMongoStream.SerializedWithJournal := True;
   LastGetLastErrorResult := nil;
+  FMongoStream.SerializeWithJournalByteWritten := 50;
   Check(FMongoStream.SerializedWithJournal, 'FMongoStream.SerializedWithJournal should be equals to true');
-  Check(FMongoStream.SerializeWithJournalWriteOpCount > 0, 'FMongoStream.SerializeWithJournalWriteOpCount should be higher than zero');
+  Check(FMongoStream.SerializeWithJournalByteWritten > 0, 'FMongoStream.SerializeWithJournalByteWritten should be higher than zero');
   for i := 1 to 100 do
     begin
-      Count := length(FEW_BYTES_OF_DATA);
+      Count := length(AnsiString(FEW_BYTES_OF_DATA));
       Buffer := PAnsiChar(FEW_BYTES_OF_DATA);
       ReturnValue := FMongoStream.Write(Buffer, Count);
-      if i mod FMongoStream.SerializeWithJournalWriteOpCount = 0  then
+      inc(bytesWritten, Count);
+      if bytesWritten > FMongoStream.SerializeWithJournalByteWritten  then
         begin
+          bytesWritten := 0;
           Check(FMongoStream.LastSerializeWithJournalResult <> nil, 'Serialize with journal command should had to been called');
           Check(LastGetLastErrorResult <> FMongoStream.LastSerializeWithJournalResult, 'GetLastError result bson object should have changed from last iteration set');
           LastGetLastErrorResult := FMongoStream.LastSerializeWithJournalResult;
@@ -459,6 +465,7 @@ begin
         else Check(LastGetLastErrorResult = FMongoStream.LastSerializeWithJournalResult, 'Last cached getLastError bson object should still be the same on Stream object');
       CheckEquals(Count, ReturnValue, 'Write didn''t return that I wrote the same amount of bytes written');
     end;
+  CheckEquals(2, n, 'At least code should have passed one time for branch that controls sync with journal');
 end;
 
 procedure TestTMongoStream.TestWriteInALoopNotSerializedWithJournal;
@@ -471,11 +478,12 @@ begin
   CreateTestFile;
   CheckMongoStreamPointer;
   FMongoStream.SerializedWithJournal := False;
+  FMongoStream.SerializeWithJournalByteWritten := 50;
   Check(not FMongoStream.SerializedWithJournal, 'FMongoStream.SerializedWithJournal should be equals to true');
-  Check(FMongoStream.SerializeWithJournalWriteOpCount > 0, 'FMongoStream.SerializeWithJournalWriteOpCount should be higher than zero');
+  Check(FMongoStream.SerializeWithJournalByteWritten > 0, 'FMongoStream.SerializeWithJournalWriteOpCount should be higher than zero');
   for i := 1 to 100 do
     begin
-      Count := length(FEW_BYTES_OF_DATA);
+      Count := length(AnsiString(FEW_BYTES_OF_DATA));
       Buffer := PAnsiChar(FEW_BYTES_OF_DATA);
       ReturnValue := FMongoStream.Write(Buffer, Count);
       CheckEquals(Count, ReturnValue, 'Write didn''t return that I wrote the same amount of bytes written');
