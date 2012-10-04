@@ -28,7 +28,7 @@ uses
 {$I MongoC_defines.inc}
 
 const
-  SERIALIZE_WITH_JOURNAL_BYTES_WRITTEN = 1024 * 10; (* Serialize with Journal every 10 megs written by default *)
+  SERIALIZE_WITH_JOURNAL_BYTES_WRITTEN = 1024 * 1024 * 10; (* Serialize with Journal every 10 megs written by default *)
 
 resourcestring
   SFGridFileIsNil = 'FGridFile is nil';
