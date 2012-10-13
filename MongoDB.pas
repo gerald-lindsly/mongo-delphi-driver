@@ -13,142 +13,165 @@
     See the License for the specific language governing permissions and
     limitations under the License.
 }
+
+{ Use define OnDemandMongoCLoad if you want the MongoC.dll library to be loaded dynamically upon first use of a TMongo or
+  TMongoReplset object
+
+  VERY IMPORTANT!!! If MongoC was compiled with memory protection you have to define MONGO_MEMORY_PROTECTION to compile this file
+  otherwise WriteConcerns are not going to work }
+
 { This unit implements the TMongo connection class for connecting to a MongoDB server
   and performing database operations on that server. }
+
 unit MongoDB;
 
 interface
-  Uses
-     MongoBson;
 
-  const
-    updateUpsert    = 1;
-    updateMulti     = 2;
-    updateBasic     = 4;
+{$I MongoC_defines.inc}
 
-    indexUnique     = 1;
-    indexDropDups   = 4;
-    indexBackground = 8;
-    indexSparse     = 16;
+uses
+  MongoBson, SysUtils, MongoAPI;
 
-    { Create a tailable cursor. }
-    cursorTailable  = 2;
-    { Allow queries on a non-primary node. }
-    cursorSlaveOk   = 4;
-    { Disable cursor timeouts. }
-    cursorNoTimeout = 16;
-    { Momentarily block for more data. }
-    cursorAwaitData = 32;
-    { Stream in multiple 'more' packages. }
-    cursorExhaust   = 64;
-    { Allow reads even if a shard is down. }
-    cursorPartial   = 128;
+const
+  updateUpsert = 1;
+  updateMulti = 2;
+  updateBasic = 4;
 
-  type
-    TMongoCursor = class;
-    TStringArray = array of string;
+  indexUnique = 1;
+  indexDropDups = 4;
+  indexBackground = 8;
+  indexSparse = 16;
 
-    { TMongo objects establish a connection to a MongoDB server and are
-      used for subsequent database operations on that server. }
-    TMongo = class(TObject)
+  { Create a tailable cursor. }
+  cursorTailable = 2;
+  { Allow queries on a non-primary node. }
+  cursorSlaveOk = 4;
+  { Disable cursor timeouts. }
+  cursorNoTimeout = 16;
+  { Momentarily block for more data. }
+  cursorAwaitData = 32;
+  { Stream in multiple 'more' packages. }
+  cursorExhaust = 64;
+  { Allow reads even if a shard is down. }
+  cursorPartial = 128;
+
+type
+  IMongoCursor = interface;
+  IWriteConcern = interface;
+
+  EMongo = class(Exception);
+
+  { TMongo objects establish a connection to a MongoDB server and are
+    used for subsequent database operations on that server. }
+  TMongo = class(TMongoObject)
+  private
+    FAutoCheckLastError: Boolean;
+    FWriteConcern: IWriteConcern;
+    procedure CheckHandle;
+  protected
       { Pointer to externally managed data describing the connection.
         User code should not access this.  It is public only for
         access from the GridFS unit. }
-      var handle : Pointer;
+    fhandle: Pointer;
+    procedure InitMongo(const AHost: AnsiString); virtual;
+    procedure parseNamespace(const ns: AnsiString; var db: AnsiString; var Collection: AnsiString);
+  public
+    procedure autoCheckCmdLastError(const ns: AnsiString; ANeedsParsing: Boolean);
+    procedure autoCmdResetLastError(const ns: AnsiString; ANeedsParsing: Boolean);
       { Create a TMongo connection object.  A connection is attempted on the
         MongoDB server running on the localhost '127.0.0.1:27017'.
         Check isConnected() to see if it was successful. }
-      constructor Create(); overload;
+    constructor Create; overload;
       { Create a TMongo connection object.  The host[:port] to connect to is given
         as the host string. port defaults to 27017 if not given.
         Check the result of isConnected() to see if it was successful. }
-      constructor Create(host : string); overload;
+    constructor Create(const host: AnsiString); overload;
       { Determine whether this TMongo is currently connected to a MongoDB server.
         Returns True if connected; False, if not. }
-      function isConnected() : Boolean;
+    function isConnected: Boolean;
       { Check the connection.  This returns True if isConnected() and the server
         responded to a 'ping'; otherwise, False. }
-      function checkConnection() : Boolean;
-      { Return True if the server reports that it is a master; otherwise, False. }
-      function isMaster() : Boolean;
+    function checkConnection: Boolean;
+    { Return True if the server reports that it is a master; otherwise, False. }
+    function isMaster: Boolean;
       { Temporarirly disconnect from the server.  The connection may be reestablished
         by calling reconnect.  This works on both normal connections and replsets. }
-      procedure disconnect();
+    procedure disconnect;
       { Reconnect to the MongoDB server after having called disconnect to suspend
         operations. }
-      function reconnect() : Boolean;
+    function reconnect: Boolean;
       { Get an error code indicating the reason a connection or network communication
         failed. See mongo-c-driver/src/mongo.h and mongo_error_t. }
-      function getErr() : Integer;
+    function getErr: Integer;
       { Set the timeout in milliseconds of a network operation.  The default of 0
         indicates that there is no timeout. }
-      function setTimeout(millis : Integer) : Boolean;
+    function setTimeout(millis: Integer): Boolean;
       { Get the network operation timeout value in milliseconds.  The default of 0
         indicates that there is no timeout. }
-      function getTimeout() : Integer;
-      { Get the host:post of the primary server that this TMongo is connected to. }
-      function getPrimary() : string;
-      { Get the TCP/IP socket number being used for network communication }
-      function getSocket() : Integer;
-      { Get a list of databases from the server as an array of string }
-      function getDatabases() : TStringArray;
+    function getTimeout: Integer;
+    { Get the host:post of the primary server that this TMongo is connected to. }
+    function getPrimary: AnsiString;
+    { Get the TCP/IP socket number being used for network communication }
+    function getSocket: Integer;
+    { Get a list of databases from the server as an array of string }
+    function getDatabases: TStringArray;
       { Given a database name as a string, get the namespaces of the collections
         in that database as an array of string. }
-      function getDatabaseCollections(db : string) : TStringArray;
+    function getDatabaseCollections(const db: AnsiString): TStringArray;
       { Rename a collection.  from_ns is the current namespace of the collection
         to be renamed.  to_ns is the target namespace.
         The collection namespaces (from_ns, to_ns) are in the form 'database.collection'.
         Returns True if successful; otherwise, False.  Note that this function may
         be used to move a collection from one database to another. }
-      function rename(from_ns : string; to_ns : string) : Boolean;
+    function Rename(const from_ns, to_ns: AnsiString): Boolean;
       { Drop a collection.  Removes the collection of the given name from the server.
         Exercise care when using this function.
         The collection namespace (ns) is in the form 'database.collection'. }
-      function drop(ns : string) : Boolean;
+    function drop(const ns: AnsiString): Boolean;
       { Drop a database.  Removes the entire database of the given name from the server.
         Exercise care when using this function. }
-      function dropDatabase(db : string) : Boolean;
+    function dropDatabase(const db: AnsiString): Boolean;
       { Insert a document into the given namespace.
         The collection namespace (ns) is in the form 'database.collection'.
         See http://www.mongodb.org/display/DOCS/Inserting.
         Returns True if successful; otherwise, False. }
-      function insert(ns : string; b : TBson) : Boolean; overload;
+    function Insert(const ns: AnsiString; b: IBson): Boolean; overload;
       { Insert a batch of documents into the given namespace (collection).
         The collection namespace (ns) is in the form 'database.collection'.
         See http://www.mongodb.org/display/DOCS/Inserting.
         Returns True if successful; otherwise, False. }
-      function insert(ns : string; bs : array of TBson) : Boolean; overload;
+    function Insert(const ns: AnsiString; const bs: array of IBson): Boolean; overload;
       { Perform an update on the server.  The collection namespace (ns) is in the
         form 'database.collection'.  criteria indicates which records to update
         and objNew gives the replacement document.
         See http://www.mongodb.org/display/DOCS/Updating.
         Returns True if successful; otherwise, False. }
-      function update(ns : string; criteria : TBson; objNew : TBson) : Boolean; overload;
+    function Update(const ns: AnsiString; criteria, objNew: IBson): Boolean; overload;
       { Perform an update on the server.  The collection namespace (ns) is in the
         form 'database.collection'.  criteria indicates which records to update
         and objNew gives the replacement document. flags is a bit mask containing update
         options; updateUpsert, updateMulti, or updateBasic.
         See http://www.mongodb.org/display/DOCS/Updating.
         Returns True if successful; otherwise, False. }
-      function update(ns : string; criteria : TBson; objNew : TBson; flags : Integer) : Boolean; overload;
+    function Update(const ns: AnsiString; criteria, objNew: IBson; flags: Integer): Boolean; overload;
       { Remove documents from the server.  The collection namespace (ns) is in the
         form 'database.collection'.  Documents that match the given criteria
         are removed from the collection.
         See http://www.mongodb.org/display/DOCS/Removing.
         Returns True if successful; otherwise, False. }
-      function remove(ns : string; criteria : TBson) : Boolean;
+    function remove(const ns: AnsiString; criteria: IBson): Boolean;
       { Find the first document in the given namespace that matches a query.
         See http://www.mongodb.org/display/DOCS/Querying
         The collection namespace (ns) is in the form 'database.collection'.
-        Returns the document as a TBson if found; otherwise, nil. }
-      function findOne(ns : string; query : TBson) : TBson; overload;
+        Returns the document as a IBson if found; otherwise, nil. }
+    function findOne(const ns: AnsiString; query: IBson): IBson; overload;
       { Find the first document in the given namespace that matches a query.
         See http://www.mongodb.org/display/DOCS/Querying
         The collection namespace (ns) is in the form 'database.collection'.
         A subset of the documents fields to be returned is specified in fields.
         This can cut down on network traffic.
-        Returns the document as a TBson if found; otherwise, nil. }
-      function findOne(ns : string; query : TBson; fields : TBson) : TBson; overload;
+        Returns the document as a IBson if found; otherwise, nil. }
+    function findOne(const ns: AnsiString; query, fields: IBson): IBson; overload;
       { Issue a query to the database.
         See http://www.mongodb.org/display/DOCS/Querying
         Requires a TMongoCursor that is used to specify optional parameters to
@@ -177,741 +200,1395 @@ interface
                 (* Do something with cursor.value() *)
           end;
         #) }
-      function find(ns : string; cursor : TMongoCursor) : Boolean;
+    function find(const ns: AnsiString; Cursor: IMongoCursor): Boolean;
       { Return the count of all documents in the given namespace.
         The collection namespace (ns) is in the form 'database.collection'. }
-      function count(ns : string) : Double; overload;
+    function Count(const ns: AnsiString): Double; overload;
       { Return the count of all documents in the given namespace that match
         the given query.
         The collection namespace (ns) is in the form 'database.collection'. }
-      function count(ns : string; query : TBson) : Double; overload;
+    function Count(const ns: AnsiString; query: IBson): Double; overload;
       { Create an index for the given collection so that accesses by the given
         key are faster.
         The collection namespace (ns) is in the form 'database.collection'.
         key is the name of the field on which to index.
-        Returns nil if successful; otherwise, a TBson document that describes the error. }
-      function distinct(ns : string; key : string) : TBson;
+        Returns nil if successful; otherwise, a IBson document that describes the error. }
+    function distinct(const ns, key: AnsiString): IBson;
       { Returns a BSON document containing a field 'values' which
         is an array of the distinct values of the key in the given collection (ns).
         Example:
           var
-             b : TBson;
+             b : IBson;
              names : TStringArray;
           begin
              b := mongo.distinct('test.people', 'name');
              names := b.find('values').GetStringArray();
           end
       }
-      function indexCreate(ns : string; key : string) : TBson; overload;
+    function indexCreate(const ns, key: AnsiString): IBson; overload;
       { Create an index for the given collection so that accesses by the given
         key are faster.
         The collection namespace (ns) is in the form 'database.collection'.
         key is the name of the field on which to index.
         options specifies a bit mask of indexUnique, indexDropDups, indexBackground,
         and/or indexSparse.
-        Returns nil if successful; otherwise, a TBson document that describes the error. }
-      function indexCreate(ns : string; key : string; options : Integer) : TBson; overload;
+        Returns nil if successful; otherwise, a IBson document that describes the error. }
+    function indexCreate(const ns, key: AnsiString; options: Integer): IBson; overload;
       { Create an index for the given collection so that accesses by the given
         key are faster.
         The collection namespace (ns) is in the form 'database.collection'.
-        key is a TBson document that (possibly) defines a compound key.
+        key is a IBson document that (possibly) defines a compound key.
         For example, @longcode(#
           mongo.indexCreate(ns, BSON(['age', True, 'name', True]));
           (* speed up accesses of documents by age and then name *)
         #)
-        Returns nil if successful; otherwise, a TBson document that describes the error. }
-      function indexCreate(ns : string; key : TBson) : TBson; overload;
+        Returns nil if successful; otherwise, a IBson document that describes the error. }
+    function indexCreate(const ns: AnsiString; key: IBson): IBson; overload;
       { Create an index for the given collection so that accesses by the given
         key are faster.
         The collection namespace (ns) is in the form 'database.collection'.
-        key is a TBson document that (possibly) defines a compound key.
+        key is a IBson document that (possibly) defines a compound key.
         For example, @longcode(#
           mongo.indexCreate(ns, BSON(['age', True, 'name', True]));
           (* speed up accesses of documents by age and then name *)
         #)
         options specifies a bit mask of indexUnique, indexDropDups, indexBackground,
         and/or indexSparse.
-        Returns nil if successful; otherwise, a TBson document that describes the error. }
-      function indexCreate(ns : string; key : TBson; options : Integer) : TBson; overload;
+        Returns nil if successful; otherwise, a IBson document that describes the error. }
+    function indexCreate(const ns: AnsiString; key: IBson; options: Integer): IBson; overload;
       { Add a user name / password to the 'admin' database.  This may be authenticated
         with the authenticate function.
         See http://www.mongodb.org/display/DOCS/Security+and+Authentication }
-      function addUser(name : string; password : string) : Boolean; overload;
+    function addUser(const Name, password: AnsiString): Boolean; overload;
       { Add a user name / password to the given database.  This may be authenticated
         with the authenticate function.
         See http://www.mongodb.org/display/DOCS/Security+and+Authentication }
-      function addUser(name : string; password : string; db : string) : Boolean; overload;
+    function addUser(const Name, password, db: AnsiString): Boolean; overload;
       { Authenticate a user name / password with the 'admin' database.
         See http://www.mongodb.org/display/DOCS/Security+and+Authentication }
-      function authenticate(name : string; password : string) : Boolean; overload;
+    function authenticate(const Name, password: AnsiString): Boolean; overload;
       { Authenticate a user name / password with the given database.
         See http://www.mongodb.org/display/DOCS/Security+and+Authentication }
-      function authenticate(name : string; password : string; db : string) : Boolean; overload;
+    function authenticate(const Name, password, db: AnsiString): Boolean; overload;
       { Issue a command to the server.  This supports all commands by letting you
-        specify the command object as a TBson document.
-        If successful, the response from the server is returned as a TBson document;
+        specify the command object as a IBson document.
+        If successful, the response from the server is returned as a IBson document;
         otherwise, nil is returned.
         See http://www.mongodb.org/display/DOCS/List+of+Database+Commands }
-      function command(db : string; command : TBson) : TBson; overload;
+    function command(const db: AnsiString; command: IBson): IBson; overload;
       { Issue a command to the server.  This version of the command() function
         supports that subset of commands which may be described by a cmdstr and
         an argument.
-        If successful, the response from the server is returned as a TBson document;
+        If successful, the response from the server is returned as a IBson document;
         otherwise, nil is returned.
         See http://www.mongodb.org/display/DOCS/List+of+Database+Commands }
-      function command(db : string; cmdstr : string; arg : OleVariant) : TBson; overload;
-      { Get the last error reported by the server.  Returns a TBson document describing
+    function command(const db, cmdstr: AnsiString; const arg: Variant): IBson; overload;
+      { Get the last error reported by the server.  Returns a IBson document describing
         the error if there was one; otherwise, nil. }
-      function getLastErr(db : string) : TBson;
-      { Get the previous error reported by the server.  Returns a TBson document describing
+    function getLastErr(const db: AnsiString): IBson;
+      { Get the previous error reported by the server.  Returns a IBson document describing
         the error if there was one; otherwise, nil. }
-      function getPrevErr(db : string) : TBson;
+    function getPrevErr(const db: AnsiString): IBson;
       { Reset the error status of the server.  After calling this function, both
         getLastErr() and getPrevErr() will return nil. }
-      procedure resetErr(db : string);
+    procedure resetErr(const db: AnsiString);
       { Get the server error code.  As a convenience, this is saved here after calling
         getLastErr() or getPrevErr(). }
-      function getServerErr() : Integer;
+    function getServerErr: Integer;
       { Get the server error string.  As a convenience, this is saved here after calling
         getLastErr() or getPrevErr(). }
-      function getServerErrString() : string;
+    function getServerErrString: AnsiString;
+    { Get the specified database last error Bson object }
+    function cmdGetLastError(const db: AnsiString): IBson;
+    { Resets the specified database error state }
+    procedure cmdResetLastError(const db: AnsiString);
+      { Sets de default write concern for the connection. Pass nil on AWriteConcern to set a NULL write concern
+        at the driver level }
+    procedure setWriteConcern(AWriteConcern: IWriteConcern);
       { Destroy this TMongo object.  Severs the connection to the server and releases
         external resources. }
-      destructor Destroy(); override;
-    end;
+    destructor Destroy; override;
+    property AutoCheckLastError: Boolean read FAutoCheckLastError write FAutoCheckLastError;
+    property Handle: Pointer read FHandle;
+  end;
 
     { TMongoReplset is a superclass of the TMongo connection class that implements
       a different constructor and several functions for connecting to a replset. }
-    TMongoReplset = class(TMongo)
+  TMongoReplset = class(TMongo)
+  protected
+    procedure InitMongo(const AHost: AnsiString); override;
+  public
       { Create a TMongoReplset object given the replset name.  Unlike the constructor
         for TMongo, this does not yet establish the connection.  Call addSeed() for each
         of the seed hosts and then call Connect to connect to the replset. }
-      constructor Create(name : string);
+    constructor Create(const Name: AnsiString);
       { Add a seed to the replset.  The host string should be in the form 'host[:port]'.
         port defaults to 27017 if not given/
         After constructing a TMongoReplset, call this for each seed and then call
         Connect(). }
-      procedure addSeed(host : string);
+    procedure addSeed(const host: AnsiString);
       { Connect to the replset.  The seeds added with addSeed() are polled to determine
         if they belong to the replset name given to the constructor.  Their hosts
         are then polled to determine the master to connect to.
         Returns True if it successfully connected; otherwise, False. }
-      function Connect() : Boolean;
-      { Get the number of hosts reported by the seeds }
-      function getHostCount() : Integer;
-      { Get the Ith host as a 'host:port' string. }
-      function getHost(i : Integer) : string;
-    end;
+    function Connect: Boolean;
+    { Get the number of hosts reported by the seeds }
+    function getHostCount: Integer;
+    { Get the Ith host as a 'host:port' string. }
+    function getHost(i: Integer): AnsiString;
+  end;
 
-    { Objects of class TMongoCursor are used with TMongo.find() to specify
-      optional parameters of the find and also to step though the result set.
-      A TMongoCursor object is also returned by GridFS.TGridfile.getChunks() which
-      is used to step through the chunks of a gridfile. }
-    TMongoCursor = class(TObject)
-      var
-        { Pointer to externally managed data.  User code should not modify this. }
-        handle  : Pointer;
-        { A TBson document describing the query.
-          See http://www.mongodb.org/display/DOCS/Querying }
-        query   : TBson;
-        { A TBson document describing the sort to be applied to the result set.
-          See the example for TMongo.find().  Defaults to nil (no sort). }
-        sort    : TBson;
-        { A TBson document listing those fields to be included in the result set.
-          This can be used to cut down on network traffic. Defaults to nil \
-          (returns all fields of matching documents). }
-        fields  : TBson;
-        { Specifies a limiting count on the number of documents returned. The
-          default of 0 indicates no limit on the number of records returned.}
-        limit   : Integer;
-        { Specifies the number of matched documents to skip. Default is 0. }
-        skip    : Integer;
-        { Specifies cursor options.  A bit mask of cursorTailable, cursorSlaveOk,
-          cursorNoTimeout, cursorAwaitData, cursorExhaust , and/or cursorPartial.
-          Defaults to 0 - no special handling. }
-        options : Integer;
-        { hold ref to the TMongo object of the find.  Prevents release of the
-          TMongo object until after this cursor is destroyed. }
-        conn    : TMongo;
-      { Create a cursor with a empty query (which matches everything) }
-      constructor Create(); overload;
-      { Create a cursor with the given query. }
-      constructor Create(query_ : TBson); overload;
-      { Step to the first or next document in the result set.
+  { Objects of interface IMongoCursor are used with TMongo.find() to specify
+    optional parameters of the find and also to step though the result set.
+    A IMongoCursor object is also returned by GridFS.TGridfile.getChunks() which
+    is used to step through the chunks of a gridfile. }
+  IMongoCursor = interface
+    procedure FindCalled; // Internal. This is to flag a cursor that it was used in a Find operation
+    function GetConn: TMongo;
+    function GetFields: IBson;
+    function GetHandle: Pointer;
+    function GetLimit: Integer;
+    function GetOptions: Integer;
+    function GetQuery: IBson;
+    function GetSkip: Integer;
+    function GetSort: IBson;
+    { Step to the first or next document in the result set.
         Returns True if there was a first or next document; otherwise,
         returns False when there are no more documents. }
-      function next() : Boolean;
-      { Return the current document of the result set }
-      function value() : TBson;
-      { Destroy this cursor.  TMongoCursor objects should be released and destroyed
-        after using them with TMongo.find().  This releases resources associated
-        with the query on both the client and server ends.  Construct a new
-        TMongoCursor for another query. }
-      destructor Destroy(); override;
-    end;
+    function Next: Boolean;
+    procedure SetConn(const Value: TMongo);
+    procedure SetFields(const Value: IBson);
+    procedure SetHandle(const Value: Pointer);
+    procedure SetLimit(const Value: Integer);
+    procedure SetOptions(const Value: Integer);
+    procedure SetQuery(const Value: IBson);
+    procedure SetSkip(const Value: Integer);
+    procedure SetSort(const Value: IBson);
+    { Return the current document of the result set }
+    function Value: IBson;
+    { hold ref to the TMongo object of the find.  Prevents release of the
+      TMongo object until after this cursor is destroyed. }
+    property Conn: TMongo read GetConn write SetConn;
+    { A IBson document listing those fields to be included in the result set.
+      This can be used to cut down on network traffic. Defaults to nil \
+      (returns all fields of matching documents). }
+    property Fields: IBson read GetFields write SetFields;
+    { Pointer to externally managed data.  User code should not modify this. }
+    property Handle: Pointer read GetHandle write SetHandle;
+    { Specifies a limiting count on the number of documents returned. The
+      default of 0 indicates no limit on the number of records returned.}
+    property Limit: Integer read GetLimit write SetLimit;
+    { Specifies cursor options.  A bit mask of cursorTailable, cursorSlaveOk,
+      cursorNoTimeout, cursorAwaitData, cursorExhaust , and/or cursorPartial.
+      Defaults to 0 - no special handling. }
+    property Options: Integer read GetOptions write SetOptions;
+    { A IBson document describing the query.
+     See http://www.mongodb.org/display/DOCS/Querying }
+    property Query: IBson read GetQuery write SetQuery;
+    { Specifies the number of matched documents to skip. Default is 0. }
+    property Skip: Integer read GetSkip write SetSkip;
+    { A IBson document describing the sort to be applied to the result set.
+      See the example for TMongo.find().  Defaults to nil (no sort). }
+    property Sort: IBson read GetSort write SetSort;
+  end;
+
+  IWriteConcern = interface
+    { See http://api.mongodb.org/c/0.6/write_concern.html for details on the meaning of
+      each property. The propery names are mapped to the actual C structure in purpose to
+      keep consistency with C driver meanings }
+    function Getfinished: Boolean;
+    function Getfsync: Integer;
+    function GetHandle: Pointer;
+    function Getj: Integer;
+    function Getmode: AnsiString;
+    function Getw: Integer;
+    function Getwtimeout: Integer;
+    procedure Setfsync(const Value: Integer);
+    procedure Setj(const Value: Integer);
+    procedure Setmode(const Value: AnsiString);
+    procedure Setw(const Value: Integer);
+    procedure Setwtimeout(const Value: Integer);
+    { Always call finish after you are done setting all writeconcern fields, otherwise
+      you can't use the writeconcern object with TMongo object.
+      The call to finish is equivalent to mongo_write_concern_finish() }
+    procedure finish;
+    property fsync: Integer read Getfsync write Setfsync;
+    property j: Integer read Getj write Setj;
+    property mode: AnsiString read Getmode write Setmode;
+    property w: Integer read Getw write Setw;
+    property wtimeout: Integer read Getwtimeout write Setwtimeout;
+    property Handle: Pointer read GetHandle;
+    property finished: Boolean read Getfinished;
+  end;
+
+  { Create a cursor with a empty query (which matches everything) }
+function NewMongoCursor: IMongoCursor; overload;
+  { Create a cursor with the given query. }
+function NewMongoCursor(query: IBson): IMongoCursor; overload;
+  { Create a WriteConcern object to be used as default write concern for the Mongo connection }
+function NewWriteConcern: IWriteConcern;
 
 implementation
-  Uses
-    SysUtils;
 
-  function mongo_sock_init() : Integer;  cdecl; external 'mongoc.dll';
-  function mongo_create() : Pointer; cdecl; external 'mongoc.dll';
-  procedure mongo_dispose(c : Pointer); cdecl; external 'mongoc.dll';
-  function mongo_connect(c : Pointer; host : PAnsiChar; port : Integer) : Integer;
-    cdecl; external 'mongoc.dll';
-  procedure mongo_destroy(c : Pointer); cdecl; external 'mongoc.dll';
-  procedure mongo_replset_init(c : Pointer; name : PAnsiChar); external 'mongoc.dll';
-  procedure mongo_replset_add_seed(c : Pointer; host : PAnsiChar; port : Integer);
-    cdecl; external 'mongoc.dll';
-  function mongo_replset_connect(c : Pointer) : Integer; cdecl; external 'mongoc.dll';
-  function mongo_is_connected(c : Pointer) : Boolean;  cdecl; external 'mongoc.dll';
-  function mongo_get_err(c : Pointer) : Integer; cdecl; external 'mongoc.dll';
-  function mongo_set_op_timeout(c : Pointer; millis : Integer) : Integer;
-    cdecl; external 'mongoc.dll';
-  function mongo_get_op_timeout(c : Pointer) : Integer; cdecl; external 'mongoc.dll';
-  function mongo_get_primary(c : Pointer) : PAnsiChar; cdecl; external 'mongoc.dll';
-  function mongo_check_connection(c : Pointer) : Integer; cdecl; external 'mongoc.dll';
-  procedure mongo_disconnect(c : Pointer); cdecl; external 'mongoc.dll';
-  function mongo_reconnect(c : Pointer) : Integer; cdecl; external 'mongoc.dll';
-  function mongo_cmd_ismaster(c : Pointer; b : Pointer) : Boolean;
-    cdecl; external 'mongoc.dll';
-  function mongo_get_socket(c : Pointer) : Integer; cdecl; external 'mongoc.dll';
-  function mongo_get_host_count(c : Pointer) : Integer; cdecl; external 'mongoc.dll';
-  function mongo_get_host(c : Pointer; i : Integer) : PAnsiChar; cdecl; external 'mongoc.dll';
-  function mongo_insert(c : Pointer; ns : PAnsiChar; b : Pointer) : Integer;
-    cdecl; external 'mongoc.dll';
-  function mongo_insert_batch(c : Pointer; ns : PAnsiChar; bsons : Pointer; count : Integer) : Integer;
-    cdecl; external 'mongoc.dll';
-  function mongo_update(c : Pointer; ns : PAnsiChar; cond : Pointer; op : Pointer; flags : Integer) : Integer;
-    cdecl; external 'mongoc.dll';
-  function mongo_remove(c : Pointer; ns : PAnsiChar; criteria : Pointer) : Integer;
-    cdecl; external 'mongoc.dll';
-  function mongo_find_one(c : Pointer; ns : PAnsiChar; query : Pointer; fields : Pointer; result : Pointer) : Integer;
-    cdecl; external 'mongoc.dll';
-  function bson_create() : Pointer;  external 'mongoc.dll';
-  procedure bson_dispose(b : Pointer); cdecl; external 'mongoc.dll';
-  procedure bson_copy(dest : Pointer; src : Pointer); cdecl; external 'mongoc.dll';
-  function mongo_cursor_create() : Pointer;  cdecl; external 'mongoc.dll';
-  procedure mongo_cursor_dispose(cursor : Pointer); cdecl; external 'mongoc.dll';
-  procedure mongo_cursor_destroy(cursor : Pointer); cdecl; external 'mongoc.dll';
-  function mongo_find(c : Pointer; ns : PAnsiChar; query : Pointer; fields : Pointer;
-                      limit, skip, options : Integer) : Pointer; cdecl; external 'mongoc.dll';
-  function mongo_cursor_next(cursor : Pointer) : Integer; cdecl; external 'mongoc.dll';
-  function mongo_cursor_bson(cursor : Pointer) : Pointer; cdecl; external 'mongoc.dll';
-  function mongo_cmd_drop_collection(c : Pointer; db : PAnsiChar; collection : PAnsiChar; result : Pointer) : Integer;
-    cdecl; external 'mongoc.dll';
-  function mongo_cmd_drop_db(c : Pointer; db : PAnsiChar) : Integer; cdecl; external 'mongoc.dll';
-  function mongo_count(c : Pointer; db : PAnsiChar; collection : PAnsiChar; query : Pointer) : Double;
-    cdecl; external 'mongoc.dll';
-  function mongo_create_index(c : Pointer; ns : PAnsiChar; key : Pointer; options : Integer; res : Pointer) : Integer;
-    cdecl; external 'mongoc.dll';
-  function mongo_cmd_add_user(c : Pointer; db : PAnsiChar; name : PAnsiChar; password : PAnsiChar) : Integer;
-    cdecl; external 'mongoc.dll';
-  function mongo_cmd_authenticate(c : Pointer; db : PAnsiChar; name : PAnsiChar; password : PAnsiChar) : Integer;
-    cdecl; external 'mongoc.dll';
-  function mongo_run_command(c : Pointer; db : PAnsiChar; command : Pointer; res: Pointer) : Integer;
-    cdecl; external 'mongoc.dll';
-  function mongo_cmd_get_last_error(c : Pointer; db : PAnsiChar; res: Pointer) : Integer;
-    cdecl; external 'mongoc.dll';
-  function mongo_cmd_get_prev_error(c : Pointer; db : PAnsiChar; res: Pointer) : Integer;
-    cdecl; external 'mongoc.dll';
-  function mongo_get_server_err(c : Pointer) : Integer; cdecl; external 'mongoc.dll';
-  function mongo_get_server_err_string(c : Pointer) : PAnsiChar; cdecl; external 'mongoc.dll';
+uses
+  Windows {$IFDEF DELPHIXE2}, AnsiStrings {$ENDIF};
 
-  procedure parseHost(host : string; var hosturl : string; var port : Integer);
-  var i : Integer;
+// START resource string wizard section
+const
+  S27017 = ':27017';
+  MongoCDLL = 'mongoc.dll';
+  S127001 = '127.0.0.1';
+  SAdmin = 'admin';
+  SListDatabases = 'listDatabases';
+  SLocal = 'local';
+  SSystemNamespaces = '.system.namespaces';
+  SName = 'name';
+  SSystem = '.system.';
+  SRenameCollection = 'renameCollection';
+  STo = 'to';
+  SQuery = '$query';
+  SSort = '$orderby';
+  SDistinct = 'distinct';
+  SKey = 'key';
+  SReseterror = 'reseterror';
+  // END resource string wizard section
+
+  // START resource string wizard section
+resourcestring
+  SMongoHandleIsNil = 'Mongo handle is nil';
+  SCanTUseAnUnfinishedWriteConcern = 'Can''t use an unfinished WriteConcern';
+  {$IFDEF OnDemandMongoCLoad}
+  SFailedLoadingMongocDll = 'Failed loading mongoc.dll';
+  SFunctionNotFoundOnMongoCLibrary = 'Function "%s" not found on MongoC library';
+  {$ENDIF}
+  STMongoDropExpectedAInTheNamespac = 'TMongo.drop: expected a ''.'' in the namespace.';
+  SExpectedAInTheNamespace = 'Expected a ''.'' in the namespace';
+  // END resource string wizard section
+
+type
+  Tmongo_write_concern = record
+    {$IFDEF MONGO_MEMORY_PROTECTION}
+    mongo_sig: Integer;
+    {$ENDIF}
+    w: Integer;
+    wtimeout: Integer;
+    j: Integer;
+    fsync: Integer;
+    mode: PAnsiChar;
+    cmd: Pointer;
+  end;
+
+procedure parseHost(const host: AnsiString; var hosturl: AnsiString; var port: Integer);
+var
+  i: Integer;
+begin
+  i := Pos(':', host);
+  if i = 0 then
   begin
-    i := Pos(':', host);
-    if i = 0 then begin
-      hosturl := host;
-      port := 27017;
-    end
-    else begin
-      hosturl := Copy(host, 1, i - 1);
-      port := StrToInt(Copy(host, i + 1, Length(host) - i));
+    hosturl := host;
+    port := 27017;
+  end
+  else
+  begin
+    hosturl := Copy(host, 1, i - 1);
+    port := StrToInt(Copy(host, i + 1, Length(host) - i));
+  end;
+end;
+
+type
+  TMongoCursor = class(TMongoInterfacedObject, IMongoCursor)
+  private
+    FFindCalledFlag: Boolean;
+    FHandle: Pointer;
+    fquery: IBson;
+    fSort: IBson;
+    ffields: IBson;
+    flimit: Integer;
+    fskip: Integer;
+    foptions: Integer;
+    fconn: TMongo;
+    procedure CheckHandle;
+    function GetConn: TMongo;
+    function GetFields: IBson;
+    function GetHandle: Pointer;
+    function GetLimit: Integer;
+    function GetOptions: Integer;
+    function GetQuery: IBson;
+    function GetSkip: Integer;
+    function GetSort: IBson;
+    procedure Init;
+    procedure SetConn(const Value: TMongo);
+    procedure SetFields(const Value: IBson);
+    procedure SetHandle(const Value: Pointer);
+    procedure SetLimit(const Value: Integer);
+    procedure SetOptions(const Value: Integer);
+    procedure SetQuery(const Value: IBson);
+    procedure SetSkip(const Value: Integer);
+    procedure SetSort(const Value: IBson);
+  protected
+    procedure DestroyCursor;
+  public
+    constructor Create; overload;
+    constructor Create(aquery: IBson); overload;
+    function Next: Boolean;
+    function Value: IBson;
+    destructor Destroy; override;
+    procedure FindCalled;
+    property Conn: TMongo read GetConn write SetConn;
+    property Fields: IBson read GetFields write SetFields;
+    property FindCalledFlag: Boolean read FFindCalledFlag write FFindCalledFlag;
+    property Handle: Pointer read GetHandle write SetHandle;
+    property Limit: Integer read GetLimit write SetLimit;
+    property Options: Integer read GetOptions write SetOptions;
+    property Query: IBson read GetQuery write SetQuery;
+    property Skip: Integer read GetSkip write SetSkip;
+    property Sort: IBson read GetSort write SetSort;
+  end;
+
+  TWriteConcern = class(TMongoInterfacedObject, IWriteConcern)
+  private
+    FMode: AnsiString;
+    FWriteConcern: Tmongo_write_concern;
+    FFinished: Boolean;
+    procedure finish;
+    function Getfsync: Integer;
+    function GetHandle: Pointer;
+    function Getj: Integer;
+    function Getmode: AnsiString;
+    function Getw: Integer;
+    function Getwtimeout: Integer;
+    function Getfinished: Boolean;
+    procedure Modified;
+    procedure Setfsync(const Value: Integer);
+    procedure Setj(const Value: Integer);
+    procedure Setmode(const Value: AnsiString);
+    procedure Setw(const Value: Integer);
+    procedure Setwtimeout(const Value: Integer);
+  public
+    constructor Create;
+    destructor Destroy; override;
+  end;
+
+  { TMongo }
+
+constructor TMongo.Create;
+begin
+  inherited Create;
+  {$IFDEF OnDemandMongoCLoad}
+  InitMongoDBLibrary;
+  {$ENDIF}
+  AutoCheckLastError := true;
+  InitMongo(S127001 + S27017);
+end;
+
+constructor TMongo.Create(const host: AnsiString);
+begin
+  inherited Create;
+  {$IFDEF OnDemandMongoCLoad}
+  InitMongoDBLibrary;
+  {$ENDIF}
+  AutoCheckLastError := true;
+  if host = ''
+    then InitMongo(S127001 + S27017)
+    else InitMongo(host);
+end;
+
+destructor TMongo.Destroy;
+begin
+  {$IFDEF MONGO_MEMORY_PROTECTION} CheckValid; {$ENDIF}
+  if fhandle <> nil then
+  begin
+    mongo_destroy(fhandle);
+    mongo_dispose(fhandle);
+    fhandle := nil;
+  end;
+  inherited;
+end;
+
+constructor TMongoReplset.Create(const Name: AnsiString);
+begin
+  inherited Create(Name);
+end;
+
+procedure TMongoReplset.addSeed(const host: AnsiString);
+var
+  hosturl: AnsiString;
+  port: Integer;
+begin
+  CheckHandle;
+  parseHost(host, hosturl, port);
+  mongo_replset_add_seed(Handle, PAnsiChar(hosturl), port);
+end;
+
+function TMongoReplset.Connect: Boolean;
+var
+  Ret: Integer;
+  Err: Integer;
+begin
+  CheckHandle;
+  Ret := mongo_replset_connect(Handle);
+  if Ret <> 0 then
+    Err := getErr
+  else 
+    Err := 0;
+  Result := (Ret = 0) and (Err = 0);
+end;
+
+function TMongo.isConnected: Boolean;
+begin
+  CheckHandle;
+  Result := mongo_is_connected(fhandle);
+end;
+
+function TMongo.checkConnection: Boolean;
+begin
+  CheckHandle;
+  Result := mongo_check_connection(fhandle) = 0;
+end;
+
+function TMongo.isMaster: Boolean;
+begin
+  CheckHandle;
+  Result := mongo_cmd_ismaster(fhandle, nil);
+end;
+
+procedure TMongo.disconnect;
+begin
+  CheckHandle;
+  mongo_disconnect(fhandle);
+end;
+
+function TMongo.reconnect: Boolean;
+begin
+  CheckHandle;
+  Result := mongo_reconnect(fhandle) = 0;
+end;
+
+function TMongo.getErr: Integer;
+begin
+  CheckHandle;
+  Result := mongo_get_err(fhandle);
+end;
+
+function TMongo.setTimeout(millis: Integer): Boolean;
+begin
+  CheckHandle;
+  Result := mongo_set_op_timeout(fhandle, millis) = 0;
+end;
+
+function TMongo.getTimeout: Integer;
+begin
+  CheckHandle;
+  Result := mongo_get_op_timeout(fhandle);
+end;
+
+function TMongo.getPrimary: AnsiString;
+var
+  APrimary: PAnsiChar;
+begin
+  CheckHandle;
+  APrimary := mongo_get_primary(fhandle);
+  try
+    Result := AnsiString(APrimary);
+  finally
+    if APrimary <> nil then
+      bson_free(APrimary);
+  end;
+end;
+
+function TMongo.getSocket: Integer;
+begin
+  CheckHandle;
+  Result := mongo_get_socket(fhandle);
+end;
+
+{ TMongoReplset }
+
+function TMongoReplset.getHostCount: Integer;
+begin
+  CheckHandle;
+  Result := mongo_get_host_count(Handle);
+end;
+
+function TMongoReplset.getHost(i: Integer): AnsiString;
+var
+  AHost: PAnsiChar;
+begin
+  CheckHandle;
+  AHost := mongo_get_host(Handle, i);
+  try
+    Result := AnsiString(AHost);
+  finally
+    if AHost <> nil then
+      bson_free(AHost);
+  end;
+end;
+
+procedure TMongoReplset.InitMongo(const AHost: AnsiString);
+begin
+  fhandle := mongo_create;
+  mongo_replset_init(Handle, PAnsiChar(AHost)); // AHost contains the replicate set Name
+end;
+
+function TMongo.getDatabases: TStringArray;
+var
+  b: IBson;
+  it, databases, database: IBsonIterator;
+  Name: AnsiString;
+  Count, i: Integer;
+begin
+  {$IFDEF MONGO_MEMORY_PROTECTION} CheckValid; {$ENDIF}
+  b := command(SAdmin, SListDatabases, true);
+  if b = nil then
+    Result := nil
+  else
+  begin
+    it := b.iterator;
+    it.Next;
+    Count := 0;
+    databases := it.subiterator;
+    while databases.Next do
+    begin
+      database := databases.subiterator;
+      database.Next;
+      Name := AnsiString(database.Value);
+      if (Name <> SAdmin) and (Name <> SLocal) then
+        Inc(Count);
     end;
-  end;
-
-  constructor TMongo.Create();
-  begin
-    handle := mongo_create();
-    mongo_connect(handle, '127.0.0.1', 27017);
-  end;
-
-  constructor TMongo.Create(host : string);
-  var
-    hosturl : string;
-    port : Integer;
-  begin
-    handle := mongo_create();
-    parseHost(host, hosturl, port);
-    mongo_connect(handle, PAnsiChar(AnsiString(hosturl)), port);
-  end;
-
-  destructor TMongo.Destroy();
-  begin
-    mongo_destroy(handle);
-    mongo_dispose(handle);
-  end;
-
-  constructor TMongoReplset.Create(name: string);
-  begin
-    handle := mongo_create();
-    mongo_replset_init(handle, PAnsiChar(AnsiString(name)));
-  end;
-
-  procedure TMongoReplset.addSeed(host : string);
-  var
-    hosturl : string;
-    port : Integer;
-  begin
-    parseHost(host, hosturl, port);
-    mongo_replset_add_seed(handle, PAnsiChar(AnsiString(hosturl)), port);
-  end;
-
-  function TMongoReplset.Connect() : Boolean;
-  begin
-    Result := (mongo_replset_connect(handle) = 0);
-  end;
-
-  function TMongo.isConnected() : Boolean;
-  begin
-    Result := mongo_is_connected(handle);
-  end;
-
-  function TMongo.checkConnection() : Boolean;
-  begin
-    Result := (mongo_check_connection(handle) = 0);
-  end;
-
-  function TMongo.isMaster() : Boolean;
-  begin
-    Result := mongo_cmd_ismaster(handle, nil);
-  end;
-
-  procedure TMongo.disconnect();
-  begin
-    mongo_disconnect(handle);
-  end;
-
-  function TMongo.reconnect() : Boolean;
-  begin
-    Result := (mongo_reconnect(handle) = 0);
-  end;
-
-  function TMongo.getErr() : Integer;
-  begin
-    Result := mongo_get_err(handle);
-  end;
-
-  function TMongo.setTimeout(millis: Integer) : Boolean;
-  begin
-    Result := (mongo_set_op_timeout(handle, millis) = 0);
-  end;
-
-  function TMongo.getTimeout() : Integer;
-  begin
-    Result := mongo_get_op_timeout(handle);
-  end;
-
-  function TMongo.getPrimary() : string;
-  begin
-    Result := string(mongo_get_primary(handle));
-  end;
-
-  function TMongo.getSocket() : Integer;
-  begin
-    Result := mongo_get_socket(handle);
-  end;
-
-  function TMongoReplset.getHostCount() : Integer;
-  begin
-    Result := mongo_get_host_count(handle);
-  end;
-
-  function TMongoReplset.getHost(i : Integer) : string;
-  begin
-    Result := string(mongo_get_host(handle, i));
-  end;
-
-  function TMongo.getDatabases() : TStringArray;
-  var
-    b : TBson;
-    it, databases, database : TBsonIterator;
-    name : string;
-    count, i : Integer;
-  begin
-    b := command('admin', 'listDatabases', True);
-    if b = nil then
-      Result := nil
-    else begin
-      it := b.iterator;
-      it.next();
-      count := 0;
-      databases := it.subiterator();
-      while databases.next() do begin
-        database := databases.subiterator();
-        database.next();
-        name := database.value();
-        if (name <> 'admin') and (name <> 'local') then
-          inc(count);
-      end;
-      SetLength(Result, count);
-      i := 0;
-      databases := it.subiterator();
-      while databases.next() do begin
-        database := databases.subiterator();
-        database.next();
-        name := database.value();
-        if (name <> 'admin') and (name <> 'local') then begin
-          Result[i] := name;
-          inc(i);
-        end;
-      end;
-    end;
-  end;
-
-  function TMongo.getDatabaseCollections(db : string) : TStringArray;
-    var
-      cursor : TMongoCursor;
-      count, i : Integer;
-      ns, name : string;
-      b : TBson;
-  begin
-    count := 0;
-    ns := db + '.system.namespaces';
-    cursor := TMongoCursor.Create();
-    if find(ns, cursor) then
-      while cursor.next() do begin
-        b := cursor.value();
-        name := b.value('name');
-        if (Pos('.system.', name) = 0) and (Pos('$', name) = 0) then
-          inc(count);
-      end;
-    SetLength(Result, count);
+    SetLength(Result, Count);
     i := 0;
-    cursor := TMongoCursor.Create();
-    if find(ns, cursor) then
-      while cursor.next() do begin
-        b := cursor.value();
-        name := b.value('name');
-        if (Pos('.system.', name) = 0) and (Pos('$', name) = 0) then begin
-          Result[i] := name;
-          inc(i);
-        end;
+    databases := it.subiterator;
+    while databases.Next do
+    begin
+      database := databases.subiterator;
+      database.Next;
+      Name := AnsiString(database.Value);
+      if (Name <> SAdmin) and (Name <> SLocal) then
+      begin
+        Result[i] := Name;
+        Inc(i);
       end;
-  end;
-
-  function TMongo.rename(from_ns : string; to_ns : string) : Boolean;
-  begin
-    Result := (command('admin', BSON(['renameCollection', from_ns, 'to', to_ns])) <> nil);
-  end;
-
-  function TMongo.drop(ns : string) : Boolean;
-    var
-      db : string;
-      collection : string;
-      i : Integer;
-  begin
-    i := Pos('.', ns);
-    if i = 0 then
-      Raise Exception.Create('TMongo.drop: expected a ''.'' in the namespace.');
-    db := Copy(ns, 1, i - 1);
-    collection := Copy(ns, i+1, Length(ns) - i);
-    Result := (mongo_cmd_drop_collection(handle, PAnsiChar(AnsiString(db)),
-                                                 PAnsiChar(AnsiString(collection)), nil) = 0);
-  end;
-
-  function TMongo.dropDatabase(db : string) : Boolean;
-  begin
-    Result := (mongo_cmd_drop_db(handle, PAnsiChar(AnsiString(db))) = 0);
-  end;
-
-  function TMongo.insert(ns: string; b: TBson) : Boolean;
-  begin
-    Result := (mongo_insert(handle, PAnsiChar(AnsiString(ns)), b.handle) = 0);
-  end;
-
-  function TMongo.insert(ns: string; bs: array of TBson) : Boolean;
-  var
-    ps : array of Pointer;
-    i : Integer;
-    len : Integer;
-  begin
-    len := Length(bs);
-    SetLength(ps, Len);
-    for i := 0 to Len-1 do
-      ps[i] := bs[i].handle;
-    Result := (mongo_insert_batch(handle, PAnsiChar(AnsiString(ns)), &ps, len) = 0);
-  end;
-
-  function TMongo.update(ns : string; criteria : TBson; objNew : TBson; flags : Integer) : Boolean;
-  begin
-    Result := (mongo_update(handle, PAnsiChar(AnsiString(ns)), criteria.handle, objNew.handle, flags) = 0);
-  end;
-
-  function TMongo.update(ns : string; criteria : TBson; objNew : TBson) : Boolean;
-  begin
-    Result := update(ns, criteria, objNew, 0);
-  end;
-
-  function TMongo.remove(ns : string; criteria : TBson) : Boolean;
-  begin
-    Result := (mongo_remove(handle, PAnsiChar(AnsiString(ns)), criteria.handle) = 0);
-  end;
-
-  function TMongo.findOne(ns : string; query : TBson; fields : TBson) : TBson;
-    var
-      res : Pointer;
-  begin
-    res := bson_create();
-    if (mongo_find_one(handle, PAnsiChar(AnsiString(ns)), query.handle, fields.handle, res) = 0) then
-      Result := TBson.Create(res)
-    else begin
-      mongo_dispose(res);
-      Result := nil;
     end;
   end;
+end;
 
-  function TMongo.findOne(ns : string; query : TBson) : TBson;
-  begin
-    Result := findOne(ns, query, TBson.Create(nil));
-  end;
-
-  constructor TMongoCursor.Create();
-  begin
-    handle := nil;
-    query := nil;
-    sort := nil;
-    fields := nil;
-    limit := 0;
-    skip := 0;
-    options := 0;
-    conn := nil;
-  end;
-
-  constructor TMongoCursor.Create(query_ : TBson);
-  begin
-    handle := nil;
-    query := query_;
-    sort := nil;
-    fields := nil;
-    limit := 0;
-    skip := 0;
-    options := 0;
-    conn := nil;
-  end;
-
-  destructor TMongoCursor.Destroy();
-  begin
-    mongo_cursor_destroy(handle);
-    mongo_cursor_dispose(handle);
-  end;
-
-  function TMongo.find(ns : string; cursor : TMongoCursor) : Boolean;
-    var
-       q  : TBson;
-       bb : TBsonBuffer;
-       ch : Pointer;
-  begin
-    if cursor.fields = nil then
-       cursor.fields := TBson.Create(nil);
-    q := cursor.query;
-    if q = nil then
-      q := bsonEmpty;
-    if cursor.sort <> nil then begin
-      bb := TBsonBuffer.Create();
-      bb.append('$query', cursor.query);
-      bb.append('$sort', cursor.sort);
-      q := bb.finish;
+function TMongo.getDatabaseCollections(const db: AnsiString): TStringArray;
+var
+  Cursor: IMongoCursor;
+  Count, i: Integer;
+  ns, Name: AnsiString;
+  b: IBson;
+begin
+  {$IFDEF MONGO_MEMORY_PROTECTION} CheckValid; {$ENDIF}
+  Count := 0;
+  ns := db + SSystemNamespaces;
+  Cursor := NewMongoCursor;
+  if find(ns, Cursor) then
+    while Cursor.Next do
+    begin
+      b := Cursor.Value;
+      Name := AnsiString(b.Value(SName));
+      if (Pos(SSystem, Name) = 0) and (Pos('$', Name) = 0) then
+        Inc(Count);
     end;
-    cursor.conn := Self;
-    ch := mongo_find(handle, PAnsiChar(AnsiString(ns)), q.handle, cursor.fields.handle,
-                     cursor.limit, cursor.skip, cursor.options);
-    if ch <> nil then begin
-      cursor.handle := ch;
-      Result := True;
+  SetLength(Result, Count);
+  i := 0;
+  Cursor := NewMongoCursor;
+  if find(ns, Cursor) then
+    while Cursor.Next do
+    begin
+      b := Cursor.Value;
+      Name := AnsiString(b.Value(SName));
+      if (Pos(SSystem, Name) = 0) and (Pos('$', Name) = 0) then
+      begin
+        Result[i] := Name;
+        Inc(i);
+      end;
+    end;
+end;
+
+function TMongo.Rename(const from_ns, to_ns: AnsiString): Boolean;
+begin
+  {$IFDEF MONGO_MEMORY_PROTECTION} CheckValid; {$ENDIF}
+  autoCmdResetLastError(from_ns, true);
+  Result := command(SAdmin, BSON([SRenameCollection, from_ns, STo, to_ns])) <> nil;
+  autoCheckCmdLastError(from_ns, true);
+end;
+
+function TMongo.drop(const ns: AnsiString): Boolean;
+var
+  db: AnsiString;
+  collection: AnsiString;
+begin
+  {$IFDEF MONGO_MEMORY_PROTECTION} CheckValid; {$ENDIF}
+  parseNamespace(ns, db, collection);
+  if db = '' then
+    raise EMongo.Create(STMongoDropExpectedAInTheNamespac);
+  autoCmdResetLastError(db, false);
+  Result := mongo_cmd_drop_collection(fhandle, PAnsiChar(db), PAnsiChar(collection), nil) = 0;
+  autoCheckCmdLastError(db, false);
+end;
+
+function TMongo.dropDatabase(const db: AnsiString): Boolean;
+begin
+  CheckHandle;
+  autoCmdResetLastError(db, false);
+  Result := mongo_cmd_drop_db(fhandle, PAnsiChar(db)) = 0;
+  autoCheckCmdLastError(db, false);
+end;
+
+function TMongo.Insert(const ns: AnsiString; b: IBson): Boolean;
+begin
+  CheckHandle;
+  autoCmdResetLastError(ns, true);
+  Result := mongo_insert(fhandle, PAnsiChar(ns), b.Handle, nil) = 0;
+  autoCheckCmdLastError(ns, true);
+end;
+
+function TMongo.Insert(const ns: AnsiString; const bs: array of IBson): Boolean;
+type
+  PPointerClosedArray = ^TPointerClosedArray;
+  TPointerClosedArray = array [0..MaxInt div SizeOf(Pointer) - 1] of Pointer;
+var
+  ps: PPointerClosedArray;
+  i: Integer;
+  Len: Integer;
+begin
+  CheckHandle;
+  Len := Length(bs);
+  GetMem(ps, Len * SizeOf(Pointer));
+  try
+    for i := 0 to Len - 1 do
+      ps^[i] := bs[i].Handle;
+    autoCmdResetLastError(ns, true);
+    Result := mongo_insert_batch(fhandle, PAnsiChar(ns), ps, Len, nil, 0) = 0;
+    autoCheckCmdLastError(ns, true);
+  finally
+    FreeMem(ps);
+  end;
+end;
+
+function TMongo.Update(const ns: AnsiString; criteria, objNew: IBson; flags: Integer): Boolean;
+begin
+  CheckHandle;
+  autoCmdResetLastError(ns, true);
+  Result := mongo_update(fhandle, PAnsiChar(ns), criteria.Handle, objNew.Handle, flags, nil) = 0;
+  autoCheckCmdLastError(ns, true);
+end;
+
+function TMongo.Update(const ns: AnsiString; criteria, objNew: IBson): Boolean;
+begin
+  {$IFDEF MONGO_MEMORY_PROTECTION} CheckValid; {$ENDIF}
+  Result := Update(ns, criteria, objNew, 0);
+end;
+
+function TMongo.remove(const ns: AnsiString; criteria: IBson): Boolean;
+begin
+  CheckHandle;
+  autoCmdResetLastError(ns, true);
+  Result := mongo_remove(fhandle, PAnsiChar(ns), criteria.Handle, nil) = 0;
+  autoCheckCmdLastError(ns, true);
+end;
+
+function TMongo.findOne(const ns: AnsiString; query, fields: IBson): IBson;
+var
+  res: Pointer;
+begin
+  CheckHandle;
+  res := bson_create;
+  try
+    autoCmdResetLastError(ns, true);
+    if mongo_find_one(fhandle, PAnsiChar(ns), query.Handle, fields.Handle, res) = 0 then
+      Result := NewBson(res)
+    else
+    begin
+      bson_dispose(res);
+      Result := nil;
+    end;
+    autoCheckCmdLastError(ns, true);
+  except
+    bson_dispose(res);
+    raise;
+  end;
+end;
+
+function TMongo.findOne(const ns: AnsiString; query: IBson): IBson;
+begin
+  {$IFDEF MONGO_MEMORY_PROTECTION} CheckValid; {$ENDIF}
+  Result := findOne(ns, query, NewBson(nil));
+end;
+
+function TMongo.find(const ns: AnsiString; Cursor: IMongoCursor): Boolean;
+var
+  q: IBson;
+  bb: IBsonBuffer;
+  ch: Pointer;
+begin
+  CheckHandle;
+  if Cursor.fields = nil then
+    Cursor.fields := bsonEmpty;
+  q := Cursor.query;
+  if q = nil then
+    q := bsonEmpty;
+  if Cursor.Sort <> nil then
+  begin
+    bb := NewBsonBuffer;
+    bb.Append(SQuery, q);
+    bb.Append(SSort, Cursor.Sort);
+    q := bb.finish;
+  end;
+  Cursor.conn := Self;
+  autoCmdResetLastError(ns, true);
+  try
+    ch := mongo_find(fhandle, PAnsiChar(ns), q.Handle, Cursor.fields.Handle, Cursor.limit, Cursor.skip, Cursor.options);
+    autoCheckCmdLastError(ns, true);
+    if ch <> nil then
+    begin
+      Cursor.Handle := ch;
+      Result := true;
     end
     else
-      Result := False;
+      Result := false;
+  finally
+    Cursor.FindCalled;
   end;
+end;
 
+function TMongo.Count(const ns: AnsiString; query: IBson): Double;
+var
+  db: AnsiString;
+  collection: AnsiString;
+begin
+  CheckHandle;
+  parseNamespace(ns, db, collection);
+  if db = '' then
+    raise EMongo.Create(SExpectedAInTheNamespace);
+  autoCmdResetLastError(db, false);
+  Result := mongo_count(fhandle, PAnsiChar(db), PAnsiChar(collection), query.Handle);
+  autoCheckCmdLastError(db, false);
+end;
 
-  function TMongoCursor.next() : Boolean;
-  begin
-    Result := (mongo_cursor_next(handle) = 0);
+function TMongo.Count(const ns: AnsiString): Double;
+begin
+  {$IFDEF MONGO_MEMORY_PROTECTION} CheckValid; {$ENDIF}
+  autoCmdResetLastError(ns, true);
+  Result := Count(ns, NewBson(nil));
+  autoCheckCmdLastError(ns, true);
+end;
+
+function TMongo.indexCreate(const ns: AnsiString; key: IBson; options: Integer): IBson;
+var
+  res: IBson;
+  created: Boolean;
+  h: Pointer;
+begin
+  CheckHandle;
+  h := bson_create;
+  try
+    res := NewBson(h);
+  except
+    bson_dispose(h);
+    raise;
   end;
+  autoCmdResetLastError(ns, true);
+  created := mongo_create_index(fhandle, PAnsiChar(ns), key.Handle, options, res.Handle) = 0;
+  autoCheckCmdLastError(ns, true);
+  if not created then
+    Result := res
+  else
+    Result := nil;
+end;
 
-  function TMongoCursor.value() : TBson;
-  var
-    b : TBson;
-    h : Pointer;
+function TMongo.indexCreate(const ns: AnsiString; key: IBson): IBson;
+begin
+  {$IFDEF MONGO_MEMORY_PROTECTION} CheckValid; {$ENDIF}
+  Result := indexCreate(ns, key, 0);
+end;
+
+function TMongo.indexCreate(const ns, key: AnsiString; options: Integer): IBson;
+begin
+  {$IFDEF MONGO_MEMORY_PROTECTION} CheckValid; {$ENDIF}
+  Result := indexCreate(ns, BSON([key, true]), options);
+end;
+
+function TMongo.indexCreate(const ns, key: AnsiString): IBson;
+begin
+  {$IFDEF MONGO_MEMORY_PROTECTION} CheckValid; {$ENDIF}
+  Result := indexCreate(ns, key, 0);
+end;
+
+function TMongo.addUser(const Name, password, db: AnsiString): Boolean;
+begin
+  CheckHandle;
+  Result := mongo_cmd_add_user(fhandle, PAnsiChar(db), PAnsiChar(Name), PAnsiChar(password)) = 0;
+end;
+
+function TMongo.addUser(const Name, password: AnsiString): Boolean;
+begin
+  {$IFDEF MONGO_MEMORY_PROTECTION} CheckValid; {$ENDIF}
+  Result := addUser(Name, password, SAdmin);
+end;
+
+function TMongo.authenticate(const Name, password, db: AnsiString): Boolean;
+begin
+  CheckHandle;
+  Result := mongo_cmd_authenticate(fhandle, PAnsiChar(db), PAnsiChar(Name), PAnsiChar(password)) = 0;
+end;
+
+function TMongo.authenticate(const Name, password: AnsiString): Boolean;
+begin
+  {$IFDEF MONGO_MEMORY_PROTECTION} CheckValid; {$ENDIF}
+  Result := authenticate(Name, password, SAdmin);
+end;
+
+procedure TMongo.autoCheckCmdLastError(const ns: AnsiString; ANeedsParsing: Boolean);
+var
+  Err: IBson;
+  db: AnsiString;
+  collection: AnsiString;
+  it: IBsonIterator;
+begin
+  {$IFDEF MONGO_MEMORY_PROTECTION} CheckValid; {$ENDIF}
+  if not FAutoCheckLastError then
+    Exit;
+  if ANeedsParsing then
+    parseNamespace(ns, db, collection)
+  else 
+    db := ns;
+  Err := cmdGetLastError(db);
+  if Err <> nil then
   begin
-    h := bson_create();
-    b := TBson.Create(h);
-    bson_copy(h, mongo_cursor_bson(handle));
-    Result := b;
+    it := Err.iterator;
+    it.Next;
+    raise EMongo.Create(it.Value);
   end;
+end;
 
-  function TMongo.count(ns : string; query : TBson) : Double;
-    var
-      db : string;
-      collection : string;
-      i : Integer;
+procedure TMongo.autoCmdResetLastError(const ns: AnsiString; ANeedsParsing: Boolean);
+var
+  db: AnsiString;
+  collection: AnsiString;
+begin
+  {$IFDEF MONGO_MEMORY_PROTECTION} CheckValid; {$ENDIF}
+  if not FAutoCheckLastError then
+    Exit;
+  if ANeedsParsing then
+    parseNamespace(ns, db, collection)
+  else 
+    db := ns;
+  cmdResetLastError(db);
+end;
+
+procedure TMongo.CheckHandle;
+begin
+  {$IFDEF MONGO_MEMORY_PROTECTION} CheckValid; {$ENDIF}
+  if fhandle = nil then
+    raise EMongo.Create(SMongoHandleIsNil);
+end;
+
+function TMongo.command(const db: AnsiString; command: IBson): IBson;
+var
+  b: IBson;
+  res: Pointer;
+  h: Pointer;
+begin
+  CheckHandle;
+  res := bson_create;
+  try
+    if mongo_run_command(fhandle, PAnsiChar(db), command.Handle, res) = 0 then
+    begin
+      h := bson_create;
+      try
+        b := NewBson(h);
+      except
+        bson_dispose(h);
+        raise;
+      end;
+      bson_copy(b.Handle, res);
+      Result := b;
+    end
+    else
+      Result := nil;
+  finally
+    bson_destroy(res);
+    bson_dispose(res);
+  end;
+end;
+
+function TMongo.distinct(const ns, key: AnsiString): IBson;
+var
+  b: IBson;
+  buf: IBsonBuffer;
+  db, collection: AnsiString;
+begin
+  {$IFDEF MONGO_MEMORY_PROTECTION} CheckValid; {$ENDIF}
+  parseNamespace(ns, db, collection);
+  if db = '' then
+    raise EMongo.Create(SExpectedAInTheNamespace);
+  buf := NewBsonBuffer;
+  buf.AppendStr(SDistinct, PAnsiChar(collection));
+  buf.AppendStr(SKey, PAnsiChar(key));
+  b := buf.finish;
+  Result := command(db, b);
+end;
+
+function TMongo.command(const db, cmdstr: AnsiString; const arg: Variant): IBson;
+begin
+  {$IFDEF MONGO_MEMORY_PROTECTION} CheckValid; {$ENDIF}
+  Result := command(db, BSON([cmdstr, arg]));
+end;
+
+function TMongo.getLastErr(const db: AnsiString): IBson;
+var
+  b: IBson;
+  res: Pointer;
+  h: Pointer;
+begin
+  CheckHandle;
+  res := bson_create;
+  try
+    if mongo_cmd_get_last_error(fhandle, PAnsiChar(db), res) <> 0 then
+    begin
+      h := bson_create;
+      try
+        b := NewBson(h);
+      except
+        bson_dispose(h);
+        raise;
+      end;
+      bson_copy(b.Handle, res);
+      Result := b;
+    end
+    else
+      Result := nil;
+  finally
+    bson_destroy(res);
+    bson_dispose(res);
+  end;
+end;
+
+function TMongo.cmdGetLastError(const db: AnsiString): IBson;
+var
+  h: Pointer;
+begin
+  CheckHandle;
+  h := bson_create;
+  if mongo_cmd_get_last_error(fHandle, PAnsiChar(db), h) = 0 then
   begin
-    i := Pos('.', ns);
-    if i = 0 then
-      Raise Exception.Create('TMongo.drop: expected a ''.'' in the namespace.');
+    bson_destroy(h);
+    bson_dispose(h);
+    Result := nil;
+  end
+  else 
+    Result := NewBson(h);
+end;
+
+procedure TMongo.cmdResetLastError(const db: AnsiString);
+begin
+  CheckHandle;
+  mongo_cmd_reset_error(fHandle, PAnsiChar(db));
+end;
+
+function TMongo.getPrevErr(const db: AnsiString): IBson;
+var
+  b: IBson;
+  res: Pointer;
+  h: Pointer;
+begin
+  CheckHandle;
+  res := bson_create;
+  try
+    if mongo_cmd_get_prev_error(fhandle, PAnsiChar(db), res) <> 0 then
+    begin
+      h := bson_create;
+      try
+        b := NewBson(h);
+      except
+        bson_dispose(h);
+        raise;
+      end;
+      bson_copy(b.Handle, res);
+      Result := b;
+    end
+    else
+      Result := nil;
+  finally
+    bson_destroy(res);
+    bson_dispose(res);
+  end;
+end;
+
+procedure TMongo.resetErr(const db: AnsiString);
+begin
+  {$IFDEF MONGO_MEMORY_PROTECTION} CheckValid; {$ENDIF}
+  command(db, SReseterror, true);
+end;
+
+function TMongo.getServerErr: Integer;
+begin
+  CheckHandle;
+  Result := mongo_get_server_err(fhandle);
+end;
+
+function TMongo.getServerErrString: AnsiString;
+begin
+  CheckHandle;
+  Result := AnsiString(mongo_get_server_err_string(fhandle));
+end;
+
+procedure TMongo.InitMongo(const AHost: AnsiString);
+var
+  hosturl: AnsiString;
+  port: Integer;
+begin
+  {$IFDEF MONGO_MEMORY_PROTECTION} CheckValid; {$ENDIF}
+  fhandle := mongo_create;
+  parseHost(AHost, hosturl, port);
+  mongo_connect(fhandle, PAnsiChar(hosturl), port);
+end;
+
+procedure TMongo.parseNamespace(const ns: AnsiString; var db: AnsiString; var Collection: AnsiString);
+var
+  i: Integer;
+begin
+  {$IFDEF MONGO_MEMORY_PROTECTION} CheckValid; {$ENDIF}
+  i := Pos('.', ns);
+  if i > 0 then
+  begin
     db := Copy(ns, 1, i - 1);
-    collection := Copy(ns, i+1, Length(ns) - i);
-    Result := mongo_count(handle, PAnsiChar(AnsiString(db)),
-                                  PAnsiChar(AnsiString(collection)), query.handle);
-  end;
-
-  function TMongo.count(ns : string) : Double;
+    collection := Copy(ns, i + 1, Length(ns) - i);
+  end
+  else
   begin
-    Result := count(ns, TBson.Create(nil));
+    db := '';
+    Collection := ns;
   end;
+end;
 
-  function TMongo.indexCreate(ns : string; key : TBson; options : Integer) : TBson;
-  var
-    res : TBson;
-    created : Boolean;
+procedure TMongo.setWriteConcern(AWriteConcern: IWriteConcern);
+begin
+  CheckHandle;
+  if AWriteConcern <> nil then
+    if AWriteConcern.finished then
+      mongo_set_write_concern(FHandle, AWriteConcern.Handle)
+    else 
+      raise EMongo.Create(SCanTUseAnUnfinishedWriteConcern)
+  else 
+    mongo_set_write_concern(FHandle, nil);
+  FWriteConcern := AWriteConcern;
+end;
+
+{ TMongoCursor }
+
+constructor TMongoCursor.Create;
+begin
+  inherited Create;
+  {$IFDEF OnDemandMongoCLoad}
+  InitMongoDBLibrary;
+  {$ENDIF}
+  Init;
+end;
+
+constructor TMongoCursor.Create(aquery: IBson);
+begin
+  inherited Create;
+  {$IFDEF OnDemandMongoCLoad}
+  InitMongoDBLibrary;
+  {$ENDIF}
+  Init;
+  query := aquery;
+end;
+
+destructor TMongoCursor.Destroy;
+begin
+  {$IFDEF MONGO_MEMORY_PROTECTION} CheckValid; {$ENDIF}
+  DestroyCursor;
+  inherited;
+end;
+
+procedure TMongoCursor.CheckHandle;
+begin
+  {$IFDEF MONGO_MEMORY_PROTECTION} CheckValid; {$ENDIF}
+  if FHandle = nil then
+    raise EMongo.Create(SMongoHandleIsNil);
+end;
+
+procedure TMongoCursor.DestroyCursor;
+begin
+  {$IFDEF MONGO_MEMORY_PROTECTION} CheckValid; {$ENDIF}
+  if FHandle <> nil then
   begin
-    res := TBson.Create(bson_create());
-    created := (mongo_create_index(handle, PAnsiChar(AnsiString(ns)), key.handle, options, res.handle) = 0);
-    if not created then
-      Result := res
-    else
-      Result := nil;
+    mongo_cursor_destroy(FHandle);
+    if not FFindCalledFlag then
+      mongo_cursor_dispose(FHandle);
+    FHandle := nil;
+    FFindCalledFlag := false;
   end;
+end;
 
-  function TMongo.indexCreate(ns : string; key : TBson) : TBson;
-  begin
-    Result := indexCreate(ns, key, 0);
+procedure TMongoCursor.FindCalled;
+begin
+  {$IFDEF MONGO_MEMORY_PROTECTION} CheckValid; {$ENDIF}
+  FindCalledFlag := true;
+end;
+
+function TMongoCursor.GetConn: TMongo;
+begin
+  {$IFDEF MONGO_MEMORY_PROTECTION} CheckValid; {$ENDIF}
+  Result := FConn;
+end;
+
+function TMongoCursor.GetFields: IBson;
+begin
+  {$IFDEF MONGO_MEMORY_PROTECTION} CheckValid; {$ENDIF}
+  Result := FFields;
+end;
+
+function TMongoCursor.GetHandle: Pointer;
+begin
+  {$IFDEF MONGO_MEMORY_PROTECTION} CheckValid; {$ENDIF}
+  Result := FHandle;
+end;
+
+function TMongoCursor.GetLimit: Integer;
+begin
+  {$IFDEF MONGO_MEMORY_PROTECTION} CheckValid; {$ENDIF}
+  Result := FLimit;
+end;
+
+function TMongoCursor.GetOptions: Integer;
+begin
+  {$IFDEF MONGO_MEMORY_PROTECTION} CheckValid; {$ENDIF}
+  Result := FOptions;
+end;
+
+function TMongoCursor.GetQuery: IBson;
+begin
+  {$IFDEF MONGO_MEMORY_PROTECTION} CheckValid; {$ENDIF}
+  Result := FQuery;
+end;
+
+function TMongoCursor.GetSkip: Integer;
+begin
+  {$IFDEF MONGO_MEMORY_PROTECTION} CheckValid; {$ENDIF}
+  Result := FSkip;
+end;
+
+function TMongoCursor.GetSort: IBson;
+begin
+  {$IFDEF MONGO_MEMORY_PROTECTION} CheckValid; {$ENDIF}
+  Result := FSort;
+end;
+
+procedure TMongoCursor.Init;
+begin
+  {$IFDEF MONGO_MEMORY_PROTECTION} CheckValid; {$ENDIF}
+  Handle := nil;
+  query := nil;
+  Sort := nil;
+  fields := nil;
+  limit := 0;
+  skip := 0;
+  options := 0;
+  fconn := nil;
+end;
+
+function TMongoCursor.Next: Boolean;
+begin
+  CheckHandle;
+  Result := mongo_cursor_next(Handle) = 0;
+end;
+
+procedure TMongoCursor.SetConn(const Value: TMongo);
+begin
+  {$IFDEF MONGO_MEMORY_PROTECTION} CheckValid; {$ENDIF}
+  FConn := Value;
+end;
+
+procedure TMongoCursor.SetFields(const Value: IBson);
+begin
+  {$IFDEF MONGO_MEMORY_PROTECTION} CheckValid; {$ENDIF}
+  FFields := Value;
+end;
+
+procedure TMongoCursor.SetHandle(const Value: Pointer);
+begin
+  {$IFDEF MONGO_MEMORY_PROTECTION} CheckValid; {$ENDIF}
+  if FHandle <> nil then
+    DestroyCursor;
+  FHandle := Value;
+end;
+
+procedure TMongoCursor.SetLimit(const Value: Integer);
+begin
+  {$IFDEF MONGO_MEMORY_PROTECTION} CheckValid; {$ENDIF}
+  FLimit := Value;
+end;
+
+procedure TMongoCursor.SetOptions(const Value: Integer);
+begin
+  {$IFDEF MONGO_MEMORY_PROTECTION} CheckValid; {$ENDIF}
+  FOptions := Value;
+end;
+
+procedure TMongoCursor.SetQuery(const Value: IBson);
+begin
+  {$IFDEF MONGO_MEMORY_PROTECTION} CheckValid; {$ENDIF}
+  FQuery := Value;
+end;
+
+procedure TMongoCursor.SetSkip(const Value: Integer);
+begin
+  {$IFDEF MONGO_MEMORY_PROTECTION} CheckValid; {$ENDIF}
+  FSkip := Value;
+end;
+
+procedure TMongoCursor.SetSort(const Value: IBson);
+begin
+  {$IFDEF MONGO_MEMORY_PROTECTION} CheckValid; {$ENDIF}
+  FSort := Value;
+end;
+
+function TMongoCursor.Value: IBson;
+var
+  b: IBson;
+  h: Pointer;
+begin
+  CheckHandle;
+  h := bson_create;
+  try
+    b := NewBson(h);
+  except
+    bson_dispose(h);
+    raise;
   end;
+  bson_copy(h, mongo_cursor_bson(Handle));
+  Result := b;
+end;
 
-  function TMongo.indexCreate(ns : string; key : string; options : Integer) : TBson;
-  begin
-    Result := indexCreate(ns, BSON([key, True]), options);
-  end;
+function NewMongoCursor: IMongoCursor;
+begin
+  Result := TMongoCursor.Create;
+end;
 
-  function TMongo.indexCreate(ns : string; key : string) : TBson;
-  begin
-    Result := indexCreate(ns, key, 0);
-  end;
+function NewMongoCursor(query: IBson): IMongoCursor;
+begin
+  Result := TMongoCursor.Create(query);
+end;
 
-  function TMongo.addUser(name : string; password : string; db : string) : Boolean;
-  begin
-    Result := (mongo_cmd_add_user(handle, PAnsiChar(AnsiString(db)),
-                                          PAnsiChar(AnsiString(name)),
-                                          PAnsiChar(AnsiString(password))) = 0);
-  end;
+function NewWriteConcern: IWriteConcern;
+begin
+  Result := TWriteConcern.Create;
+end;
 
-  function TMongo.addUser(name : string; password : string) : Boolean;
-  begin
-    Result := addUser(name, password, 'admin');
-  end;
+{ TWriteConcern }
 
-  function TMongo.authenticate(name : string; password : string; db : string) : Boolean;
-  begin
-    Result := (mongo_cmd_authenticate(handle, PAnsiChar(AnsiString(db)),
-                                              PAnsiChar(AnsiString(name)),
-                                              PAnsiChar(AnsiString(password))) = 0);
-  end;
+constructor TWriteConcern.Create;
+begin
+  inherited Create;
+  mongo_write_concern_init(@FWriteConcern);
+end;
 
-  function TMongo.authenticate(name : string; password : string) : Boolean;
-  begin
-    Result := authenticate(name, password, 'admin');
-  end;
+destructor TWriteConcern.Destroy;
+begin
+  {$IFDEF MONGO_MEMORY_PROTECTION} CheckValid; {$ENDIF}
+  mongo_write_concern_destroy(@FWriteConcern);
+  FWriteConcern.mode := nil;
+  inherited;
+end;
 
-  function TMongo.command(db : string; command : TBson) : TBson;
-  var
-    b : TBson;
-    res : Pointer;
-  begin
-    res := bson_create();
-    if mongo_run_command(handle, PAnsiChar(AnsiString(db)), command.handle, res) = 0 then begin
-      b := TBson.Create(bson_create());
-      bson_copy(b.handle, res);
-      Result := b;
-    end
-    else
-      Result := nil;
-    bson_dispose(res);
-  end;
+procedure TWriteConcern.finish;
+begin
+  {$IFDEF MONGO_MEMORY_PROTECTION} CheckValid; {$ENDIF}
+  mongo_write_concern_finish(@FWriteConcern);
+  FFinished := true;
+end;
 
-  function TMongo.distinct(ns : string; key : string) : TBson;
-    var b : TBson;
-        buf : TBsonBuffer;
-        p : Integer;
-        db, collection : string;
-  begin
-    p := pos('.', ns);
-    if p = 0 then
-      Raise Exception.Create('Expected a ''.'' in the namespace');
-    db := Copy(ns, 1, p-1);
-    collection := Copy(ns, p+1, Length(ns) - p);
-    buf := TBsonBuffer.Create();
-    buf.append('distinct', collection);
-    buf.append('key', key);
-    b := buf.finish;
-    Result := command(db, b);
-  end;
+function TWriteConcern.Getfinished: Boolean;
+begin
+  {$IFDEF MONGO_MEMORY_PROTECTION} CheckValid; {$ENDIF}
+  Result := FFinished;
+end;
 
-  function TMongo.command(db : string; cmdstr : string; arg : OleVariant) : TBson;
-  begin
-    Result := command(db, BSON([cmdstr, arg]));
-  end;
+function TWriteConcern.Getfsync: Integer;
+begin
+  {$IFDEF MONGO_MEMORY_PROTECTION} CheckValid; {$ENDIF}
+  Result := FWriteConcern.fsync;
+end;
 
-  function TMongo.getLastErr(db : string) : TBson;
-  var
-    b : TBson;
-    res : Pointer;
-  begin
-    res := bson_create();
-    if mongo_cmd_get_last_error(handle, PAnsiChar(AnsiString(db)), res) <> 0 then begin
-      b := TBson.Create(bson_create());
-      bson_copy(b.handle, res);
-      Result := b;
-    end
-    else
-      Result := nil;
-    bson_dispose(res);
-  end;
+function TWriteConcern.GetHandle: Pointer;
+begin
+  {$IFDEF MONGO_MEMORY_PROTECTION} CheckValid; {$ENDIF}
+  Result := @FWriteConcern;
+end;
 
-  function TMongo.getPrevErr(db : string) : TBson;
-  var
-    b : TBson;
-    res : Pointer;
-  begin
-    res := bson_create();
-    if mongo_cmd_get_prev_error(handle, PAnsiChar(AnsiString(db)), res) <> 0 then begin
-      b := TBson.Create(bson_create());
-      bson_copy(b.handle, res);
-      Result := b;
-    end
-    else
-      Result := nil;
-    bson_dispose(res);
-  end;
+function TWriteConcern.Getj: Integer;
+begin
+  {$IFDEF MONGO_MEMORY_PROTECTION} CheckValid; {$ENDIF}
+  Result := FWriteConcern.j;
+end;
 
-  procedure TMongo.resetErr(db : string);
-  begin
-    command(db, 'reseterror', True);
-  end;
+function TWriteConcern.Getmode: AnsiString;
+begin
+  {$IFDEF MONGO_MEMORY_PROTECTION} CheckValid; {$ENDIF}
+  if FWriteConcern.mode <> nil then
+    Result := AnsiString(FWriteConcern.mode)
+  else 
+    Result := '';
+end;
 
-  function TMongo.getServerErr() : Integer;
-  begin
-    Result := mongo_get_server_err(handle);
-  end;
+function TWriteConcern.Getw: Integer;
+begin
+  {$IFDEF MONGO_MEMORY_PROTECTION} CheckValid; {$ENDIF}
+  Result := FWriteConcern.w;
+end;
 
-  function TMongo.getServerErrString() : string;
-  begin
-    Result := string(mongo_get_server_err_string(handle));
-  end;
+function TWriteConcern.Getwtimeout: Integer;
+begin
+  {$IFDEF MONGO_MEMORY_PROTECTION} CheckValid; {$ENDIF}
+  Result := FWriteConcern.wtimeout;
+end;
 
-initialization
-  mongo_sock_init();
+procedure TWriteConcern.Modified;
+begin
+  {$IFDEF MONGO_MEMORY_PROTECTION} CheckValid; {$ENDIF}
+  FFinished := false;
+end;
+
+procedure TWriteConcern.Setfsync(const Value: Integer);
+begin
+  {$IFDEF MONGO_MEMORY_PROTECTION} CheckValid; {$ENDIF}
+  FWriteConcern.fsync := Value;
+  Modified;
+end;
+
+procedure TWriteConcern.Setj(const Value: Integer);
+begin
+  {$IFDEF MONGO_MEMORY_PROTECTION} CheckValid; {$ENDIF}
+  FWriteConcern.j := Value;
+  Modified;
+end;
+
+procedure TWriteConcern.Setmode(const Value: AnsiString);
+begin
+  {$IFDEF MONGO_MEMORY_PROTECTION} CheckValid; {$ENDIF}
+  FMode := Value;
+  FWriteConcern.mode := PAnsiChar(FMode);
+  Modified;
+end;
+
+procedure TWriteConcern.Setw(const Value: Integer);
+begin
+  {$IFDEF MONGO_MEMORY_PROTECTION} CheckValid; {$ENDIF}
+  FWriteConcern.w := Value;
+  Modified;
+end;
+
+procedure TWriteConcern.Setwtimeout(const Value: Integer);
+begin
+  {$IFDEF MONGO_MEMORY_PROTECTION} CheckValid; {$ENDIF}
+  FWriteConcern.wtimeout := Value;
+  Modified;
+end;
+
 end.
-
