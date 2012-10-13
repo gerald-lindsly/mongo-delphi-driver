@@ -588,7 +588,9 @@ begin
   InitMongoDBLibrary;
   {$ENDIF}
   AutoCheckLastError := true;
-  InitMongo(host);
+  if host = ''
+    then InitMongo(S127001 + S27017)
+    else InitMongo(host);
 end;
 
 destructor TMongo.Destroy;
