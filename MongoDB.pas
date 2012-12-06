@@ -360,7 +360,7 @@ implementation
   function mongo_connect(c : Pointer; host : PAnsiChar; port : Integer) : Integer;
     cdecl; external 'mongoc.dll';
   procedure mongo_destroy(c : Pointer); cdecl; external 'mongoc.dll';
-  procedure mongo_replset_init(c : Pointer; name : PAnsiChar); external 'mongoc.dll';
+  procedure mongo_replset_init(c : Pointer; name : PAnsiChar); cdecl; external 'mongoc.dll';
   procedure mongo_replset_add_seed(c : Pointer; host : PAnsiChar; port : Integer);
     cdecl; external 'mongoc.dll';
   function mongo_replset_connect(c : Pointer) : Integer; cdecl; external 'mongoc.dll';
