@@ -331,6 +331,8 @@ interface
 implementation
   uses SysUtils, Variants;
 
+  procedure set_bson_err_handler(err_handler : Pointer); cdecl; external 'mongoc.dll';
+
   function bson_create() : Pointer;  cdecl; external 'mongoc.dll';
   procedure bson_init(b : Pointer);  cdecl; external 'mongoc.dll';
   procedure bson_destroy(b : Pointer); cdecl; external 'mongoc.dll';
@@ -1107,8 +1109,14 @@ implementation
     Result := bb.finish();
   end;
 
+  procedure err_handler(msg : PAnsiChar);
+  begin
+    Raise Exception.Create(string(msg));
+  end;
+
   initialization
     bsonEmpty := BSON([]);
+    set_bson_err_handler(Addr(err_handler));
 
 end.
 

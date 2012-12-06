@@ -34,7 +34,6 @@ var
   bin : TBsonBinary;
   sing : Single;
   mongo : TMongo;
-  count : Integer;
   j : Integer;
   cursor : TMongoCursor;
   databases : TStringArray;
@@ -57,6 +56,25 @@ begin
    collections := mongo.getDatabaseCollections(db);
    for j := 0 to Length(collections)-1 do
      Writeln(collections[j]);
+end;
+
+procedure ExtractFile(gfs : TGridFS; gfsname : string; filename : string = '');
+  var chunk : Integer;
+      f : File;
+      b : TBson;
+      bin : TBsonBinary;
+begin
+   if filename = '' then filename := gfsname;
+   gf := gfs.find(gfsname);
+   Assign(f, filename);
+   Rewrite(f, 1);
+   for chunk := 0 to gf.getChunkCount - 1 do
+     begin
+       b := gf.getChunk(chunk);
+       bin := b.find('data').getBinary;
+       BlockWrite(f, bin.data^, bin.len);
+     end;
+   Close(f);
 end;
 
 begin
@@ -337,6 +355,7 @@ begin
       buf[20] := Chr(0);
       WriteLn(buf);
 
+      ExtractFile(gfs, 'MongoDB.pas');
       WriteLn('Done');
       ReadLn;
     end
