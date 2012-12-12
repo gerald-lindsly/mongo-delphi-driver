@@ -617,7 +617,7 @@ var
 begin
   CheckHandle;
   parseHost(host, hosturl, port);
-  mongo_replset_add_seed(Handle, PAnsiChar(hosturl), port);
+  mongo_replica_set_add_seed(Handle, PAnsiChar(hosturl), port);
 end;
 
 function TMongoReplset.Connect: Boolean;
@@ -626,7 +626,7 @@ var
   Err: Integer;
 begin
   CheckHandle;
-  Ret := mongo_replset_connect(Handle);
+  Ret := mongo_replica_set_client(Handle);
   if Ret <> 0 then
     Err := getErr
   else 
@@ -727,7 +727,7 @@ end;
 procedure TMongoReplset.InitMongo(const AHost: AnsiString);
 begin
   fhandle := mongo_create;
-  mongo_replset_init(Handle, PAnsiChar(AHost)); // AHost contains the replicate set Name
+  mongo_replica_set_init(Handle, PAnsiChar(AHost)); // AHost contains the replicate set Name
 end;
 
 function TMongo.getDatabases: TStringArray;
@@ -1244,7 +1244,7 @@ begin
   {$IFDEF MONGO_MEMORY_PROTECTION} CheckValid; {$ENDIF}
   fhandle := mongo_create;
   parseHost(AHost, hosturl, port);
-  mongo_connect(fhandle, PAnsiChar(hosturl), port);
+  mongo_client(fhandle, PAnsiChar(hosturl), port);
 end;
 
 procedure TMongo.parseNamespace(const ns: AnsiString; var db: AnsiString; var Collection: AnsiString);

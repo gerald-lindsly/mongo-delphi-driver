@@ -68,11 +68,11 @@ type
   Tmongo_sock_init = function : Integer; cdecl;
   Tmongo_create = function : Pointer; cdecl;
   Tmongo_dispose = procedure (c: Pointer); cdecl;
-  Tmongo_connect = function (c: Pointer; host: PAnsiChar; port: Integer): Integer; cdecl;
+  Tmongo_client = function (c: Pointer; host: PAnsiChar; port: Integer): Integer; cdecl;
   Tmongo_destroy = procedure(c: Pointer); cdecl;
-  Tmongo_replset_init = procedure (c: Pointer; Name: PAnsiChar); cdecl;
-  Tmongo_replset_add_seed = procedure (c: Pointer; host: PAnsiChar; port: Integer); cdecl;
-  Tmongo_replset_connect = function(c: Pointer): Integer; cdecl;
+  Tmongo_replica_set_init = procedure (c: Pointer; Name: PAnsiChar); cdecl;
+  Tmongo_replica_set_add_seed = procedure (c: Pointer; host: PAnsiChar; port: Integer); cdecl;
+  Tmongo_replica_set_client = function(c: Pointer): Integer; cdecl;
   Tmongo_is_connected = function (c: Pointer): LongBool; cdecl;
   Tmongo_get_err = function(c: Pointer): Integer; cdecl;
   Tmongo_set_op_timeout = function (c: Pointer; millis: Integer): Integer; cdecl;
@@ -213,11 +213,11 @@ var
   mongo_sock_init : Tmongo_sock_init;
   mongo_create : Tmongo_create;
   mongo_dispose : Tmongo_dispose;
-  mongo_connect : Tmongo_connect;
+  mongo_client : Tmongo_client;
   mongo_destroy : Tmongo_destroy;
-  mongo_replset_init : Tmongo_replset_init;
-  mongo_replset_add_seed : Tmongo_replset_add_seed;
-  mongo_replset_connect : Tmongo_replset_connect;
+  mongo_replica_set_init : Tmongo_replica_set_init;
+  mongo_replica_set_add_seed : Tmongo_replica_set_add_seed;
+  mongo_replica_set_client : Tmongo_replica_set_client;
   mongo_is_connected : Tmongo_is_connected;
   mongo_get_err : Tmongo_get_err;
   mongo_set_op_timeout : Tmongo_set_op_timeout;
@@ -361,11 +361,11 @@ var
   function mongo_sock_init: Integer; cdecl; external MongoCDLL;
   function mongo_create: Pointer; cdecl; external MongoCDLL;
   procedure mongo_dispose(c: Pointer); cdecl; external MongoCDLL;
-  function mongo_connect(c: Pointer; host: PAnsiChar; port: Integer): Integer; cdecl; external MongoCDLL;
+  function mongo_client(c: Pointer; host: PAnsiChar; port: Integer): Integer; cdecl; external MongoCDLL;
   procedure mongo_destroy(c: Pointer); cdecl; external MongoCDLL;
-  procedure mongo_replset_init(c: Pointer; Name: PAnsiChar); cdecl; external MongoCDLL;
-  procedure mongo_replset_add_seed(c: Pointer; host: PAnsiChar; port: Integer); cdecl; external MongoCDLL;
-  function mongo_replset_connect(c: Pointer): Integer; cdecl; external MongoCDLL;
+  procedure mongo_replica_set_init(c: Pointer; Name: PAnsiChar); cdecl; external MongoCDLL;
+  procedure mongo_replica_set_add_seed(c: Pointer; host: PAnsiChar; port: Integer); cdecl; external MongoCDLL;
+  function mongo_replica_set_client(c: Pointer): Integer; cdecl; external MongoCDLL;
   function mongo_is_connected(c: Pointer): Longbool; cdecl; external MongoCDLL;
   function mongo_get_err(c: Pointer): Integer; cdecl; external MongoCDLL;
   function mongo_set_op_timeout(c: Pointer; millis: Integer): Integer; cdecl; external MongoCDLL;
@@ -540,11 +540,11 @@ begin
   mongo_sock_init := GetProcAddress(HMongoDBDll, 'mongo_sock_init'); // do not localize
   mongo_create := GetProcAddress(HMongoDBDll, 'mongo_create'); // do not localize
   mongo_dispose := GetProcAddress(HMongoDBDll, 'mongo_dispose'); // do not localize
-  mongo_connect := GetProcAddress(HMongoDBDll, 'mongo_connect'); // do not localize
+  mongo_client := GetProcAddress(HMongoDBDll, 'mongo_client'); // do not localize
   mongo_destroy := GetProcAddress(HMongoDBDll, 'mongo_destroy'); // do not localize
-  mongo_replset_init := GetProcAddress(HMongoDBDll, 'mongo_replset_init'); // do not localize
-  mongo_replset_add_seed := GetProcAddress(HMongoDBDll, 'mongo_replset_add_seed'); // do not localize
-  mongo_replset_connect := GetProcAddress(HMongoDBDll, 'mongo_replset_connect'); // do not localize
+  mongo_replica_set_init := GetProcAddress(HMongoDBDll, 'mongo_replica_set_init'); // do not localize
+  mongo_replica_set_add_seed := GetProcAddress(HMongoDBDll, 'mongo_replica_set_add_seed'); // do not localize
+  mongo_replica_set_client := GetProcAddress(HMongoDBDll, 'mongo_replica_set_client'); // do not localize
   mongo_is_connected := GetProcAddress(HMongoDBDll, 'mongo_is_connected'); // do not localize
   mongo_get_err := GetProcAddress(HMongoDBDll, 'mongo_get_err'); // do not localize
   mongo_set_op_timeout := GetProcAddress(HMongoDBDll, 'mongo_set_op_timeout'); // do not localize
