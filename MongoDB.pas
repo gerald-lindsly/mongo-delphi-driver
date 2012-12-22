@@ -354,10 +354,10 @@ implementation
   Uses
     SysUtils;
 
-  function mongo_sock_init() : Integer;  cdecl; external 'mongoc.dll';
+  function mongo_env_sock_init() : Integer;  cdecl; external 'mongoc.dll';
   function mongo_create() : Pointer; cdecl; external 'mongoc.dll';
   procedure mongo_dispose(c : Pointer); cdecl; external 'mongoc.dll';
-  function mongo_connect(c : Pointer; host : PAnsiChar; port : Integer) : Integer;
+  function mongo_client(c : Pointer; host : PAnsiChar; port : Integer) : Integer;
     cdecl; external 'mongoc.dll';
   procedure mongo_destroy(c : Pointer); cdecl; external 'mongoc.dll';
   procedure mongo_replset_init(c : Pointer; name : PAnsiChar); cdecl; external 'mongoc.dll';
@@ -378,13 +378,13 @@ implementation
   function mongo_get_socket(c : Pointer) : Integer; cdecl; external 'mongoc.dll';
   function mongo_get_host_count(c : Pointer) : Integer; cdecl; external 'mongoc.dll';
   function mongo_get_host(c : Pointer; i : Integer) : PAnsiChar; cdecl; external 'mongoc.dll';
-  function mongo_insert(c : Pointer; ns : PAnsiChar; b : Pointer) : Integer;
+  function mongo_insert(c : Pointer; ns : PAnsiChar; b : Pointer; wc : Pointer) : Integer;
     cdecl; external 'mongoc.dll';
-  function mongo_insert_batch(c : Pointer; ns : PAnsiChar; bsons : Pointer; count : Integer) : Integer;
+  function mongo_insert_batch(c : Pointer; ns : PAnsiChar; bsons : Pointer; count : Integer; wc : Pointer; flags : Integer) : Integer;
     cdecl; external 'mongoc.dll';
-  function mongo_update(c : Pointer; ns : PAnsiChar; cond : Pointer; op : Pointer; flags : Integer) : Integer;
+  function mongo_update(c : Pointer; ns : PAnsiChar; cond : Pointer; op : Pointer; flags : Integer; wc : Pointer) : Integer;
     cdecl; external 'mongoc.dll';
-  function mongo_remove(c : Pointer; ns : PAnsiChar; criteria : Pointer) : Integer;
+  function mongo_remove(c : Pointer; ns : PAnsiChar; criteria : Pointer; wc : Pointer) : Integer;
     cdecl; external 'mongoc.dll';
   function mongo_find_one(c : Pointer; ns : PAnsiChar; query : Pointer; fields : Pointer; result : Pointer) : Integer;
     cdecl; external 'mongoc.dll';
@@ -435,7 +435,7 @@ implementation
   constructor TMongo.Create();
   begin
     handle := mongo_create();
-    mongo_connect(handle, '127.0.0.1', 27017);
+    mongo_client(handle, '127.0.0.1', 27017);
   end;
 
   constructor TMongo.Create(host : string);
@@ -445,7 +445,7 @@ implementation
   begin
     handle := mongo_create();
     parseHost(host, hosturl, port);
-    mongo_connect(handle, PAnsiChar(AnsiString(hosturl)), port);
+    mongo_client(handle, PAnsiChar(AnsiString(hosturl)), port);
   end;
 
   destructor TMongo.Destroy();
@@ -629,7 +629,7 @@ implementation
 
   function TMongo.insert(ns: string; b: TBson) : Boolean;
   begin
-    Result := (mongo_insert(handle, PAnsiChar(AnsiString(ns)), b.handle) = 0);
+    Result := (mongo_insert(handle, PAnsiChar(AnsiString(ns)), b.handle, nil) = 0);
   end;
 
   function TMongo.insert(ns: string; bs: array of TBson) : Boolean;
@@ -642,12 +642,12 @@ implementation
     SetLength(ps, Len);
     for i := 0 to Len-1 do
       ps[i] := bs[i].handle;
-    Result := (mongo_insert_batch(handle, PAnsiChar(AnsiString(ns)), &ps, len) = 0);
+    Result := (mongo_insert_batch(handle, PAnsiChar(AnsiString(ns)), &ps, len, nil, 0) = 0);
   end;
 
   function TMongo.update(ns : string; criteria : TBson; objNew : TBson; flags : Integer) : Boolean;
   begin
-    Result := (mongo_update(handle, PAnsiChar(AnsiString(ns)), criteria.handle, objNew.handle, flags) = 0);
+    Result := (mongo_update(handle, PAnsiChar(AnsiString(ns)), criteria.handle, objNew.handle, flags, nil) = 0);
   end;
 
   function TMongo.update(ns : string; criteria : TBson; objNew : TBson) : Boolean;
@@ -657,7 +657,7 @@ implementation
 
   function TMongo.remove(ns : string; criteria : TBson) : Boolean;
   begin
-    Result := (mongo_remove(handle, PAnsiChar(AnsiString(ns)), criteria.handle) = 0);
+    Result := (mongo_remove(handle, PAnsiChar(AnsiString(ns)), criteria.handle, nil) = 0);
   end;
 
   function TMongo.findOne(ns : string; query : TBson; fields : TBson) : TBson;
@@ -912,6 +912,6 @@ implementation
   end;
 
 initialization
-  mongo_sock_init();
+  mongo_env_sock_init();
 end.
 

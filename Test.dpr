@@ -60,6 +60,7 @@ end;
 
 procedure ExtractFile(gfs : TGridFS; gfsname : string; filename : string = '');
   var chunk : Integer;
+      gf : TGridfile;
       f : File;
       b : TBson;
       bin : TBsonBinary;
