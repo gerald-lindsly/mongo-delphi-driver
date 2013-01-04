@@ -333,8 +333,7 @@ implementation
     if gridfs_find_query(handle, query.handle, gf.handle) = 0 then
       Result := gf
     else begin
-      gridfile_dispose(gf.handle);
-      gf.handle := nil;
+      gf.Free;
       Result := nil;
     end;
   end;
@@ -431,7 +430,10 @@ implementation
     b := TBson.Create(bson_create());
     gridfile_get_chunk(handle, i, b.handle);
     if b.size() <= 5 then
-      Result := nil
+    begin
+      bson_dispose(b);
+      Result := nil;
+    end
     else
       Result := b;
   end;
@@ -443,7 +445,10 @@ implementation
     cursor := TMongoCursor.Create();
     cursor.handle := gridfile_get_chunks(handle, i, count);
     if cursor.handle = nil then
-      Result := nil
+    begin
+      cursor.free;
+      Result := nil;
+    end
     else
       Result := cursor;
   end;
