@@ -231,8 +231,8 @@ implementation
   begin
     conn := mongo;
     handle := gridfs_create();
-    if gridfs_init(mongo.handle, PAnsiChar(AnsiString(db)),
-                                 PAnsiChar(AnsiString(prefix)), handle) <> 0 then begin
+    if gridfs_init(mongo.handle, PAnsiChar(System.UTF8Encode(db)),
+                                 PAnsiChar(System.UTF8Encode(prefix)), handle) <> 0 then begin
        gridfs_dispose(handle);
        Raise Exception.Create('Unable to create GridFS');
     end;
@@ -251,9 +251,9 @@ implementation
 
   function TGridFS.storeFile(filename : string; remoteName : string; contentType : string) : Boolean;
   begin
-    Result := (gridfs_store_file(handle, PAnsiChar(AnsiString(filename)),
-                                         PAnsiChar(AnsiString(remoteName)),
-                                         PAnsiChar(AnsiString(contentType))) = 0);
+    Result := (gridfs_store_file(handle, PAnsiChar(System.UTF8Encode(filename)),
+                                         PAnsiChar(System.UTF8Encode(remoteName)),
+                                         PAnsiChar(System.UTF8Encode(contentType))) = 0);
   end;
 
   function TGridFS.storeFile(filename : string; remoteName : string) : Boolean;
@@ -268,13 +268,13 @@ implementation
 
   procedure TGridFS.removeFile(remoteName : string);
   begin
-    gridfs_remove_filename(handle, PAnsiChar(AnsiString(remoteName)));
+    gridfs_remove_filename(handle, PAnsiChar(System.UTF8Encode(remoteName)));
   end;
 
   function TGridFS.store(p : Pointer; length : Int64; remoteName : string; contentType : string) : Boolean;
   begin
-    Result := (gridfs_store_buffer(handle, p, length, PAnsiChar(AnsiString(remoteName)),
-                                                      PAnsiChar(AnsiString(contentType))) = 0);
+    Result := (gridfs_store_buffer(handle, p, length, PAnsiChar(System.UTF8Encode(remoteName)),
+                                                      PAnsiChar(System.UTF8Encode(contentType))) = 0);
   end;
 
   function TGridFS.store(p : Pointer; length : Int64; remoteName : string) : Boolean;
@@ -296,7 +296,7 @@ implementation
   begin
     gfs := gridfs;
     handle := gridfile_create();
-    gridfile_writer_init(handle, gridfs.handle, PAnsiChar(AnsiString(remoteName)), PAnsiChar(AnsiString(contentType)));
+    gridfile_writer_init(handle, gridfs.handle, PAnsiChar(System.UTF8Encode(remoteName)), PAnsiChar(System.UTF8Encode(contentType)));
   end;
 
   constructor TGridfileWriter.Create(gridfs : TGridFS; remoteName : string);
