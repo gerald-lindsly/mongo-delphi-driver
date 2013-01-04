@@ -340,7 +340,7 @@ implementation
 
   function TGridFS.find(remoteName : string) : TGridfile;
   begin
-    Result := find(BSON(['filename', remoteName]));
+    Result := find(BSON(['filename', System.UTF8Encode(remoteName)]));
   end;
 
   constructor TGridfile.Create(gridfs : TGridFS);
@@ -360,7 +360,7 @@ implementation
 
   function TGridfile.getFilename() : string;
   begin
-    Result := string(gridfile_get_filename(handle));
+    Result := string(System.UTF8ToWideString(gridfile_get_filename(handle)));
   end;
 
   function TGridfile.getChunkSize() : Integer;
@@ -375,7 +375,7 @@ implementation
 
   function TGridfile.getContentType() : string;
   begin
-    Result := string(gridfile_get_contenttype(handle));
+    Result := string(System.UTF8ToWideString(gridfile_get_contenttype(handle)));
   end;
 
   function TGridfile.getUploadDate() : TDateTime;
