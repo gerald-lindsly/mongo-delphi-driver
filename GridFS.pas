@@ -431,7 +431,7 @@ implementation
     gridfile_get_chunk(handle, i, b.handle);
     if b.size() <= 5 then
     begin
-      bson_dispose(b);
+      b.Free;
       Result := nil;
     end
     else

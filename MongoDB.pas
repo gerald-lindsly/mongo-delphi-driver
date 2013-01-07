@@ -445,7 +445,7 @@ implementation
   begin
     handle := mongo_create();
     parseHost(host, hosturl, port);
-    mongo_client(handle, PAnsiChar(AnsiString(hosturl)), port);
+    mongo_client(handle, PAnsiChar(System.UTF8Encode(hosturl)), port);
   end;
 
   destructor TMongo.Destroy();
@@ -457,7 +457,7 @@ implementation
   constructor TMongoReplset.Create(name: string);
   begin
     handle := mongo_create();
-    mongo_replset_init(handle, PAnsiChar(AnsiString(name)));
+    mongo_replset_init(handle, PAnsiChar(System.UTF8Encode(name)));
   end;
 
   procedure TMongoReplset.addSeed(host : string);
@@ -466,7 +466,7 @@ implementation
     port : Integer;
   begin
     parseHost(host, hosturl, port);
-    mongo_replset_add_seed(handle, PAnsiChar(AnsiString(hosturl)), port);
+    mongo_replset_add_seed(handle, PAnsiChar(System.UTF8Encode(hosturl)), port);
   end;
 
   function TMongoReplset.Connect() : Boolean;
@@ -618,18 +618,18 @@ implementation
       Raise Exception.Create('TMongo.drop: expected a ''.'' in the namespace.');
     db := Copy(ns, 1, i - 1);
     collection := Copy(ns, i+1, Length(ns) - i);
-    Result := (mongo_cmd_drop_collection(handle, PAnsiChar(AnsiString(db)),
-                                                 PAnsiChar(AnsiString(collection)), nil) = 0);
+    Result := (mongo_cmd_drop_collection(handle, PAnsiChar(System.UTF8Encode(db)),
+                                                 PAnsiChar(System.UTF8Encode(collection)), nil) = 0);
   end;
 
   function TMongo.dropDatabase(db : string) : Boolean;
   begin
-    Result := (mongo_cmd_drop_db(handle, PAnsiChar(AnsiString(db))) = 0);
+    Result := (mongo_cmd_drop_db(handle, PAnsiChar(System.UTF8Encode(db))) = 0);
   end;
 
   function TMongo.insert(ns: string; b: TBson) : Boolean;
   begin
-    Result := (mongo_insert(handle, PAnsiChar(AnsiString(ns)), b.handle, nil) = 0);
+    Result := (mongo_insert(handle, PAnsiChar(System.UTF8Encode(ns)), b.handle, nil) = 0);
   end;
 
   function TMongo.insert(ns: string; bs: array of TBson) : Boolean;
@@ -642,12 +642,12 @@ implementation
     SetLength(ps, Len);
     for i := 0 to Len-1 do
       ps[i] := bs[i].handle;
-    Result := (mongo_insert_batch(handle, PAnsiChar(AnsiString(ns)), &ps, len, nil, 0) = 0);
+    Result := (mongo_insert_batch(handle, PAnsiChar(System.UTF8Encode(ns)), &ps, len, nil, 0) = 0);
   end;
 
   function TMongo.update(ns : string; criteria : TBson; objNew : TBson; flags : Integer) : Boolean;
   begin
-    Result := (mongo_update(handle, PAnsiChar(AnsiString(ns)), criteria.handle, objNew.handle, flags, nil) = 0);
+    Result := (mongo_update(handle, PAnsiChar(System.UTF8Encode(ns)), criteria.handle, objNew.handle, flags, nil) = 0);
   end;
 
   function TMongo.update(ns : string; criteria : TBson; objNew : TBson) : Boolean;
@@ -657,7 +657,7 @@ implementation
 
   function TMongo.remove(ns : string; criteria : TBson) : Boolean;
   begin
-    Result := (mongo_remove(handle, PAnsiChar(AnsiString(ns)), criteria.handle, nil) = 0);
+    Result := (mongo_remove(handle, PAnsiChar(System.UTF8Encode(ns)), criteria.handle, nil) = 0);
   end;
 
   function TMongo.findOne(ns : string; query : TBson; fields : TBson) : TBson;
@@ -665,7 +665,7 @@ implementation
       res : Pointer;
   begin
     res := bson_create();
-    if (mongo_find_one(handle, PAnsiChar(AnsiString(ns)), query.handle, fields.handle, res) = 0) then
+    if (mongo_find_one(handle, PAnsiChar(System.UTF8Encode(ns)), query.handle, fields.handle, res) = 0) then
       Result := TBson.Create(res)
     else begin
       mongo_dispose(res);
@@ -726,7 +726,7 @@ implementation
       q := bb.finish;
     end;
     cursor.conn := Self;
-    ch := mongo_find(handle, PAnsiChar(AnsiString(ns)), q.handle, cursor.fields.handle,
+    ch := mongo_find(handle, PAnsiChar(System.UTF8Encode(ns)), q.handle, cursor.fields.handle,
                      cursor.limit, cursor.skip, cursor.options);
     if ch <> nil then begin
       cursor.handle := ch;
@@ -764,8 +764,8 @@ implementation
       Raise Exception.Create('TMongo.drop: expected a ''.'' in the namespace.');
     db := Copy(ns, 1, i - 1);
     collection := Copy(ns, i+1, Length(ns) - i);
-    Result := mongo_count(handle, PAnsiChar(AnsiString(db)),
-                                  PAnsiChar(AnsiString(collection)), query.handle);
+    Result := mongo_count(handle, PAnsiChar(System.UTF8Encode(db)),
+                                  PAnsiChar(System.UTF8Encode(collection)), query.handle);
   end;
 
   function TMongo.count(ns : string) : Double;
@@ -779,11 +779,14 @@ implementation
     created : Boolean;
   begin
     res := TBson.Create(bson_create());
-    created := (mongo_create_index(handle, PAnsiChar(AnsiString(ns)), key.handle, options, res.handle) = 0);
+    created := (mongo_create_index(handle, PAnsiChar(System.UTF8Encode(ns)), key.handle, options, res.handle) = 0);
     if not created then
       Result := res
     else
+    begin
+      res.Free;
       Result := nil;
+  end;
   end;
 
   function TMongo.indexCreate(ns : string; key : TBson) : TBson;
@@ -803,9 +806,9 @@ implementation
 
   function TMongo.addUser(name : string; password : string; db : string) : Boolean;
   begin
-    Result := (mongo_cmd_add_user(handle, PAnsiChar(AnsiString(db)),
-                                          PAnsiChar(AnsiString(name)),
-                                          PAnsiChar(AnsiString(password))) = 0);
+    Result := (mongo_cmd_add_user(handle, PAnsiChar(System.UTF8Encode(db)),
+                                          PAnsiChar(System.UTF8Encode(name)),
+                                          PAnsiChar(System.UTF8Encode(password))) = 0);
   end;
 
   function TMongo.addUser(name : string; password : string) : Boolean;
@@ -815,9 +818,9 @@ implementation
 
   function TMongo.authenticate(name : string; password : string; db : string) : Boolean;
   begin
-    Result := (mongo_cmd_authenticate(handle, PAnsiChar(AnsiString(db)),
-                                              PAnsiChar(AnsiString(name)),
-                                              PAnsiChar(AnsiString(password))) = 0);
+    Result := (mongo_cmd_authenticate(handle, PAnsiChar(System.UTF8Encode(db)),
+                                              PAnsiChar(System.UTF8Encode(name)),
+                                              PAnsiChar(System.UTF8Encode(password))) = 0);
   end;
 
   function TMongo.authenticate(name : string; password : string) : Boolean;
@@ -831,7 +834,7 @@ implementation
     res : Pointer;
   begin
     res := bson_create();
-    if mongo_run_command(handle, PAnsiChar(AnsiString(db)), command.handle, res) = 0 then begin
+    if mongo_run_command(handle, PAnsiChar(System.UTF8Encode(db)), command.handle, res) = 0 then begin
       b := TBson.Create(bson_create());
       bson_copy(b.handle, res);
       Result := b;
@@ -870,7 +873,7 @@ implementation
     res : Pointer;
   begin
     res := bson_create();
-    if mongo_cmd_get_last_error(handle, PAnsiChar(AnsiString(db)), res) <> 0 then begin
+    if mongo_cmd_get_last_error(handle, PAnsiChar(System.UTF8Encode(db)), res) <> 0 then begin
       b := TBson.Create(bson_create());
       bson_copy(b.handle, res);
       Result := b;
@@ -886,7 +889,7 @@ implementation
     res : Pointer;
   begin
     res := bson_create();
-    if mongo_cmd_get_prev_error(handle, PAnsiChar(AnsiString(db)), res) <> 0 then begin
+    if mongo_cmd_get_prev_error(handle, PAnsiChar(System.UTF8Encode(db)), res) <> 0 then begin
       b := TBson.Create(bson_create());
       bson_copy(b.handle, res);
       Result := b;

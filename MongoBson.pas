@@ -148,55 +148,55 @@ interface
       { Create an empty TBsonBuffer ready to have fields appended. }
       constructor Create();
       { Append a string (PAnsiChar) to the buffer }
-      function append(name : PAnsiChar; value : PAnsiChar) : Boolean; overload;
+      function append(name : string; value : PAnsiChar) : Boolean; overload;
       { Append an Integer to the buffer }
-      function append(name : PAnsiChar; value : Integer) : Boolean; overload;
+      function append(name : string; value : Integer) : Boolean; overload;
       { Append an Int64 to the buffer }
-      function append(name : PAnsiChar; value : Int64) : Boolean; overload;
+      function append(name : string; value : Int64) : Boolean; overload;
       { Append a Double to the buffer }
-      function append(name : PAnsiChar; value : Double) : Boolean; overload;
+      function append(name : string; value : Double) : Boolean; overload;
       { Append a TDateTime to the buffer; converted to 64-bit POSIX time }
-      function append(name : PAnsiChar; value : TDateTime) : Boolean; overload;
+      function append(name : string; value : TDateTime) : Boolean; overload;
       { Append a Boolean to the buffer }
-      function append(name : PAnsiChar; value : Boolean) : Boolean; overload;
+      function append(name : string; value : Boolean) : Boolean; overload;
       { Append an Object ID to the buffer }
-      function append(name : PAnsiChar; value : TBsonOID) : Boolean; overload;
+      function append(name : string; value : TBsonOID) : Boolean; overload;
       { Append a CODEWSCOPE to the buffer }
-      function append(name : PAnsiChar; value : TBsonCodeWScope) : Boolean; overload;
+      function append(name : string; value : TBsonCodeWScope) : Boolean; overload;
       { Append a REGEX to the buffer }
-      function append(name : PAnsiChar; value : TBsonRegex) : Boolean; overload;
+      function append(name : string; value : TBsonRegex) : Boolean; overload;
       { Append a TIMESTAMP to the buffer }
-      function append(name : PAnsiChar; value : TBsonTimestamp) : Boolean; overload;
+      function append(name : string; value : TBsonTimestamp) : Boolean; overload;
       { Append BINDATA to the buffer }
-      function append(name : PAnsiChar; value : TBsonBinary) : Boolean; overload;
+      function append(name : string; value : TBsonBinary) : Boolean; overload;
       { Append a TBson document as a subobject }
-      function append(name : PAnsiChar; value : TBson) : Boolean; overload;
+      function append(name : string; value : TBson) : Boolean; overload;
       { Generic version of append.  Calls one of the other append functions
         if the type contained in the variant is supported. }
-      function append(name : PAnsiChar; value : OleVariant) : Boolean; overload;
+      function append(name : string; value : OleVariant) : Boolean; overload;
       { Append an array of Integers }
-      function appendArray(name : PAnsiChar; value : array of Integer) : Boolean; overload;
+      function appendArray(name : string; value : array of Integer) : Boolean; overload;
       { Append an array of Doubles }
-      function appendArray(name : PAnsiChar; value : array of Double) : Boolean; overload;
+      function appendArray(name : string; value : array of Double) : Boolean; overload;
       { Append an array of Booleans }
-      function appendArray(name : PAnsiChar; value : array of Boolean) : Boolean; overload;
+      function appendArray(name : string; value : array of Boolean) : Boolean; overload;
       { Append an array of strings }
-      function appendArray(name : PAnsiChar; value : array of string) : Boolean; overload;
+      function appendArray(name : string; value : array of string) : Boolean; overload;
       { Append a NULL field to the buffer }
-      function appendNull(name : PAnsiChar) : Boolean;
+      function appendNull(name : string) : Boolean;
       { Append an UNDEFINED field to the buffer }
-      function appendUndefined(name : PAnsiChar) : Boolean;
+      function appendUndefined(name : string) : Boolean;
       { Append javascript code to the buffer }
-      function appendCode(name : PAnsiChar; value : PAnsiChar) : Boolean;
+      function appendCode(name : string; value : PAnsiChar) : Boolean;
       { Append a SYMBOL to the buffer }
-      function appendSymbol(name : PAnsiChar; value : PAnsiChar) : Boolean;
+      function appendSymbol(name : string; value : PAnsiChar) : Boolean;
       { Alternate way to append BINDATA directly without first creating a
         TBsonBinary value }
-      function appendBinary(name : PAnsiChar; kind : Integer; data : Pointer; length : Integer) : Boolean;
+      function appendBinary(name : string; kind : Integer; data : Pointer; length : Integer) : Boolean;
       { Indicate that you will be appending more fields as a subobject }
-      function startObject(name : PAnsiChar) : Boolean;
+      function startObject(name : string) : Boolean;
       { Indicate that you will be appending more fields as an array }
-      function startArray(name : PAnsiChar) : Boolean;
+      function startArray(name : string) : Boolean;
       { Indicate that a subobject or array is done. }
       function finishObject() : Boolean;
       { Return the current size of the BSON document you are building }
@@ -221,11 +221,11 @@ interface
       function iterator() : TBsonIterator;
       { Get a TBsonIterator that points to the field with the given name.
         If name is not found, nil is returned. }
-      function find(name : PAnsiChar) : TBsonIterator;
+      function find(name : string) : TBsonIterator;
       { Get the value of a field given its name.  This function does not support
         all BSON field types.  Use find() and one of the 'get' functions of
         TBsonIterator to retrieve special values. }
-      function value(name : PAnsiChar) : Variant;
+      function value(name : string) : Variant;
       { Display this BSON document on the console.  subobjects and arrays are
         appropriately indented. }
       procedure display();
@@ -466,7 +466,7 @@ implementation
 
   function TBsonIterator.key() : string;
   begin
-    Result := string(bson_iterator_key(handle));
+    Result := string(System.UTF8ToWideString(bson_iterator_key(handle)));
   end;
 
   function TBsonIterator.value() : Variant;
@@ -479,7 +479,7 @@ implementation
       bsonEOO, bsonNULL : Result := Null;
       bsonDOUBLE: Result := bson_iterator_double(handle);
       bsonSTRING, bsonCODE, bsonSYMBOL:
-          Result := string(bson_iterator_string(handle));
+          Result := string(System.UTF8ToWideString(bson_iterator_string(handle)));
       bsonINT: Result := bson_iterator_int(handle);
       bsonBOOL: Result := bson_iterator_bool(handle);
       bsonDATE: begin
@@ -590,7 +590,7 @@ implementation
     j := 0;
     SetLength(Result, count);
     while i.next() do begin
-      Result[j] := i.value();
+      Result[j] := System.UTF8ToWideString(i.value());
       inc(j);
     end;
   end;
@@ -618,7 +618,7 @@ implementation
     end;
   end;
 
-  function TBson.value(name: PAnsiChar) : Variant;
+  function TBson.value(name : string) : Variant;
     var
       i : TBsonIterator;
   begin
@@ -648,98 +648,98 @@ implementation
       inherited Destroy();
     end;
 
-  function TBsonBuffer.append(name: PAnsiChar; value: PAnsiChar) : Boolean;
+  function TBsonBuffer.append(name : string; value: PAnsiChar) : Boolean;
   begin
     if handle = nil then
       raise Exception.Create('BsonBuffer already finished');
-    Result := (bson_append_string(handle, name, value) = 0);
+    Result := (bson_append_string(handle, PAnsiChar(System.UTF8Encode(name)), value) = 0);
   end;
 
-  function TBsonBuffer.appendCode(name: PAnsiChar; value: PAnsiChar) : Boolean;
+  function TBsonBuffer.appendCode(name : string; value: PAnsiChar) : Boolean;
   begin
     if handle = nil then
       raise Exception.Create('BsonBuffer already finished');
-    Result := (bson_append_code(handle, name, value) = 0);
+    Result := (bson_append_code(handle, PAnsiChar(System.UTF8Encode(name)), value) = 0);
   end;
 
-  function TBsonBuffer.appendSymbol(name: PAnsiChar; value: PAnsiChar) : Boolean;
+  function TBsonBuffer.appendSymbol(name : string; value: PAnsiChar) : Boolean;
   begin
     if handle = nil then
       raise Exception.Create('BsonBuffer already finished');
-    Result := (bson_append_symbol(handle, name, value) = 0);
+    Result := (bson_append_symbol(handle, PAnsiChar(System.UTF8Encode(name)), value) = 0);
   end;
 
-  function TBsonBuffer.append(name: PAnsiChar; value: Integer) : Boolean;
+  function TBsonBuffer.append(name : string; value: Integer) : Boolean;
   begin
     if handle = nil then
       raise Exception.Create('BsonBuffer already finished');
-    Result := (bson_append_int(handle, name, value) = 0);
+    Result := (bson_append_int(handle, PAnsiChar(System.UTF8Encode(name)), value) = 0);
   end;
 
-  function TBsonBuffer.append(name: PAnsiChar; value: Int64) : Boolean;
+  function TBsonBuffer.append(name : string; value: Int64) : Boolean;
   begin
     if handle = nil then
       raise Exception.Create('BsonBuffer already finished');
-    Result := (bson_append_long(handle, name, value) = 0);
+    Result := (bson_append_long(handle, PAnsiChar(System.UTF8Encode(name)), value) = 0);
   end;
 
-  function TBsonBuffer.append(name: PAnsiChar; value: Double) : Boolean;
+  function TBsonBuffer.append(name : string; value: Double) : Boolean;
   begin
     if handle = nil then
       raise Exception.Create('BsonBuffer already finished');
-    Result := (bson_append_double(handle, name, value) = 0);
+    Result := (bson_append_double(handle, PAnsiChar(System.UTF8Encode(name)), value) = 0);
   end;
 
-  function TBsonBuffer.append(name: PAnsiChar; value: TDateTime) : Boolean;
+  function TBsonBuffer.append(name : string; value: TDateTime) : Boolean;
   begin
     if handle = nil then
       raise Exception.Create('BsonBuffer already finished');
-    Result := (bson_append_date(handle, name, Trunc((value - 25569) * 1000 * 60 * 60 * 24)) = 0);
+    Result := (bson_append_date(handle, PAnsiChar(System.UTF8Encode(name)), Trunc((value - 25569) * 1000 * 60 * 60 * 24)) = 0);
   end;
 
-  function TBsonBuffer.append(name: PAnsiChar; value: Boolean) : Boolean;
+  function TBsonBuffer.append(name : string; value: Boolean) : Boolean;
   begin
     if handle = nil then
       raise Exception.Create('BsonBuffer already finished');
-    Result := (bson_append_bool(handle, name, value) = 0);
+    Result := (bson_append_bool(handle, PAnsiChar(System.UTF8Encode(name)), value) = 0);
   end;
 
-  function TBsonBuffer.append(name: PAnsiChar; value: TBsonOID) : Boolean;
+  function TBsonBuffer.append(name : string; value: TBsonOID) : Boolean;
   begin
     if handle = nil then
       raise Exception.Create('BsonBuffer already finished');
-    Result := (bson_append_oid(handle, name, @value.value) = 0);
+    Result := (bson_append_oid(handle, PAnsiChar(System.UTF8Encode(name)), @value.value) = 0);
   end;
 
-  function TBsonBuffer.append(name: PAnsiChar; value: TBsonCodeWScope) : Boolean;
+  function TBsonBuffer.append(name : string; value: TBsonCodeWScope) : Boolean;
   begin
     if handle = nil then
       raise Exception.Create('BsonBuffer already finished');
-    Result := (bson_append_code_w_scope(handle, name, PAnsiChar(AnsiString(value.code)), value.scope.handle) = 0);
+    Result := (bson_append_code_w_scope(handle, PAnsiChar(System.UTF8Encode(name)), PAnsiChar(System.UTF8Encode(value.code)), value.scope.handle) = 0);
   end;
 
-  function TBsonBuffer.append(name: PAnsiChar; value: TBsonRegex) : Boolean;
+  function TBsonBuffer.append(name : string; value: TBsonRegex) : Boolean;
   begin
     if handle = nil then
       raise Exception.Create('BsonBuffer already finished');
-    Result := (bson_append_regex(handle, name, PAnsiChar(AnsiString(value.pattern)), PAnsiChar(AnsiString(value.options))) = 0);
+    Result := (bson_append_regex(handle, PAnsiChar(System.UTF8Encode(name)), PAnsiChar(System.UTF8Encode(value.pattern)), PAnsiChar(System.UTF8Encode(value.options))) = 0);
   end;
 
-  function TBsonBuffer.append(name: PAnsiChar; value: TBsonTimestamp) : Boolean;
+  function TBsonBuffer.append(name : string; value: TBsonTimestamp) : Boolean;
   begin
     if handle = nil then
       raise Exception.Create('BsonBuffer already finished');
-    Result := (bson_append_timestamp2(handle, name, Trunc((value.time - 25569) * 60 * 60 * 24), value.increment) = 0);
+    Result := (bson_append_timestamp2(handle, PAnsiChar(System.UTF8Encode(name)), Trunc((value.time - 25569) * 60 * 60 * 24), value.increment) = 0);
   end;
 
-  function TBsonBuffer.append(name: PAnsiChar; value: TBsonBinary) : Boolean;
+  function TBsonBuffer.append(name : string; value: TBsonBinary) : Boolean;
   begin
     if handle = nil then
       raise Exception.Create('BsonBuffer already finished');
-    Result := (bson_append_binary(handle, name, value.kind, value.data, value.len) = 0);
+    Result := (bson_append_binary(handle, PAnsiChar(System.UTF8Encode(name)), value.kind, value.data, value.len) = 0);
   end;
 
-  function TBsonBuffer.append(name : PAnsiChar; value : OleVariant) : Boolean;
+  function TBsonBuffer.append(name : string; value : OleVariant) : Boolean;
     var
       d : double;
   begin
@@ -753,44 +753,44 @@ implementation
       varDate: Result := append(name, TDateTime(value));
       varInt64: Result := append(name, Int64(value));
       varBoolean: Result := append(name, Boolean(value));
-      varOleStr: Result := append(name, PAnsiChar(AnsiString(value)));
+      varOleStr: Result := append(name, PAnsiChar(System.UTF8Encode(value)));
     else
       raise Exception.Create('TBson.append(variant): type not supported (' + IntToStr(VarType(value)) + ')');
     end;
   end;
 
-  function TBsonBuffer.appendNull(name: PAnsiChar) : Boolean;
+  function TBsonBuffer.appendNull(name : string) : Boolean;
   begin
     if handle = nil then
       raise Exception.Create('BsonBuffer already finished');
-    Result := (bson_append_null(handle, name) = 0);
+    Result := (bson_append_null(handle, PAnsiChar(System.UTF8Encode(name))) = 0);
   end;
 
-  function TBsonBuffer.appendUndefined(name: PAnsiChar) : Boolean;
+  function TBsonBuffer.appendUndefined(name : string) : Boolean;
   begin
     if handle = nil then
       raise Exception.Create('BsonBuffer already finished');
-    Result := (bson_append_undefined(handle, name) = 0);
+    Result := (bson_append_undefined(handle, PAnsiChar(System.UTF8Encode(name))) = 0);
   end;
 
-  function TBsonBuffer.appendBinary(name : PAnsiChar; kind : Integer; data : Pointer; length : Integer) : Boolean;
+  function TBsonBuffer.appendBinary(name : string; kind : Integer; data : Pointer; length : Integer) : Boolean;
   begin
     if handle = nil then
       raise Exception.Create('BsonBuffer already finished');
-    Result := (bson_append_binary(handle, name, kind, data, length) = 0);
+    Result := (bson_append_binary(handle, PAnsiChar(System.UTF8Encode(name)), kind, data, length) = 0);
   end;
 
-  function TBsonBuffer.append(name : PAnsiChar; value : TBson) : Boolean;
+  function TBsonBuffer.append(name : string; value : TBson) : Boolean;
   begin
-    Result := (bson_append_bson(handle, name, value.handle) = 0);
+    Result := (bson_append_bson(handle, PAnsiChar(System.UTF8Encode(name)), value.handle) = 0);
   end;
 
-  function TBsonBuffer.appendArray(name : PAnsiChar; value : array of Integer) : Boolean;
+  function TBsonBuffer.appendArray(name : string; value : array of Integer) : Boolean;
   var
     success : Boolean;
     i, len : Integer;
   begin
-    success := (bson_append_start_array(handle, name) = 0);
+    success := (bson_append_start_array(handle, PAnsiChar(System.UTF8Encode(name))) = 0);
     len := Length(value);
     i := 0;
     while success and (i < len) do begin
@@ -802,12 +802,12 @@ implementation
     Result := success;
   end;
 
-  function TBsonBuffer.appendArray(name : PAnsiChar; value : array of Double) : Boolean;
+  function TBsonBuffer.appendArray(name : string; value : array of Double) : Boolean;
   var
     success : Boolean;
     i, len : Integer;
   begin
-    success := (bson_append_start_array(handle, name) = 0);
+    success := (bson_append_start_array(handle, PAnsiChar(System.UTF8Encode(name))) = 0);
     len := Length(value);
     i := 0;
     while success and (i < len) do begin
@@ -819,12 +819,12 @@ implementation
     Result := success;
   end;
 
-  function TBsonBuffer.appendArray(name : PAnsiChar; value : array of Boolean) : Boolean;
+  function TBsonBuffer.appendArray(name : string; value : array of Boolean) : Boolean;
   var
     success : Boolean;
     i, len : Integer;
   begin
-    success := (bson_append_start_array(handle, name) = 0);
+    success := (bson_append_start_array(handle, PAnsiChar(System.UTF8Encode(name))) = 0);
     len := Length(value);
     i := 0;
     while success and (i < len) do begin
@@ -836,16 +836,16 @@ implementation
     Result := success;
   end;
 
-  function TBsonBuffer.appendArray(name : PAnsiChar; value : array of string) : Boolean;
+  function TBsonBuffer.appendArray(name : string; value : array of string) : Boolean;
   var
     success : Boolean;
     i, len : Integer;
   begin
-    success := (bson_append_start_array(handle, name) = 0);
+    success := (bson_append_start_array(handle, PAnsiChar(System.UTF8Encode(name))) = 0);
     len := Length(value);
     i := 0;
     while success and (i < len) do begin
-      success := (bson_append_string(handle, PAnsiChar(AnsiString(IntToStr(i))), PAnsiChar(AnsiString(value[i]))) = 0);
+      success := (bson_append_string(handle, PAnsiChar(AnsiString(IntToStr(i))), PAnsiChar(System.UTF8Encode(value[i]))) = 0);
       inc(i);
     end;
     if success then
@@ -853,18 +853,18 @@ implementation
     Result := success;
   end;
 
-  function TBsonBuffer.startObject(name: PAnsiChar) : Boolean;
+  function TBsonBuffer.startObject(name : string) : Boolean;
   begin
     if handle = nil then
       raise Exception.Create('BsonBuffer already finished');
-    Result := (bson_append_start_object(handle, name) = 0);
+    Result := (bson_append_start_object(handle, PAnsiChar(System.UTF8Encode(name))) = 0);
   end;
 
-  function TBsonBuffer.startArray(name: PAnsiChar) : Boolean;
+  function TBsonBuffer.startArray(name : string) : Boolean;
   begin
     if handle = nil then
       raise Exception.Create('BsonBuffer already finished');
-    Result := (bson_append_start_array(handle, name) = 0);
+    Result := (bson_append_start_array(handle, PAnsiChar(System.UTF8Encode(name))) = 0);
   end;
 
   function TBsonBuffer.finishObject() : Boolean;
@@ -910,12 +910,12 @@ implementation
     Result := bson_size(handle);
   end;
 
-  function TBson.find(name : PAnsiChar) : TBsonIterator;
+  function TBson.find(name : string) : TBsonIterator;
   var
     i : TBsonIterator;
   begin
     i := TBsonIterator.Create();
-    if bson_find(i.handle, handle, name) = bsonEOO Then
+    if bson_find(i.handle, handle, PAnsiChar(System.UTF8Encode(name))) = bsonEOO Then
       i := nil;
     Result := i;
   end;
@@ -1075,7 +1075,6 @@ implementation
     depth : Integer;
     key   : string;
     value : string;
-    name  : PAnsiChar;
   begin
     bb := TBsonBuffer.Create();
     len := Length(x);
@@ -1090,17 +1089,16 @@ implementation
         dec(depth);
       end
       else begin
-        name := PAnsiChar(AnsiString(key));
         inc(i);
         if i = Len then
           raise Exception.Create('BSON(): expected value for ' + key);
         value := VarToStr(x[i]);
         if value = '{' then begin
-          bb.startObject(name);
+          bb.startObject(key);
           inc(depth);
         end
         else
-          bb.append(name, x[i]);
+          bb.append(key, x[i]);
       end;
       inc(i);
     end;
