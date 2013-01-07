@@ -360,10 +360,10 @@ implementation
   function mongo_client(c : Pointer; host : PAnsiChar; port : Integer) : Integer;
     cdecl; external 'mongoc.dll';
   procedure mongo_destroy(c : Pointer); cdecl; external 'mongoc.dll';
-  procedure mongo_replset_init(c : Pointer; name : PAnsiChar); cdecl; external 'mongoc.dll';
-  procedure mongo_replset_add_seed(c : Pointer; host : PAnsiChar; port : Integer);
+  procedure mongo_replica_set_init(c : Pointer; name : PAnsiChar); cdecl; external 'mongoc.dll';
+  procedure mongo_replica_set_add_seed(c : Pointer; host : PAnsiChar; port : Integer);
     cdecl; external 'mongoc.dll';
-  function mongo_replset_connect(c : Pointer) : Integer; cdecl; external 'mongoc.dll';
+  function mongo_replica_set_client(c : Pointer) : Integer; cdecl; external 'mongoc.dll';
   function mongo_is_connected(c : Pointer) : Boolean;  cdecl; external 'mongoc.dll';
   function mongo_get_err(c : Pointer) : Integer; cdecl; external 'mongoc.dll';
   function mongo_set_op_timeout(c : Pointer; millis : Integer) : Integer;
@@ -457,7 +457,7 @@ implementation
   constructor TMongoReplset.Create(name: string);
   begin
     handle := mongo_create();
-    mongo_replset_init(handle, PAnsiChar(System.UTF8Encode(name)));
+    mongo_replica_set_init(handle, PAnsiChar(System.UTF8Encode(name)));
   end;
 
   procedure TMongoReplset.addSeed(host : string);
@@ -466,12 +466,12 @@ implementation
     port : Integer;
   begin
     parseHost(host, hosturl, port);
-    mongo_replset_add_seed(handle, PAnsiChar(System.UTF8Encode(hosturl)), port);
+    mongo_replica_set_add_seed(handle, PAnsiChar(System.UTF8Encode(hosturl)), port);
   end;
 
   function TMongoReplset.Connect() : Boolean;
   begin
-    Result := (mongo_replset_connect(handle) = 0);
+    Result := (mongo_replica_set_client(handle) = 0);
   end;
 
   function TMongo.isConnected() : Boolean;
