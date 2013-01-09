@@ -153,17 +153,17 @@ type
     function getMetadata: IBson;
     { Get the upload date of this gridfile. }
     function getUploadDate: TDateTime;
-      { Read data from this gridfile.  The gridfile maintains a current position
+      { read data from this gridfile.  The gridfile maintains a current position
         so that successive reads will return consecutive data. The data is
         read to the address indicated by p and length bytes are read.  The size
         of the data read is returned and can be less than length if there was
         not enough data remaining to be read. }
-    function Read(p: Pointer; Length: Int64): Int64;
-      { Seek to a specified offset within the gridfile.  read() will then
+    function read(p: Pointer; Length: Int64): Int64;
+      { seek to a specified offset within the gridfile.  read() will then
         return data starting at that location.  Returns the position that
         was set.  This can be at the end of the gridfile if offset is greater
         the length of this gridfile. }
-    function Seek(offset: Int64): Int64;
+    function seek(offset: Int64): Int64;
     function getID : IBsonOID;
     function Handle : Pointer;
   end;
@@ -246,17 +246,17 @@ type
         of chunks to return.  Returns nil if there are no chunks in the
         specified range. }
     function getChunks(i: Integer; Count: Integer): IMongoCursor;
-      { Read data from this gridfile.  The gridfile maintains a current position
+      { read data from this gridfile.  The gridfile maintains a current position
         so that successive reads will return consecutive data. The data is
         read to the address indicated by p and length bytes are read.  The size
         of the data read is returned and can be less than length if there was
         not enough data remaining to be read. }
-    function Read(p: Pointer; Length: Int64): Int64;
-      { Seek to a specified offset within the gridfile.  read() will then
+    function read(p: Pointer; Length: Int64): Int64;
+      { seek to a specified offset within the gridfile.  read() will then
         return data starting at that location.  Returns the position that
         was set.  This can be at the end of the gridfile if offset is greater
         the length of this gridfile. }
-    function Seek(offset: Int64): Int64;
+    function seek(offset: Int64): Int64;
     function Handle: Pointer;
     function getID: IBsonOID;
     { Destroy this TGridfile object.  Releases external resources. }
@@ -278,14 +278,14 @@ type
         to be written. }
     constructor Create(gridfs: TGridFS; const remoteName, contentType: AnsiString;
         AInit: Boolean; AMeta: Pointer; Flags: Integer); overload;
-      { Write data to this TGridfileWriter. p is the address of the data and length
+      { write data to this TGridfileWriter. p is the address of the data and length
         is its size. Multiple calls to write() may be made to append successive
         data. }
-    procedure Write(p: Pointer; Length: Int64);
+    procedure write(p: Pointer; Length: Int64);
       { Finish with this TGridfileWriter.  Flushes any data remaining to be written
         to a chunk and posts the 'directory' information of the gridfile to the
         GridFS. Returns True if successful; otherwise, False. }
-    function Truncate(newSize : int64): Int64;
+    function truncate(newSize : int64): Int64;
     function finish: Boolean;
       { Destroy this TGridfileWriter.  Calls finish() if necessary and releases
         external resources. }
@@ -494,7 +494,7 @@ begin
   Create(gridfs, remoteName, '', AInit, AMeta, Flags);
 end;
 
-procedure TGridfileWriter.Write(p: Pointer; Length: Int64);
+procedure TGridfileWriter.write(p: Pointer; Length: Int64);
 begin
   CheckHandle;
   gridfile_write_buffer(Handle, p, Length);
@@ -525,7 +525,7 @@ begin
   inherited;
 end;
 
-function TGridfileWriter.Truncate(newSize : int64): Int64;
+function TGridfileWriter.truncate(newSize : int64): Int64;
 begin
   CheckHandle;
   Result := gridfile_truncate(Handle, newSize);
@@ -736,13 +736,13 @@ begin
   Result := FHandle;
 end;
 
-function TGridfile.Read(p: Pointer; Length: Int64): Int64;
+function TGridfile.read(p: Pointer; Length: Int64): Int64;
 begin
   CheckHandle;
   Result := gridfile_read(FHandle, Length, p);
 end;
 
-function TGridfile.Seek(offset: Int64): Int64;
+function TGridfile.seek(offset: Int64): Int64;
 begin
   CheckHandle;
   Result := gridfile_seek(FHandle, offset);

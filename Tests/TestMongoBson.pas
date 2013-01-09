@@ -109,6 +109,9 @@ type
     procedure TestappendCode;
     procedure TestappendSymbol;
     procedure TestappendBinary;
+    procedure TestappendCode_n;
+    procedure TestAppendStr_n;
+    procedure TestappendSymbol_n;
     procedure TeststartObject;
     procedure TeststartArray;
     procedure Testsize;
@@ -742,6 +745,53 @@ begin
   it := b.iterator;
   for i := low(AData) to high(AData) do
     CheckEquals(AData[i], PData(it.getBinary.getData)^[i], 'Binary data doesn''t match');
+end;
+
+procedure TestIBsonBuffer.TestappendCode_n;
+var
+  ReturnValue: Boolean;
+  Value: PAnsiChar;
+  Name: PAnsiChar;
+  b : IBson;
+  i : IBsonIterator;
+begin
+  Name := PAnsiChar('CODEFLD');
+  Value := PAnsiChar('123');
+  ReturnValue := FIBsonBuffer.appendCode_n(Name, Value, 3);
+  Check(ReturnValue, 'ReturnValue should be True');
+  b := FIBsonBuffer.finish;
+  i := b.iterator;
+  CheckEqualsString('123', i.getCodeWScope.getCode, 'Code should be equals to "123"');
+end;
+
+procedure TestIBsonBuffer.TestAppendStr_n;
+var
+  ReturnValue: Boolean;
+  Value: PAnsiChar;
+  Name: PAnsiChar;
+  b : IBson;
+begin
+  Name := PAnsiChar('STRFLD');
+  Value := PAnsiChar('STRVAL');
+  ReturnValue := FIBsonBuffer.AppendStr_n(Name, Value, 3);
+  Check(ReturnValue, 'ReturnValue should be True');
+  b := FIBsonBuffer.finish;
+  CheckEqualsString('STR', b.Value(PAnsiChar('STRFLD')), 'field on BSon object doesn''t match expected value');
+end;
+
+procedure TestIBsonBuffer.TestappendSymbol_n;
+var
+  ReturnValue: Boolean;
+  Value: PAnsiChar;
+  Name: PAnsiChar;
+  b : IBson;
+begin
+  Name := PAnsiChar('SYMFLD');
+  Value := PAnsiChar('SymbolTest');
+  ReturnValue := FIBsonBuffer.appendSymbol_n(Name, Value, 3);
+  Check(ReturnValue, 'ReturnValue should be True');
+  b := FIBsonBuffer.finish;
+  CheckEqualsString('Sym', b.Value(Name), 'Symbol value doesn''t match');
 end;
 
 procedure TestIBsonBuffer.TeststartObject;

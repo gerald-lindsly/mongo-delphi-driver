@@ -1297,7 +1297,7 @@ end;
 
 procedure TMongoThread.Execute;
 const
-  ObjCount = 500;
+  ObjCount = 50;
 var
   AMongo : TMongo;
   Buf : IBsonBuffer;

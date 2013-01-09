@@ -146,14 +146,15 @@ type
         and objNew gives the replacement document.
         See http://www.mongodb.org/display/DOCS/Updating.
         Returns True if successful; otherwise, False. }
-    function Update(const ns: AnsiString; criteria, objNew: IBson): Boolean; overload;
+    function update(const ns: AnsiString; criteria, objNew: IBson): Boolean;
+        overload;
       { Perform an update on the server.  The collection namespace (ns) is in the
         form 'database.collection'.  criteria indicates which records to update
         and objNew gives the replacement document. flags is a bit mask containing update
         options; updateUpsert, updateMulti, or updateBasic.
         See http://www.mongodb.org/display/DOCS/Updating.
         Returns True if successful; otherwise, False. }
-    function Update(const ns: AnsiString; criteria, objNew: IBson; flags: Integer): Boolean; overload;
+    function update(const ns: AnsiString; criteria, objNew: IBson; flags: Integer): Boolean; overload;
       { Remove documents from the server.  The collection namespace (ns) is in the
         form 'database.collection'.  Documents that match the given criteria
         are removed from the collection.
@@ -203,11 +204,11 @@ type
     function find(const ns: AnsiString; Cursor: IMongoCursor): Boolean;
       { Return the count of all documents in the given namespace.
         The collection namespace (ns) is in the form 'database.collection'. }
-    function Count(const ns: AnsiString): Double; overload;
+    function count(const ns: AnsiString): Double; overload;
       { Return the count of all documents in the given namespace that match
         the given query.
         The collection namespace (ns) is in the form 'database.collection'. }
-    function Count(const ns: AnsiString; query: IBson): Double; overload;
+    function count(const ns: AnsiString; query: IBson): Double; overload;
       { Create an index for the given collection so that accesses by the given
         key are faster.
         The collection namespace (ns) is in the form 'database.collection'.
@@ -396,7 +397,7 @@ type
     { See http://api.mongodb.org/c/0.6/write_concern.html for details on the meaning of
       each property. The propery names are mapped to the actual C structure in purpose to
       keep consistency with C driver meanings }
-    function Getfinished: Boolean;
+    function GetFinished: Boolean;
     function Getfsync: Integer;
     function GetHandle: Pointer;
     function Getj: Integer;
@@ -418,7 +419,7 @@ type
     property w: Integer read Getw write Setw;
     property wtimeout: Integer read Getwtimeout write Setwtimeout;
     property Handle: Pointer read GetHandle;
-    property finished: Boolean read Getfinished;
+    property Finished: Boolean read GetFinished;
   end;
 
   { Create a cursor with a empty query (which matches everything) }
@@ -517,21 +518,21 @@ type
     function GetSkip: Integer;
     function GetSort: IBson;
     procedure Init;
-    procedure SetConn(const Value: TMongo);
-    procedure SetFields(const Value: IBson);
-    procedure SetHandle(const Value: Pointer);
-    procedure SetLimit(const Value: Integer);
-    procedure SetOptions(const Value: Integer);
-    procedure SetQuery(const Value: IBson);
-    procedure SetSkip(const Value: Integer);
-    procedure SetSort(const Value: IBson);
+    procedure SetConn(const value: TMongo);
+    procedure SetFields(const value: IBson);
+    procedure SetHandle(const value: Pointer);
+    procedure SetLimit(const value: Integer);
+    procedure SetOptions(const value: Integer);
+    procedure SetQuery(const value: IBson);
+    procedure SetSkip(const value: Integer);
+    procedure SetSort(const value: IBson);
   protected
     procedure DestroyCursor;
   public
     constructor Create; overload;
     constructor Create(aquery: IBson); overload;
-    function Next: Boolean;
-    function Value: IBson;
+    function next: Boolean;
+    function value: IBson;
     destructor Destroy; override;
     procedure FindCalled;
     property Conn: TMongo read GetConn write SetConn;
@@ -735,7 +736,7 @@ var
   b: IBson;
   it, databases, database: IBsonIterator;
   Name: AnsiString;
-  Count, i: Integer;
+  count, i: Integer;
 begin
   {$IFDEF MONGO_MEMORY_PROTECTION} CheckValid; {$ENDIF}
   b := command(SAdmin, SListDatabases, true);
@@ -745,7 +746,7 @@ begin
   begin
     it := b.iterator;
     it.Next;
-    Count := 0;
+    count := 0;
     databases := it.subiterator;
     while databases.Next do
     begin
@@ -753,9 +754,9 @@ begin
       database.Next;
       Name := AnsiString(database.Value);
       if (Name <> SAdmin) and (Name <> SLocal) then
-        Inc(Count);
+        Inc(count);
     end;
-    SetLength(Result, Count);
+    SetLength(Result, count);
     i := 0;
     databases := it.subiterator;
     while databases.Next do
@@ -775,12 +776,12 @@ end;
 function TMongo.getDatabaseCollections(const db: AnsiString): TStringArray;
 var
   Cursor: IMongoCursor;
-  Count, i: Integer;
+  count, i: Integer;
   ns, Name: AnsiString;
   b: IBson;
 begin
   {$IFDEF MONGO_MEMORY_PROTECTION} CheckValid; {$ENDIF}
-  Count := 0;
+  count := 0;
   ns := db + SSystemNamespaces;
   Cursor := NewMongoCursor;
   if find(ns, Cursor) then
@@ -789,9 +790,9 @@ begin
       b := Cursor.Value;
       Name := AnsiString(b.Value(SName));
       if (Pos(SSystem, Name) = 0) and (Pos('$', Name) = 0) then
-        Inc(Count);
+        Inc(count);
     end;
-  SetLength(Result, Count);
+  SetLength(Result, count);
   i := 0;
   Cursor := NewMongoCursor;
   if find(ns, Cursor) then
@@ -868,7 +869,7 @@ begin
   end;
 end;
 
-function TMongo.Update(const ns: AnsiString; criteria, objNew: IBson; flags: Integer): Boolean;
+function TMongo.update(const ns: AnsiString; criteria, objNew: IBson; flags: Integer): Boolean;
 begin
   CheckHandle;
   autoCmdResetLastError(ns, true);
@@ -876,10 +877,10 @@ begin
   autoCheckCmdLastError(ns, true);
 end;
 
-function TMongo.Update(const ns: AnsiString; criteria, objNew: IBson): Boolean;
+function TMongo.update(const ns: AnsiString; criteria, objNew: IBson): Boolean;
 begin
   {$IFDEF MONGO_MEMORY_PROTECTION} CheckValid; {$ENDIF}
-  Result := Update(ns, criteria, objNew, 0);
+  Result := update(ns, criteria, objNew, 0);
 end;
 
 function TMongo.remove(const ns: AnsiString; criteria: IBson): Boolean;
@@ -954,7 +955,7 @@ begin
   end;
 end;
 
-function TMongo.Count(const ns: AnsiString; query: IBson): Double;
+function TMongo.count(const ns: AnsiString; query: IBson): Double;
 var
   db: AnsiString;
   collection: AnsiString;
@@ -968,11 +969,11 @@ begin
   autoCheckCmdLastError(db, false);
 end;
 
-function TMongo.Count(const ns: AnsiString): Double;
+function TMongo.count(const ns: AnsiString): Double;
 begin
   {$IFDEF MONGO_MEMORY_PROTECTION} CheckValid; {$ENDIF}
   autoCmdResetLastError(ns, true);
-  Result := Count(ns, NewBson(nil));
+  Result := count(ns, NewBson(nil));
   autoCheckCmdLastError(ns, true);
 end;
 
@@ -1393,63 +1394,63 @@ begin
   fconn := nil;
 end;
 
-function TMongoCursor.Next: Boolean;
+function TMongoCursor.next: Boolean;
 begin
   CheckHandle;
   Result := mongo_cursor_next(Handle) = 0;
 end;
 
-procedure TMongoCursor.SetConn(const Value: TMongo);
+procedure TMongoCursor.SetConn(const value: TMongo);
 begin
   {$IFDEF MONGO_MEMORY_PROTECTION} CheckValid; {$ENDIF}
-  FConn := Value;
+  FConn := value;
 end;
 
-procedure TMongoCursor.SetFields(const Value: IBson);
+procedure TMongoCursor.SetFields(const value: IBson);
 begin
   {$IFDEF MONGO_MEMORY_PROTECTION} CheckValid; {$ENDIF}
-  FFields := Value;
+  FFields := value;
 end;
 
-procedure TMongoCursor.SetHandle(const Value: Pointer);
+procedure TMongoCursor.SetHandle(const value: Pointer);
 begin
   {$IFDEF MONGO_MEMORY_PROTECTION} CheckValid; {$ENDIF}
   if FHandle <> nil then
     DestroyCursor;
-  FHandle := Value;
+  FHandle := value;
 end;
 
-procedure TMongoCursor.SetLimit(const Value: Integer);
+procedure TMongoCursor.SetLimit(const value: Integer);
 begin
   {$IFDEF MONGO_MEMORY_PROTECTION} CheckValid; {$ENDIF}
-  FLimit := Value;
+  FLimit := value;
 end;
 
-procedure TMongoCursor.SetOptions(const Value: Integer);
+procedure TMongoCursor.SetOptions(const value: Integer);
 begin
   {$IFDEF MONGO_MEMORY_PROTECTION} CheckValid; {$ENDIF}
-  FOptions := Value;
+  FOptions := value;
 end;
 
-procedure TMongoCursor.SetQuery(const Value: IBson);
+procedure TMongoCursor.SetQuery(const value: IBson);
 begin
   {$IFDEF MONGO_MEMORY_PROTECTION} CheckValid; {$ENDIF}
-  FQuery := Value;
+  FQuery := value;
 end;
 
-procedure TMongoCursor.SetSkip(const Value: Integer);
+procedure TMongoCursor.SetSkip(const value: Integer);
 begin
   {$IFDEF MONGO_MEMORY_PROTECTION} CheckValid; {$ENDIF}
-  FSkip := Value;
+  FSkip := value;
 end;
 
-procedure TMongoCursor.SetSort(const Value: IBson);
+procedure TMongoCursor.SetSort(const value: IBson);
 begin
   {$IFDEF MONGO_MEMORY_PROTECTION} CheckValid; {$ENDIF}
-  FSort := Value;
+  FSort := value;
 end;
 
-function TMongoCursor.Value: IBson;
+function TMongoCursor.value: IBson;
 var
   b: IBson;
   h: Pointer;
