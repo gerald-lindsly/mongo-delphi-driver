@@ -514,6 +514,17 @@ begin
   Result := InterlockedIncrement(CustomBsonOIDIncrVar);
 end;
 
+function HashInt(n: integer): Cardinal;
+asm
+  MOV     EDX,n
+  XOR     EDX,$FFFFFFFF
+  MOV     EAX,MaxInt
+  IMUL    EDX,EDX,08088405H
+  INC     EDX
+  MUL     EDX
+  MOV     Result,EDX
+end;
+
 type
   TMongoCursor = class(TMongoInterfacedObject, IMongoCursor)
   private
@@ -1255,17 +1266,6 @@ function TMongo.getServerErrString: AnsiString;
 begin
   CheckHandle;
   Result := AnsiString(mongo_get_server_err_string(fhandle));
-end;
-
-function HashInt(n: integer): DWORD; assembler;
-asm
-  MOV     EDX,n
-  XOR     EDX,$FFFFFFFF
-  MOV     EAX,MaxInt
-  IMUL    EDX,EDX,08088405H
-  INC     EDX
-  MUL     EDX
-  MOV     Result,EDX
 end;
 
 class procedure TMongo.InitCustomBsonOIDFns;
