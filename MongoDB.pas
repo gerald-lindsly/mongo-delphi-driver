@@ -1257,11 +1257,22 @@ begin
   Result := AnsiString(mongo_get_server_err_string(fhandle));
 end;
 
+function HashInt(n: integer): DWORD; assembler;
+asm
+  MOV     EDX,n
+  XOR     EDX,$FFFFFFFF
+  MOV     EAX,MaxInt
+  IMUL    EDX,EDX,08088405H
+  INC     EDX
+  MUL     EDX
+  MOV     Result,EDX
+end;
+
 class procedure TMongo.InitCustomBsonOIDFns;
 begin
   if not CustomBsonOIDFnsAssigned then
     begin
-      CustomBsonOIDIncrVar := GetCurrentProcessId;
+      CustomBsonOIDIncrVar := HashInt(GetCurrentProcessId);
       RandSeed := integer(GetTickCount) + CustomBsonOIDIncrVar;
       bson_set_oid_fuzz(@CustomFuzzFn);
       bson_set_oid_inc(@CustomIncrFn);
