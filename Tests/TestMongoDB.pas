@@ -145,6 +145,12 @@ type
     procedure TestValue;
   end;
 
+  TestMongoCustomizations = class(TTestCase)
+  published
+    procedure TestCustomFuzzFn;
+    procedure TestCustomIncrFn;
+  end;
+
 var
   MongoStarted : Boolean;
   FSlaveStarted : Boolean;
@@ -1352,11 +1358,24 @@ begin
   end;
 end;
 
+{ TestMongoCustomizations }
+
+procedure TestMongoCustomizations.TestCustomFuzzFn;
+begin
+  CheckNotEquals(0, CustomFuzzFn, 'CustomFuzzFn should return a value <> 0');
+end;
+
+procedure TestMongoCustomizations.TestCustomIncrFn;
+begin
+  CheckNotEquals(0, CustomIncrFn, 'CustomIncrFn should return a value <> 0');
+end;
+
 initialization
   // Register any test cases with the test runner
   RegisterTest(TestTMongo.Suite);
   RegisterTest(TestTMongoReplset.Suite);
   RegisterTest(TestIMongoCursor.Suite);
+  RegisterTest(TestMongoCustomizations.Suite);
 finalization
   if MongoStarted then
     ShutDownMongoDB;

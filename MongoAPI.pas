@@ -121,6 +121,8 @@ type
   Tbson_destroy = procedure (b: Pointer); cdecl;
   Tbson_finish = function (b: Pointer): Integer; cdecl;
   Tbson_oid_gen = procedure (oid: Pointer); cdecl;
+  Tbson_set_oid_inc = procedure (proc : pointer); cdecl;
+  Tbson_set_oid_fuzz = procedure (proc : pointer); cdecl;
   Tbson_oid_to_string = procedure (oid: Pointer; s: PAnsiChar); cdecl;
   Tbson_oid_from_string = procedure (oid: Pointer; s: PAnsiChar); cdecl;
   Tbson_append_string = function (b: Pointer; Name: PAnsiChar; Value: PAnsiChar): Integer; cdecl;
@@ -269,6 +271,8 @@ var
   bson_destroy : Tbson_destroy;
   bson_finish : Tbson_finish;
   bson_oid_gen : Tbson_oid_gen;
+  bson_set_oid_inc : Tbson_set_oid_inc;
+  bson_set_oid_fuzz : Tbson_set_oid_fuzz;
   bson_oid_to_string : Tbson_oid_to_string;
   bson_oid_from_string : Tbson_oid_from_string;
   bson_append_string : Tbson_append_string;
@@ -420,6 +424,8 @@ var
   procedure bson_destroy(b: Pointer); cdecl; external MongoCDLL;
   function bson_finish(b: Pointer): Integer; cdecl; external MongoCDLL;
   procedure bson_oid_gen(oid: Pointer); cdecl; external MongoCDLL;
+  procedure bson_set_oid_inc (proc : pointer); cdecl; external MongoCDLL;
+  procedure bson_set_oid_fuzz (proc : pointer); cdecl; external MongoCDLL;
   procedure bson_oid_to_string(oid: Pointer; s: PAnsiChar); cdecl; external MongoCDLL;
   procedure bson_oid_from_string(oid: Pointer; s: PAnsiChar); cdecl; external MongoCDLL;
   function bson_append_string(b: Pointer; Name: PAnsiChar; Value: PAnsiChar): Integer; cdecl; external MongoCDLL;
@@ -605,6 +611,8 @@ begin
   bson_copy := GetProcAddress(HMongoDBDll, 'bson_copy'); // do not localize
   bson_finish := GetProcAddress(HMongoDBDll, 'bson_finish'); // do not localize
   bson_oid_gen := GetProcAddress(HMongoDBDll, 'bson_oid_gen'); // do not localize
+  bson_set_oid_inc := GetProcAddress(HMongoDBDll, 'bson_set_oid_inc'); // do not localize
+  bson_set_oid_fuzz := GetProcAddress(HMongoDBDll, 'bson_set_oid_fuzz'); // do not localize
   bson_oid_to_string := GetProcAddress(HMongoDBDll, 'bson_oid_to_string'); // do not localize
   bson_oid_from_string := GetProcAddress(HMongoDBDll, 'bson_oid_from_string'); // do not localize
   bson_append_string := GetProcAddress(HMongoDBDll, 'bson_append_string'); // do not localize

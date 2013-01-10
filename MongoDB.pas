@@ -68,6 +68,7 @@ type
     FAutoCheckLastError: Boolean;
     FWriteConcern: IWriteConcern;
     procedure CheckHandle;
+    class procedure InitCustomBsonOIDFns;
   protected
       { Pointer to externally managed data describing the connection.
         User code should not access this.  It is public only for
@@ -429,6 +430,9 @@ function NewMongoCursor(query: IBson): IMongoCursor; overload;
   { Create a WriteConcern object to be used as default write concern for the Mongo connection }
 function NewWriteConcern: IWriteConcern;
 
+function CustomFuzzFn: Integer; cdecl;
+function CustomIncrFn: Integer; cdecl;
+
 implementation
 
 uses
@@ -494,6 +498,20 @@ begin
     hosturl := Copy(host, 1, i - 1);
     port := StrToInt(Copy(host, i + 1, Length(host) - i));
   end;
+end;
+
+var
+  CustomBsonOIDFnsAssigned : Boolean;
+  CustomBsonOIDIncrVar : Integer;
+
+function CustomFuzzFn: Integer;
+begin
+  Result := Random(MaxInt);
+end;
+
+function CustomIncrFn: Integer;
+begin
+  Result := InterlockedIncrement(CustomBsonOIDIncrVar);
 end;
 
 type
@@ -578,6 +596,7 @@ begin
   {$IFDEF OnDemandMongoCLoad}
   InitMongoDBLibrary;
   {$ENDIF}
+  InitCustomBsonOIDFns;
   AutoCheckLastError := true;
   InitMongo(S127001 + S27017);
 end;
@@ -588,6 +607,7 @@ begin
   {$IFDEF OnDemandMongoCLoad}
   InitMongoDBLibrary;
   {$ENDIF}
+  InitCustomBsonOIDFns;
   AutoCheckLastError := true;
   if host = ''
     then InitMongo(S127001 + S27017)
@@ -1235,6 +1255,18 @@ function TMongo.getServerErrString: AnsiString;
 begin
   CheckHandle;
   Result := AnsiString(mongo_get_server_err_string(fhandle));
+end;
+
+class procedure TMongo.InitCustomBsonOIDFns;
+begin
+  if not CustomBsonOIDFnsAssigned then
+    begin
+      CustomBsonOIDIncrVar := GetCurrentProcessId;
+      RandSeed := integer(GetTickCount) + CustomBsonOIDIncrVar;
+      bson_set_oid_fuzz(@CustomFuzzFn);
+      bson_set_oid_inc(@CustomIncrFn);
+      CustomBsonOIDFnsAssigned := True;
+    end;
 end;
 
 procedure TMongo.InitMongo(const AHost: AnsiString);

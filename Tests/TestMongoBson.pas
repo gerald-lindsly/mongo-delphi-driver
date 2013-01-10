@@ -166,6 +166,14 @@ type
     procedure TestValue;
   end;
 
+  TestBsonAPI = class(TTestCase)
+  public
+  published
+    procedure Test_bson_set_oid_inc;
+    procedure Test_bson_set_oid_fuzz;
+
+  end;
+
 implementation
 
 uses
@@ -1151,6 +1159,32 @@ begin
   CheckEquals(123, ReturnValue, 'ReturnValue should be equals to 123');
 end;
 
+var
+  CustomReturnIntCalled : Boolean;
+  CustomOIDFuzz : Boolean;
+
+function CustomOIDReturnIntFunction: Integer; cdecl;
+begin
+  Result := 0;
+  CustomReturnIntCalled := True;
+end;
+
+function CustomOIDFuzzFunction: Integer; cdecl;
+begin
+  Result := 0;
+  CustomOIDFuzz := True;
+end;
+
+procedure TestBsonAPI.Test_bson_set_oid_inc;
+begin
+  Check(CustomReturnIntCalled, 'CustomSetOIDIncCalled should be true after creating BsonOID');
+end;
+
+procedure TestBsonAPI.Test_bson_set_oid_fuzz;
+begin
+  Check(CustomOIDFuzz, 'CustomSetOIDIncCalled should be true after creating BsonOID');
+end;
+
 initialization
   // Register any test cases with the test runner
   RegisterTest(TestIBsonOID.Suite);
@@ -1160,6 +1194,15 @@ initialization
   RegisterTest(TestIBsonBinary.Suite);
   RegisterTest(TestIBsonBuffer.Suite);
   RegisterTest(TestIBsonIterator.Suite);
+  RegisterTest(TestBsonAPI.Suite);
   RegisterTest(TestIBson.Suite);
+  bson_set_oid_fuzz(@CustomOIDFuzzFunction);
+  bson_set_oid_inc(@CustomOIDReturnIntFunction);
+  try
+    NewBsonOID;
+  finally
+    bson_set_oid_fuzz(nil);
+    bson_set_oid_inc(nil);
+  end;
 end.
 
