@@ -1196,6 +1196,9 @@ initialization
   RegisterTest(TestIBsonIterator.Suite);
   RegisterTest(TestBsonAPI.Suite);
   RegisterTest(TestIBson.Suite);
+  {$IFDEF OnDemandMongoCLoad}
+  InitMongoDBLibrary;
+  {$ENDIF}
   bson_set_oid_fuzz(@CustomOIDFuzzFunction);
   bson_set_oid_inc(@CustomOIDReturnIntFunction);
   try
