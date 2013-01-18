@@ -24,12 +24,15 @@ type
     FMongoStream: TMongoStream;
     procedure CheckMongoStreamPointer;
     procedure CreateTestFile(ACreateMode: Boolean = True);
+    procedure OpenStreamReadOnly;
+    procedure RecreateStream;
     {$IFDEF DELPHI2007}
     procedure TestSeek_Int64(AOrigin: TSeekOrigin; AOffset, AbsExpected: Int64);
     {$ENDIF}
     procedure TestSeek_Int32(AOrigin: Word; AOffset: Longint; AbsExpected: Int64);
   protected
     procedure InternalRunMultiThreaded(AMethodAddr: Pointer; ALoops: Integer);
+    procedure Internal_TestEmptyFile;
     function StandardRemoteFileName: AnsiString; override;
   public
     procedure SetUp; override;
@@ -43,6 +46,9 @@ type
     procedure TestCreateStream;
     procedure TestCreateStreamAndOpenWithDifferentCase;
     procedure TestCreateStreamWithPrefix;
+    procedure TestEmptyFile;
+    procedure TestEmptyFileThenWriteSomeBytes;
+    procedure TestParallelRecreateMongoStream;
     procedure TestRead;
     procedure TestSeekFromCurrentInt32;
     procedure TestSeekFromEndInt32;
@@ -54,6 +60,7 @@ type
     {$ENDIF}
     procedure TestSeekPastTheEndOfFile;
     procedure TestStreamStatusFlag;
+    procedure TestStressEmptyFile;
     procedure TestStressFourThreads;
     procedure TestStressWriteReads;
     procedure TestWrite;
@@ -69,7 +76,7 @@ type
 implementation
 
 uses
-  uFileManagement, FileCtrl, SysUtils, MongoBson, Dialogs, Variants;
+  uFileManagement, FileCtrl, SysUtils, MongoBson, Dialogs, Variants, Windows;
 
 const
   FILESIZE = 512 * 1024;
@@ -90,6 +97,10 @@ type
     procedure Execute; override;
     property ErrorMessage: AnsiString read FErrorMessage;
   end;
+
+var
+  FOpenReadonlyLoops: Integer;
+  FRecreateLoops: Integer;
 
 procedure TestTMongoStream.CheckMongoStreamPointer;
 begin
@@ -589,6 +600,106 @@ begin
   except
     on E : Exception do FErrorMessage := AnsiString(E.Message);
   end;
+end;
+
+procedure TestTMongoStream.Internal_TestEmptyFile;
+const
+  STR_EMPTYFILENAME : AnsiString = 'TestEmptyFile';
+var
+  FName : AnsiString;
+begin
+  FName := STR_EMPTYFILENAME + IntToStr(Random(MaxInt));
+  FGridFS.removeFile(FName);
+  Check(FGridFS.find(FName, False) = nil, 'File to create should not exist');
+  try
+    FMongoStream := TMongoStream.Create(FMongo, FSDB, FName, [], True); // Try to open file for read, should raise exception
+  except
+    // This segment of the test verifies the behavior that GridFS doesn't allow creating a stream NOT for "create" mode if the file
+    // doesn't exist in DB
+    on E : Exception do Check(pos('not found', AnsiString(E.Message)) > 0, E.Message);
+  end;
+  FMongoStream.Free;
+  FMongoStream := TMongoStream.Create(FMongo, FSDB, FName, [msmCreate], True); // Let's create an empty file
+  FMongoStream.Free;
+  FMongoStream := TMongoStream.Create(FMongo, FSDB, FName, [msmWrite], True); // Let's open the empty file
+  CheckEquals(0, FMongoStream.Size, 'Size of stream should be zero');
+end;
+
+const
+  ConcurrentReCreateOpenReadOnlyFileName = 'SpecialFileToTestConcurrency';
+
+procedure TestTMongoStream.OpenStreamReadOnly;
+var
+  s : TStream;
+begin
+  s := TMongoStream.Create(FMongo, FSDB, ConcurrentReCreateOpenReadOnlyFileName, [], True);
+  s.Free;
+  inc(FOpenReadonlyLoops);
+end;
+
+procedure TestTMongoStream.RecreateStream;
+var
+  s : TStream;
+begin
+  s := TMongoStream.Create(FMongo, FSDB, ConcurrentReCreateOpenReadOnlyFileName, [msmCreate], True);
+  s.Free;
+  InterlockedIncrement(FRecreateLoops);
+end;
+
+procedure TestTMongoStream.TestEmptyFile;
+begin
+  Internal_TestEmptyFile;
+end;
+
+procedure TestTMongoStream.TestEmptyFileThenWriteSomeBytes;
+var
+  LittleData : AnsiString;
+  ReadData : AnsiString;
+begin
+  Internal_TestEmptyFile;
+  LittleData := 'LittleData';
+  FMongoStream.Write(PAnsiChar(LittleData)^, length(LittleData));
+  FMongoStream.Position := 0;
+  SetLength(ReadData, length(LittleData));
+  FMongoStream.Read(PAnsiChar(ReadData)^, length(ReadData));
+  CheckEqualsString(LittleData, ReadData, 'Data read doesn''t match');
+end;
+
+procedure TestTMongoStream.TestParallelRecreateMongoStream;
+const
+  LOOPS = 200;
+var
+  ThreadRecreateStream : TMongoStreamThread;
+  ThreadOpenReadonly : TMongoStreamThread;
+  AErrorMessages : AnsiString;
+begin
+  FRecreateLoops := 0;
+  FOpenReadonlyLoops := 0;
+  FGridFS.removeFile(ConcurrentReCreateOpenReadOnlyFileName);
+  ThreadRecreateStream := TMongoStreamThread.Create(@TestTMongoStream.RecreateStream, LOOPS);
+  ThreadOpenReadonly := TMongoStreamThread.Create(@TestTMongoStream.OpenStreamReadOnly, LOOPS);
+  ThreadRecreateStream.Resume;
+  while FRecreateLoops <= 0 do Sleep(5);
+  ThreadOpenReadonly.Resume;
+  ThreadRecreateStream.WaitFor;
+  ThreadOpenReadonly.WaitFor;
+  AErrorMessages := '';
+  if ThreadRecreateStream.ErrorMessage <> '' then
+    AErrorMessages := AErrorMessages + ThreadRecreateStream.ErrorMessage + #13#10;
+  if ThreadOpenReadonly.ErrorMessage <> '' then
+    AErrorMessages := AErrorMessages + ThreadOpenReadonly.ErrorMessage + #13#10;
+  if AErrorMessages <> '' then
+    Fail(AErrorMessages + Format(' Recreate loops completed: %d. Open readonly loops completed: %d', [FRecreateLoops, FOpenReadonlyLoops]));
+  CheckEquals(LOOPS, FRecreateLoops);
+  CheckEquals(LOOPS, FOpenReadonlyLoops);
+end;
+
+procedure TestTMongoStream.TestStressEmptyFile;
+var
+  i : integer;
+begin
+  for i := 1 to 200 do
+    TestEmptyFile;
 end;
 
 procedure TestTMongoStream.TestWriteAndReadFromSameChunk;

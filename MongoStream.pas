@@ -129,12 +129,12 @@ begin
   FGridFS.CaseInsensitiveFileNames := ACaseInsensitiveFileNames;
   if msmCreate in AMode then
     begin
-      FGridFS.removeFile(AFileName);
       AFlags := GRIDFILE_NOMD5;
       if ACompressed then
         AFlags := AFlags or GRIDFILE_COMPRESS;
       FGridFileWriter := FGridFS.writerCreate(AFileName, AFlags);
       FGridFile := FGridFileWriter;
+      FGridFileWriter.Truncate(0);
     end
     else
     begin
