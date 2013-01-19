@@ -258,6 +258,8 @@ type
         and/or indexSparse.
         Returns nil if successful; otherwise, a IBson document that describes the error. }
     function indexCreate(const ns: AnsiString; key: IBson; options: Integer): IBson; overload;
+    { Index create with option to pass an indexname as parameter }
+    function indexCreate(const ns: AnsiString; key: IBson; name: PAnsiChar; options: Integer): IBson; overload;
       { Add a user name / password to the 'admin' database.  This may be authenticated
         with the authenticate function.
         See http://www.mongodb.org/display/DOCS/Security+and+Authentication }
@@ -310,6 +312,17 @@ type
       { Destroy this TMongo object.  Severs the connection to the server and releases
         external resources. }
     destructor Destroy; override;
+      { Create an index for the given collection so that accesses by the given
+        key are faster.
+        The collection namespace (ns) is in the form 'database.collection'.
+        key is a IBson document that (possibly) defines a compound key.
+        For example, @longcode(#
+          mongo.indexCreate(ns, BSON(['age', True, 'name', True]));
+          (* speed up accesses of documents by age and then name *)
+        #)
+        options specifies a bit mask of indexUnique, indexDropDups, indexBackground,
+        and/or indexSparse.
+        Returns nil if successful; otherwise, a IBson document that describes the error. }
     property AutoCheckLastError: Boolean read FAutoCheckLastError write FAutoCheckLastError;
     property Handle: Pointer read FHandle;
   end;
@@ -1009,26 +1022,9 @@ begin
 end;
 
 function TMongo.indexCreate(const ns: AnsiString; key: IBson; options: Integer): IBson;
-var
-  res: IBson;
-  created: Boolean;
-  h: Pointer;
 begin
-  CheckHandle;
-  h := bson_create;
-  try
-    res := NewBson(h);
-  except
-    bson_dispose(h);
-    raise;
-  end;
-  autoCmdResetLastError(ns, true);
-  created := mongo_create_index(fhandle, PAnsiChar(ns), key.Handle, options, res.Handle) = 0;
-  autoCheckCmdLastError(ns, true);
-  if not created then
-    Result := res
-  else
-    Result := nil;
+  {$IFDEF MONGO_MEMORY_PROTECTION} CheckValid; {$ENDIF}
+  Result := indexCreate(ns, key, nil, options);
 end;
 
 function TMongo.indexCreate(const ns: AnsiString; key: IBson): IBson;
@@ -1266,6 +1262,30 @@ function TMongo.getServerErrString: AnsiString;
 begin
   CheckHandle;
   Result := AnsiString(mongo_get_server_err_string(fhandle));
+end;
+
+function TMongo.indexCreate(const ns: AnsiString; key: IBson; name: PAnsiChar;
+    options: Integer): IBson;
+var
+  res: IBson;
+  created: Boolean;
+  h: Pointer;
+begin
+  CheckHandle;
+  h := bson_create;
+  try
+    res := NewBson(h);
+  except
+    bson_dispose(h);
+    raise;
+  end;
+  autoCmdResetLastError(ns, true);
+  created := mongo_create_index(fhandle, PAnsiChar(ns), key.Handle, name, options, res.Handle) = 0;
+  autoCheckCmdLastError(ns, true);
+  if not created then
+    Result := res
+  else
+    Result := nil;
 end;
 
 class procedure TMongo.InitCustomBsonOIDFns;

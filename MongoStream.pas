@@ -257,14 +257,14 @@ procedure TMongoStream.SetSize(NewSize: {$IFDef Enterprise} Int64 {$Else} longin
 {$ENDIF}
 begin
   CheckWriteSupport;
-  FCurPos := FGridFileWriter.Truncate(NewSize);
+  FCurPos := FGridFileWriter.setSize(NewSize);
 end;
 
 {$IFDEF DELPHI2007}
 procedure TMongoStream.SetSize(const NewSize: Int64);
 begin
   CheckWriteSupport;
-  FCurPos := FGridFileWriter.Truncate(NewSize);
+  FCurPos := FGridFileWriter.setSize(NewSize);
 end;
 {$ENDIF}
 

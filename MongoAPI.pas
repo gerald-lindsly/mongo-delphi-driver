@@ -102,7 +102,7 @@ type
   Tmongo_cmd_drop_collection = function (c: Pointer; db: PAnsiChar; collection: PAnsiChar; Result: Pointer): Integer; cdecl;
   Tmongo_cmd_drop_db = function (c: Pointer; db: PAnsiChar): Integer; cdecl;
   Tmongo_count = function (c: Pointer; db: PAnsiChar; collection: PAnsiChar; query: Pointer): Double; cdecl;
-  Tmongo_create_index = function (c: Pointer; ns: PAnsiChar; key: Pointer; options: Integer; res: Pointer): Integer; cdecl;
+  Tmongo_create_index = function (c: Pointer; ns: PAnsiChar; key: Pointer; name : PAnsiChar; options: Integer; res: Pointer): Integer; cdecl;
   Tmongo_cmd_add_user = function (c: Pointer; db: PAnsiChar; Name: PAnsiChar; password: PAnsiChar): Integer; cdecl;
   Tmongo_cmd_authenticate = function (c: Pointer; db: PAnsiChar; Name: PAnsiChar; password: PAnsiChar): Integer; cdecl;
   Tmongo_run_command = function (c: Pointer; db: PAnsiChar; command: Pointer; res: Pointer): Integer; cdecl;
@@ -206,6 +206,7 @@ type
   Tgridfile_init = function (gfs, meta, gfile : pointer) : integer; cdecl;
   Tgridfile_get_id = function (gfile : pointer) : pointer; cdecl;
   Tgridfile_truncate = function (gfile : Pointer; newSize : int64) : Int64; cdecl;
+  Tgridfile_set_size = function(gfile : Pointer; newSize : Int64) : Int64; cdecl;
   Tgridfs_get_caseInsensitive = function (gf : Pointer) : LongBool; cdecl;
   Tgridfs_set_caseInsensitive = procedure (gf : Pointer; newValue : LongBool); cdecl;
   Tgridfile_set_flags = procedure(gf : Pointer; Flags : Integer); cdecl;
@@ -355,6 +356,7 @@ var
   gridfile_init : Tgridfile_init;
   gridfile_get_id : Tgridfile_get_id;
   gridfile_truncate : Tgridfile_truncate;
+  gridfile_set_size : Tgridfile_set_size;
   gridfs_get_caseInsensitive : Tgridfs_get_caseInsensitive;
   gridfs_set_caseInsensitive : Tgridfs_set_caseInsensitive;
   gridfile_set_flags : Tgridfile_set_flags;
@@ -405,7 +407,7 @@ var
   function mongo_cmd_drop_collection(c: Pointer; db: PAnsiChar; collection: PAnsiChar; Result: Pointer): Integer; cdecl; external MongoCDLL;
   function mongo_cmd_drop_db(c: Pointer; db: PAnsiChar): Integer; cdecl; external MongoCDLL;
   function mongo_count(c: Pointer; db: PAnsiChar; collection: PAnsiChar; query: Pointer): Double; cdecl; external MongoCDLL;
-  function mongo_create_index(c: Pointer; ns: PAnsiChar; key: Pointer; options: Integer; res: Pointer): Integer; cdecl; external MongoCDLL;
+  function mongo_create_index(c: Pointer; ns: PAnsiChar; key: Pointer; name : PAnsiChar; options: Integer; res: Pointer): Integer; cdecl; external MongoCDLL;
   function mongo_cmd_add_user(c: Pointer; db: PAnsiChar; Name: PAnsiChar; password: PAnsiChar): Integer; cdecl; external MongoCDLL;
   function mongo_cmd_authenticate(c: Pointer; db: PAnsiChar; Name: PAnsiChar; password: PAnsiChar): Integer; cdecl; external MongoCDLL;
   function mongo_run_command(c: Pointer; db: PAnsiChar; command: Pointer; res: Pointer): Integer; cdecl; external MongoCDLL;
@@ -509,6 +511,7 @@ var
   function gridfile_init(gfs, meta, gfile : pointer) : integer; cdecl; external MongoCDLL;
   function gridfile_get_id(gfile : pointer) : pointer; cdecl; external MongoCDLL;
   function gridfile_truncate(gfile : Pointer; newSize : int64) : Int64; cdecl; external MongoCDLL;
+  function gridfile_set_size(gfile : Pointer; newSize : Int64) : Int64; cdecl; external MongoCDLL;
   function gridfs_get_caseInsensitive (gf : Pointer) : LongBool; cdecl; external MongoCDLL;
   procedure gridfs_set_caseInsensitive(gf : Pointer; newValue : LongBool); cdecl; external MongoCDLL;
   procedure gridfile_set_flags(gf : Pointer; Flags : Integer); cdecl; external MongoCDLL;
@@ -695,6 +698,7 @@ begin
   gridfile_init := GetProcAddress(HMongoDBDll, 'gridfile_init'); // do not localize
   gridfile_get_id := GetProcAddress(HMongoDBDll, 'gridfile_get_id'); // do not localize
   gridfile_truncate := GetProcAddress(HMongoDBDll, 'gridfile_truncate'); // do not localize
+  gridfile_set_size := GetProcAddress(HMongoDBDll, 'gridfile_set_size'); // do not localize
   gridfs_get_caseInsensitive := GetProcAddress(HMongoDBDll, 'gridfs_get_caseInsensitive'); // do not localize
   gridfs_set_caseInsensitive := GetProcAddress(HMongoDBDll, 'gridfs_set_caseInsensitive'); // do not localize
   gridfile_set_flags := GetProcAddress(HMongoDBDll, 'gridfile_set_flags'); // do not localize

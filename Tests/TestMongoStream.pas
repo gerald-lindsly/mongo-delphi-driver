@@ -24,6 +24,7 @@ type
     FMongoStream: TMongoStream;
     procedure CheckMongoStreamPointer;
     procedure CreateTestFile(ACreateMode: Boolean = True);
+    procedure Internal_TestSetSize(NewSize: Integer);
     procedure OpenStreamReadOnly;
     procedure RecreateStream;
     {$IFDEF DELPHI2007}
@@ -59,6 +60,9 @@ type
     procedure TestSeekFromEndInt64;
     {$ENDIF}
     procedure TestSeekPastTheEndOfFile;
+    procedure TestSetSizeMakeFileLarger;
+    procedure TestSetSizeMakeFileLargerOverOneChunk;
+    procedure TestSetSizeMakeFileLargerOverThreeChunks;
     procedure TestStreamStatusFlag;
     procedure TestStressEmptyFile;
     procedure TestStressFourThreads;
@@ -625,6 +629,30 @@ begin
   CheckEquals(0, FMongoStream.Size, 'Size of stream should be zero');
 end;
 
+procedure TestTMongoStream.Internal_TestSetSize(NewSize: Integer);
+var
+  Buffer : Pointer;
+  i : integer;
+begin
+  CreateTestFile;
+  CheckMongoStreamPointer;
+  FMongoStream.Write(PAnsiChar(FEW_BYTES_OF_DATA)^, length(FEW_BYTES_OF_DATA));
+  FMongoStream.Size := NewSize;
+  CheckEquals(NewSize, FMongoStream.Position, 'Position should be at the end of the file');
+  FreeAndNil(FMongoStream);
+  FMongoStream := TMongoStream.Create(FMongo, FSDB, StandardRemoteFileName, [], True);
+  CheckEquals(NewSize, FMongoStream.Size, 'New size was not taken by MongoStream');
+  GetMem(Buffer, NewSize);
+  try
+    CheckEquals(NewSize, FMongoStream.Read(Buffer^, NewSize), 'Didn''t read all data as it should have');
+    CheckEqualsString(FEW_BYTES_OF_DATA, PAnsiChar(Buffer), 'Initial part of data didn''t match');
+    for i := length(FEW_BYTES_OF_DATA) to NewSize - 1 do
+      CheckEquals(0, byte(PAnsiChar(Buffer)[i]), 'Every byte used to expand file should be a zero');
+  finally
+    FreeMem(Buffer);
+  end;
+end;
+
 const
   ConcurrentReCreateOpenReadOnlyFileName = 'SpecialFileToTestConcurrency';
 
@@ -692,6 +720,32 @@ begin
     Fail(AErrorMessages + Format(' Recreate loops completed: %d. Open readonly loops completed: %d', [FRecreateLoops, FOpenReadonlyLoops]));
   CheckEquals(LOOPS, FRecreateLoops);
   CheckEquals(LOOPS, FOpenReadonlyLoops);
+end;
+
+procedure TestTMongoStream.TestSetSizeMakeFileLarger;
+var
+  NewSize: Integer;
+begin
+  CreateTestFile;
+  CheckMongoStreamPointer;
+  FMongoStream.Write(PAnsiChar(FEW_BYTES_OF_DATA)^, length(FEW_BYTES_OF_DATA));
+  NewSize := length(FEW_BYTES_OF_DATA) * 2;
+  FMongoStream.Size := NewSize;
+  CheckEquals(NewSize, FMongoStream.Position, 'Position should be at the end of the file');
+  CheckEquals(NewSize, FMongoStream.Size, 'Size should be equals to NewSize');
+  FreeAndNil(FMongoStream);
+  FMongoStream := TMongoStream.Create(FMongo, FSDB, StandardRemoteFileName, [], True);
+  CheckEquals(NewSize, FMongoStream.Size, 'New size was not taken by MongoStream');
+end;
+
+procedure TestTMongoStream.TestSetSizeMakeFileLargerOverOneChunk;
+begin
+  Internal_TestSetSize(256 * 1024 + 1024);
+end;
+
+procedure TestTMongoStream.TestSetSizeMakeFileLargerOverThreeChunks;
+begin
+  Internal_TestSetSize(256 * 1024 * 3 + 1024);
 end;
 
 procedure TestTMongoStream.TestStressEmptyFile;

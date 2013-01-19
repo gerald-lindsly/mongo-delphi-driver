@@ -179,6 +179,7 @@ type
         data. }
     procedure Write(p: Pointer; Length: Int64);
     function Truncate(newSize : int64) : Int64;
+    function setSize(newSize : Int64) : Int64;
   end;
 
 implementation
@@ -286,6 +287,9 @@ type
         to a chunk and posts the 'directory' information of the gridfile to the
         GridFS. Returns True if successful; otherwise, False. }
     function truncate(newSize : int64): Int64;
+    { setSize supercedes truncate in the sense it can change the file size up or down. If making
+      file size larger, file will be zero filled }
+    function setSize(newSize : Int64): Int64;
     function finish: Boolean;
       { Destroy this TGridfileWriter.  Calls finish() if necessary and releases
         external resources. }
@@ -523,6 +527,12 @@ begin
   {$IFDEF MONGO_MEMORY_PROTECTION} CheckValid; {$ENDIF}
   finish;
   inherited;
+end;
+
+function TGridfileWriter.setSize(newSize : Int64): Int64;
+begin
+  CheckHandle;
+  Result := gridfile_set_size(Handle, newSize);
 end;
 
 function TGridfileWriter.truncate(newSize : int64): Int64;

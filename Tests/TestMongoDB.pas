@@ -96,6 +96,7 @@ type
     procedure TestgetServerErr;
     procedure TestgetServerErrString;
     procedure TestFourThreads;
+    procedure TestindexCreateUsingBsonKeyAndNameAndOptions;
     procedure TestUseWriteConcern;
     procedure TestTryToUseUnfinishedWriteConcern;
   end;
@@ -178,18 +179,19 @@ var
 begin
   {$IFDEF TAXPORT}
   Scope := NewScope;
-  TargetMongoDBPath := ExtractFilePath(Application.ExeName) + '\MongoDB\';
+  TargetMongoDBPath := ExtractFilePath(Application.ExeName) + 'MongoDB\';
   TargetMongoDFile := TargetMongoDBPath + MONGOD_NAME;
   Files := Scope.Add(TFileInfoList.Create);
   TCnvStream.GetStreamList(SRC_MONGOD, Files, False, True);
   if (Files.Count = 0) or (not FileExists(TargetMongoDFile)) or
      (Files.Infos[0].ModifyDate > FileTimeToDateTime(GetFileInfo(TargetMongoDFile).FindData.ftLastWriteTime)) then
     begin
+      SysUtils.DeleteFile(TargetMongoDFile);
       s := Scope.Add(TCnvStream.Create(SRC_MONGOD, cdbmRead));
       ForceDirectories(TargetMongoDBPath);
       f := Scope.Add(TFileStream.Create(TargetMongoDFile, fmCreate));
       f.CopyFrom(s, s.Size);
-      FileSetDate(f.Handle, DateTimeToFileDate(s.CreateDate));
+      FileSetDate(f.Handle, DateTimeToFileDate(s.ModifyDate));
     end;
   Scope := nil;
   {$ENDIF}
@@ -939,6 +941,22 @@ begin
     for I := low(ts) to high(ts) do
       ts[i].Free;
   end;
+end;
+
+procedure TestTMongo.TestindexCreateUsingBsonKeyAndNameAndOptions;
+var
+  ReturnValue: IBson;
+  options: Integer;
+  key: IBson;
+  ns: AnsiString;
+begin
+  Create_test_db;
+  InsertAndCheckBson(1, 'Value1');
+  ns := 'test_db.test_col';
+  key := BSON(['int_fld', True]);
+  options := indexUnique;
+  ReturnValue := FMongo.indexCreate(ns, key, PAnsiChar('test_index_name'), Options);
+  Check(ReturnValue = nil, 'Call to Mongo.indexCreate should return nil if successful');
 end;
 
 procedure TestTMongo.TestUseWriteConcern;
