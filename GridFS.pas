@@ -178,7 +178,8 @@ type
         is its size. Multiple calls to write() may be made to append successive
         data. }
     procedure Write(p: Pointer; Length: Int64);
-    function Truncate(newSize : int64) : Int64;
+    function truncate(newSize : int64) : Int64;
+    function expand(bytesToExpand : Int64) : Int64;
     function setSize(newSize : Int64) : Int64;
   end;
 
@@ -287,6 +288,7 @@ type
         to a chunk and posts the 'directory' information of the gridfile to the
         GridFS. Returns True if successful; otherwise, False. }
     function truncate(newSize : int64): Int64;
+    function expand(bytesToExpand : Int64): Int64;
     { setSize supercedes truncate in the sense it can change the file size up or down. If making
       file size larger, file will be zero filled }
     function setSize(newSize : Int64): Int64;
@@ -527,6 +529,12 @@ begin
   {$IFDEF MONGO_MEMORY_PROTECTION} CheckValid; {$ENDIF}
   finish;
   inherited;
+end;
+
+function TGridfileWriter.expand(bytesToExpand : Int64): Int64;
+begin
+  CheckHandle;
+  Result := gridfile_expand(Handle, bytesToExpand);
 end;
 
 function TGridfileWriter.setSize(newSize : Int64): Int64;

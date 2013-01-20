@@ -89,6 +89,8 @@ type
     procedure TearDown; override;
   published
     procedure TestWrite;
+    procedure TestExpand;
+    procedure TestTruncate;
   end;
 
 implementation
@@ -485,6 +487,36 @@ begin
   SetLength(s, f.getLength);
   f.Read(PAnsiChar(s), length(s));
   CheckEqualsString(FILEDATA2, s, 'Data read doesn''t match');
+end;
+
+procedure TestTGridfileWriter.TestExpand;
+var
+  f : IGridFile;
+  s : AnsiString;
+begin
+  FGridfileWriter.Write(PAnsiChar(FILEDATA2), length(FILEDATA2));
+  FGridfileWriter.expand(10);
+  Check(FGridFileWriter.finish, 'Call to finish should return True');
+  f := FGridFS.find(StandardTestFileName, False);
+  SetLength(s, length(FILEDATA2));
+  CheckEquals(length(FILEDATA2), f.Read(PAnsiChar(s), length(s)));
+  CheckEqualsString(FILEDATA2, s, 'Data read doesn''t match');
+  CheckEquals(length(FILEDATA2) + 10, f.getLength);
+end;
+
+procedure TestTGridfileWriter.TestTruncate;
+var
+  f : IGridFile;
+  s : AnsiString;
+begin
+  FGridfileWriter.Write(PAnsiChar(FILEDATA2), length(FILEDATA2));
+  FGridFileWriter.truncate(5);
+  Check(FGridFileWriter.finish, 'Call to finish should return True');
+  f := FGridFS.find(StandardTestFileName, False);
+  SetLength(s, f.getLength);
+  f.Read(PAnsiChar(s), length(s));
+  CheckEqualsString(system.Copy(FILEDATA2, 1, 5), s);
+  CheckEquals(5, f.getLength);
 end;
 
 initialization

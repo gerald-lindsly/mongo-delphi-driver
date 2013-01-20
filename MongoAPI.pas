@@ -206,6 +206,7 @@ type
   Tgridfile_init = function (gfs, meta, gfile : pointer) : integer; cdecl;
   Tgridfile_get_id = function (gfile : pointer) : pointer; cdecl;
   Tgridfile_truncate = function (gfile : Pointer; newSize : int64) : Int64; cdecl;
+  Tgridfile_expand = function (gfile : Pointer; bytesToExpand : int64) : Int64; cdecl;
   Tgridfile_set_size = function(gfile : Pointer; newSize : Int64) : Int64; cdecl;
   Tgridfs_get_caseInsensitive = function (gf : Pointer) : LongBool; cdecl;
   Tgridfs_set_caseInsensitive = procedure (gf : Pointer; newValue : LongBool); cdecl;
@@ -356,6 +357,7 @@ var
   gridfile_init : Tgridfile_init;
   gridfile_get_id : Tgridfile_get_id;
   gridfile_truncate : Tgridfile_truncate;
+  gridfile_expand : Tgridfile_expand;
   gridfile_set_size : Tgridfile_set_size;
   gridfs_get_caseInsensitive : Tgridfs_get_caseInsensitive;
   gridfs_set_caseInsensitive : Tgridfs_set_caseInsensitive;
@@ -511,6 +513,7 @@ var
   function gridfile_init(gfs, meta, gfile : pointer) : integer; cdecl; external MongoCDLL;
   function gridfile_get_id(gfile : pointer) : pointer; cdecl; external MongoCDLL;
   function gridfile_truncate(gfile : Pointer; newSize : int64) : Int64; cdecl; external MongoCDLL;
+  function gridfile_expand(gfile : Pointer; bytesToExpand : int64) : Int64; cdecl; external MongoCDLL;
   function gridfile_set_size(gfile : Pointer; newSize : Int64) : Int64; cdecl; external MongoCDLL;
   function gridfs_get_caseInsensitive (gf : Pointer) : LongBool; cdecl; external MongoCDLL;
   procedure gridfs_set_caseInsensitive(gf : Pointer; newValue : LongBool); cdecl; external MongoCDLL;
@@ -698,6 +701,7 @@ begin
   gridfile_init := GetProcAddress(HMongoDBDll, 'gridfile_init'); // do not localize
   gridfile_get_id := GetProcAddress(HMongoDBDll, 'gridfile_get_id'); // do not localize
   gridfile_truncate := GetProcAddress(HMongoDBDll, 'gridfile_truncate'); // do not localize
+  gridfile_expand := GetProcAddress(HMongoDBDll, 'gridfile_expand'); // do not localize
   gridfile_set_size := GetProcAddress(HMongoDBDll, 'gridfile_set_size'); // do not localize
   gridfs_get_caseInsensitive := GetProcAddress(HMongoDBDll, 'gridfs_get_caseInsensitive'); // do not localize
   gridfs_set_caseInsensitive := GetProcAddress(HMongoDBDll, 'gridfs_set_caseInsensitive'); // do not localize
