@@ -5,3 +5,6 @@
 /MongoC.dll
 /*.local
 /*.drc
+/*.identcache
+/*.~dsk
+/*.dsk
