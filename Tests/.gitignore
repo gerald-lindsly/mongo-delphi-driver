@@ -1,0 +1,7 @@
+/DelphiMongoClientTests.exe
+/*.exe
+/*.map
+/*.ini
+/MongoC.dll
+/*.local
+/*.drc
