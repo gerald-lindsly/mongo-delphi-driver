@@ -8,3 +8,8 @@
 /mongos.exe
 /mongostat.exe
 /mongotop.exe
+/*.exe
+/GNU-AGPL-3.0
+/*.pdb
+/README
+/THIRD-PARTY-NOTICES

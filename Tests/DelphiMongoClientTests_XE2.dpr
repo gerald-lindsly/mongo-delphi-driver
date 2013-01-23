@@ -20,16 +20,19 @@ uses
   GUITestRunner,
   TextTestRunner,
   TestMongoDB in 'TestMongoDB.pas',
-  MongoDB in '..\..\MongoDB.pas',
   TestMongoBson in 'TestMongoBson.pas',
-  MongoBson in '..\..\MongoBson.pas',
   TestGridFS in 'TestGridFS.pas',
-  GridFS in '..\..\GridFS.pas',
-  MongoStream in '..\..\MongoStream.pas',
   TestMongoStream in 'TestMongoStream.pas',
-  MongoAPI in '..\..\MongoAPI.pas',
-  MongoPool in '..\..\MongoPool.pas',
-  TestMongoPool in 'TestMongoPool.pas';
+  TestMongoPool in 'TestMongoPool.pas',
+  APPEXEC in '..\APPEXEC.PAS',
+  CnvGenUtils in '..\CnvGenUtils.pas',
+  GridFS in '..\GridFS.pas',
+  MongoAPI in '..\MongoAPI.pas',
+  MongoBson in '..\MongoBson.pas',
+  MongoDB in '..\MongoDB.pas',
+  MongoPool in '..\MongoPool.pas',
+  MongoStream in '..\MongoStream.pas',
+  Ufilemanagement in '..\Ufilemanagement.pas';
 
 {$R *.RES}
 
