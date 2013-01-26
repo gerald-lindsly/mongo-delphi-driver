@@ -1,1 +1,17 @@
 /*.pdb
+/GNU-AGPL-3.0
+/README
+/THIRD-PARTY-NOTICES
+/bsondump.exe
+/mongo.exe
+/mongod.exe
+/mongodump.exe
+/mongoexport.exe
+/mongofiles.exe
+/mongoimport.exe
+/mongooplog.exe
+/mongoperf.exe
+/mongorestore.exe
+/mongos.exe
+/mongostat.exe
+/mongotop.exe
