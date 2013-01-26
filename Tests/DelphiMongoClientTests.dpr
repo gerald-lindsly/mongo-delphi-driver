@@ -20,12 +20,12 @@ uses
   GUITestRunner,
   TextTestRunner,
   TestMongoDB in 'TestMongoDB.pas',
-  MongoDB in '..\..\MongoDB.pas',
+  MongoDB in '..\MongoDB.pas',
   TestMongoBson in 'TestMongoBson.pas',
-  MongoBson in '..\..\MongoBson.pas',
+  MongoBson in '..\MongoBson.pas',
   TestGridFS in 'TestGridFS.pas',
   TestMongoStream,
-  GridFS in '..\..\GridFS.pas';
+  GridFS in '..\GridFS.pas';
 
 {$R *.RES}
 
