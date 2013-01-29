@@ -423,6 +423,7 @@ type
     procedure Setmode(const Value: AnsiString);
     procedure Setw(const Value: Integer);
     procedure Setwtimeout(const Value: Integer);
+    function Getcmd : IBson;
     { Always call finish after you are done setting all writeconcern fields, otherwise
       you can't use the writeconcern object with TMongo object.
       The call to finish is equivalent to mongo_write_concern_finish() }
@@ -434,6 +435,7 @@ type
     property wtimeout: Integer read Getwtimeout write Setwtimeout;
     property Handle: Pointer read GetHandle;
     property Finished: Boolean read GetFinished;
+    property cmd : IBson read Getcmd;
   end;
 
   { Create a cursor with a empty query (which matches everything) }
@@ -482,19 +484,6 @@ resourcestring
   STMongoDropExpectedAInTheNamespac = 'TMongo.drop: expected a ''.'' in the namespace.';
   SExpectedAInTheNamespace = 'Expected a ''.'' in the namespace';
   // END resource string wizard section
-
-type
-  Tmongo_write_concern = record
-    {$IFDEF MONGO_MEMORY_PROTECTION}
-    mongo_sig: Integer;
-    {$ENDIF}
-    w: Integer;
-    wtimeout: Integer;
-    j: Integer;
-    fsync: Integer;
-    mode: PAnsiChar;
-    cmd: Pointer;
-  end;
 
 procedure parseHost(const host: AnsiString; var hosturl: AnsiString; var port: Integer);
 var
@@ -591,9 +580,10 @@ type
   TWriteConcern = class(TMongoInterfacedObject, IWriteConcern)
   private
     FMode: AnsiString;
-    FWriteConcern: Tmongo_write_concern;
+    FWriteConcern: Pointer;
     FFinished: Boolean;
     procedure finish;
+    function Getcmd: IBson;
     function Getfsync: Integer;
     function GetHandle: Pointer;
     function Getj: Integer;
@@ -947,12 +937,14 @@ begin
       Result := NewBson(res)
     else
     begin
-      bson_dispose(res);
+      bson_dispose_and_destroy(res);
+      res := nil;
       Result := nil;
     end;
     autoCheckCmdLastError(ns, true);
   except
-    bson_dispose(res);
+    if res <> nil then
+      bson_dispose_and_destroy(res);
     raise;
   end;
 end;
@@ -1116,30 +1108,16 @@ end;
 
 function TMongo.command(const db: AnsiString; command: IBson): IBson;
 var
-  b: IBson;
   res: Pointer;
-  h: Pointer;
 begin
   CheckHandle;
   res := bson_create;
   try
     if mongo_run_command(fhandle, PAnsiChar(db), command.Handle, res) = 0 then
-    begin
-      h := bson_create;
-      try
-        b := NewBson(h);
-      except
-        bson_dispose(h);
-        raise;
-      end;
-      bson_copy(b.Handle, res);
-      Result := b;
-    end
-    else
-      Result := nil;
+      Result := NewBsonCopy(res)
+    else Result := nil;
   finally
-    bson_destroy(res);
-    bson_dispose(res);
+    bson_dispose_and_destroy(res);
   end;
 end;
 
@@ -1168,30 +1146,17 @@ end;
 
 function TMongo.getLastErr(const db: AnsiString): IBson;
 var
-  b: IBson;
   res: Pointer;
-  h: Pointer;
 begin
   CheckHandle;
   res := bson_create;
   try
     if mongo_cmd_get_last_error(fhandle, PAnsiChar(db), res) <> 0 then
-    begin
-      h := bson_create;
-      try
-        b := NewBson(h);
-      except
-        bson_dispose(h);
-        raise;
-      end;
-      bson_copy(b.Handle, res);
-      Result := b;
-    end
+      Result := NewBsonCopy(res)
     else
       Result := nil;
   finally
-    bson_destroy(res);
-    bson_dispose(res);
+    bson_dispose_and_destroy(res);
   end;
 end;
 
@@ -1203,8 +1168,7 @@ begin
   h := bson_create;
   if mongo_cmd_get_last_error(fHandle, PAnsiChar(db), h) = 0 then
   begin
-    bson_destroy(h);
-    bson_dispose(h);
+    bson_dispose_and_destroy(h);
     Result := nil;
   end
   else 
@@ -1219,30 +1183,17 @@ end;
 
 function TMongo.getPrevErr(const db: AnsiString): IBson;
 var
-  b: IBson;
   res: Pointer;
-  h: Pointer;
 begin
   CheckHandle;
   res := bson_create;
   try
     if mongo_cmd_get_prev_error(fhandle, PAnsiChar(db), res) <> 0 then
-    begin
-      h := bson_create;
-      try
-        b := NewBson(h);
-      except
-        bson_dispose(h);
-        raise;
-      end;
-      bson_copy(b.Handle, res);
-      Result := b;
-    end
+      Result := NewBsonCopy(res)
     else
       Result := nil;
   finally
-    bson_destroy(res);
-    bson_dispose(res);
+    bson_dispose_and_destroy(res);
   end;
 end;
 
@@ -1276,7 +1227,7 @@ begin
   try
     res := NewBson(h);
   except
-    bson_dispose(h);
+    bson_dispose_and_destroy(h);
     raise;
   end;
   autoCmdResetLastError(ns, true);
@@ -1514,20 +1465,9 @@ begin
 end;
 
 function TMongoCursor.value: IBson;
-var
-  b: IBson;
-  h: Pointer;
 begin
   CheckHandle;
-  h := bson_create;
-  try
-    b := NewBson(h);
-  except
-    bson_dispose(h);
-    raise;
-  end;
-  bson_copy(h, mongo_cursor_bson(Handle));
-  Result := b;
+  Result := NewBsonCopy(mongo_cursor_bson(Handle));
 end;
 
 function NewMongoCursor: IMongoCursor;
@@ -1550,22 +1490,34 @@ end;
 constructor TWriteConcern.Create;
 begin
   inherited Create;
-  mongo_write_concern_init(@FWriteConcern);
+  FWriteConcern := mongo_write_concern_create;
+  mongo_write_concern_init(FWriteConcern);
 end;
 
 destructor TWriteConcern.Destroy;
 begin
   {$IFDEF MONGO_MEMORY_PROTECTION} CheckValid; {$ENDIF}
-  mongo_write_concern_destroy(@FWriteConcern);
-  FWriteConcern.mode := nil;
+  mongo_write_concern_destroy(FWriteConcern);
+  mongo_write_concern_free(FWriteConcern);
   inherited;
 end;
 
 procedure TWriteConcern.finish;
 begin
   {$IFDEF MONGO_MEMORY_PROTECTION} CheckValid; {$ENDIF}
-  mongo_write_concern_finish(@FWriteConcern);
+  mongo_write_concern_finish(FWriteConcern);
   FFinished := true;
+end;
+
+function TWriteConcern.Getcmd: IBson;
+var
+  ACmd : Pointer;
+begin
+  {$IFDEF MONGO_MEMORY_PROTECTION} CheckValid; {$ENDIF}
+  ACmd := mongo_write_concern_get_cmd(FWriteConcern);
+  if ACmd <> nil then
+    Result := NewBsonCopy(ACmd)
+  else Result := nil;
 end;
 
 function TWriteConcern.Getfinished: Boolean;
@@ -1577,7 +1529,7 @@ end;
 function TWriteConcern.Getfsync: Integer;
 begin
   {$IFDEF MONGO_MEMORY_PROTECTION} CheckValid; {$ENDIF}
-  Result := FWriteConcern.fsync;
+  Result := mongo_write_concern_get_fsync(FWriteConcern);
 end;
 
 function TWriteConcern.GetHandle: Pointer;
@@ -1589,14 +1541,14 @@ end;
 function TWriteConcern.Getj: Integer;
 begin
   {$IFDEF MONGO_MEMORY_PROTECTION} CheckValid; {$ENDIF}
-  Result := FWriteConcern.j;
+  Result := mongo_write_concern_get_j(FWriteConcern);
 end;
 
 function TWriteConcern.Getmode: AnsiString;
 begin
   {$IFDEF MONGO_MEMORY_PROTECTION} CheckValid; {$ENDIF}
-  if FWriteConcern.mode <> nil then
-    Result := AnsiString(FWriteConcern.mode)
+  if mongo_write_concern_get_mode(FWriteConcern) <> nil then
+    Result := AnsiString(mongo_write_concern_get_mode(FWriteConcern))
   else 
     Result := '';
 end;
@@ -1604,13 +1556,13 @@ end;
 function TWriteConcern.Getw: Integer;
 begin
   {$IFDEF MONGO_MEMORY_PROTECTION} CheckValid; {$ENDIF}
-  Result := FWriteConcern.w;
+  Result := mongo_write_concern_get_w(FWriteConcern);
 end;
 
 function TWriteConcern.Getwtimeout: Integer;
 begin
   {$IFDEF MONGO_MEMORY_PROTECTION} CheckValid; {$ENDIF}
-  Result := FWriteConcern.wtimeout;
+  Result := mongo_write_concern_get_wtimeout(FWriteConcern);
 end;
 
 procedure TWriteConcern.Modified;
@@ -1622,14 +1574,14 @@ end;
 procedure TWriteConcern.Setfsync(const Value: Integer);
 begin
   {$IFDEF MONGO_MEMORY_PROTECTION} CheckValid; {$ENDIF}
-  FWriteConcern.fsync := Value;
+  mongo_write_concern_set_fsync(FWriteConcern, Value);
   Modified;
 end;
 
 procedure TWriteConcern.Setj(const Value: Integer);
 begin
   {$IFDEF MONGO_MEMORY_PROTECTION} CheckValid; {$ENDIF}
-  FWriteConcern.j := Value;
+  mongo_write_concern_set_j(FWriteConcern, Value);
   Modified;
 end;
 
@@ -1637,21 +1589,21 @@ procedure TWriteConcern.Setmode(const Value: AnsiString);
 begin
   {$IFDEF MONGO_MEMORY_PROTECTION} CheckValid; {$ENDIF}
   FMode := Value;
-  FWriteConcern.mode := PAnsiChar(FMode);
+  mongo_write_concern_set_mode(FWriteConcern, PAnsiChar(FMode));
   Modified;
 end;
 
 procedure TWriteConcern.Setw(const Value: Integer);
 begin
   {$IFDEF MONGO_MEMORY_PROTECTION} CheckValid; {$ENDIF}
-  FWriteConcern.w := Value;
+  mongo_write_concern_set_w(FWriteConcern, Value);
   Modified;
 end;
 
 procedure TWriteConcern.Setwtimeout(const Value: Integer);
 begin
   {$IFDEF MONGO_MEMORY_PROTECTION} CheckValid; {$ENDIF}
-  FWriteConcern.wtimeout := Value;
+  mongo_write_concern_set_wtimeout(FWriteConcern, Value);
   Modified;
 end;
 
