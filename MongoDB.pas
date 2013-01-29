@@ -1535,7 +1535,7 @@ end;
 function TWriteConcern.GetHandle: Pointer;
 begin
   {$IFDEF MONGO_MEMORY_PROTECTION} CheckValid; {$ENDIF}
-  Result := @FWriteConcern;
+  Result := FWriteConcern;
 end;
 
 function TWriteConcern.Getj: Integer;

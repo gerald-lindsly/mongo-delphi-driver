@@ -32,6 +32,7 @@ type
     procedure TestRelease;
     procedure TestReleaseWithConnStr;
     procedure TestReleaseWithHostNameUsrNameAndPassword;
+    procedure TestReleaseWithHostNameUsrNamePassAndDBName;
   end;
 
 implementation
@@ -201,6 +202,24 @@ begin
   Check(APoolRecord.Mongo <> nil, 'Call to FMongoPool.Acquire should return value <> nil');
   FMongoPool.Release(AHostName, '', '', AMongo);
   FMongoPool.Release(AHostName, 'test', 'test', APoolRecord.Mongo);
+end;
+
+procedure TestTMongoPool.TestReleaseWithHostNameUsrNamePassAndDBName;
+var
+  AHostName : AnsiString;
+  APoolRecord : TMongoPooledRecord;
+  AMongo : TMongo;
+begin
+  AHostName := '127.0.0.1';
+  APoolRecord := FMongoPool.Acquire(AHostName);
+  AMongo := APoolRecord.Mongo;
+  Check(AMongo <> nil, 'Call to FMongoPool.Acquire should return value <> nil');
+  AMongo.addUser('test', 'test', 'test');
+
+  APoolRecord := FMongoPool.Acquire(AHostName, 'test', 'test', 'test');
+  Check(APoolRecord.Mongo <> nil, 'Call to FMongoPool.Acquire should return value <> nil');
+  FMongoPool.Release(AHostName, '', '', AMongo);
+  FMongoPool.Release(AHostName, 'test', 'test', 'test', APoolRecord.Mongo);
 end;
 
 constructor TMongoPoolThread.Create(APool: TMongoPool);
