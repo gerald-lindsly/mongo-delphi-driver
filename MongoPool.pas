@@ -36,6 +36,7 @@ type
     FPools: TStringList;
     FLock: TCriticalSection;
     function AcquireFromPool(APool: TList; const AConnectionString: AnsiString): TMongo;
+    function BuildConnectionString(const AHostName, AUserName, APassword, ADBName: AnsiString): AnsiString;
     function CreateNewPool(const AConnectionString: AnsiString): Pointer;
     procedure FreePools;
     procedure ParseHostUserPwd(const AConnectionString: AnsiString; var AHostName, AUserName, APassword, AServerName: AnsiString);
@@ -183,9 +184,12 @@ begin
     APassword := Copy(AUserName, i + 1, Length(AUserName));
     Delete(AUserName, i, Length(AUserName));
     i := Pos('|', APassword);
-    if (i < Length(APassword)) then
-     AServerName := Copy(APassword, i+1, Length(APassword));
-    Delete(APassword, i, Length(APassword));
+    if (i > 0) then
+      begin
+        if (i < Length(APassword)) then
+         AServerName := Copy(APassword, i+1, Length(APassword));
+        Delete(APassword, i, Length(APassword));
+      end;
   end;
 end;
 
@@ -207,7 +211,14 @@ end;
 function TMongoPool.Acquire(const AHostName, AUserName, APassword, ADBName:
     AnsiString): TMongoPooledRecord;
 begin
-  Result := Acquire(AHostName + '|' + AUserName + '|' + APassword + '|' + ADBName);
+  Result := Acquire(BuildConnectionString(AHostName, AUserName, APassword, ADBName));
+end;
+
+function TMongoPool.BuildConnectionString(const AHostName, AUserName, APassword, ADBName: AnsiString): AnsiString;
+begin
+  Result := AHostName + '|' + AUserName + '|' + APassword;
+  if Trim(ADBName) <> '' then
+    Result := Result + '|' + ADBName;
 end;
 
 function TMongoPool.CreateNewPool(const AConnectionString: AnsiString): Pointer;
@@ -261,7 +272,7 @@ var
   AConnectionString: AnsiString;
 begin
   if AUserName <> '' then
-    AConnectionString := AHostName + '|' + AUserName + '|' + APassword + '|' + ADBName
+    AConnectionString := BuildConnectionString(AHostName, AUserName, APassword, ADBName)
   else
     AConnectionString := AHostName;
   Release(AConnectionString, AMongo);
