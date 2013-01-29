@@ -167,6 +167,7 @@ type
     procedure TestGet_cmd_with_w_equals1;
     procedure TestGet_cmd_with_mode_equals_majority;
     procedure TestGet_cmd_with_jwfsyncwtimeout;
+    procedure TestGet_cmd_with_w_equals2;
     procedure TestSetAndGet_wtimeout;
     procedure TestSetAndGet_mode;
     procedure TestSetAndGet_w;
@@ -1463,7 +1464,7 @@ begin
   fwc.w := 1;
   fwc.finish;
   ACmd := fwc.cmd;
-  CheckEquals(1, ACmd.value('w'));
+  Check(ACmd.find('w') = nil, 'w value should not be included because value = 1 was passed');
 end;
 
 procedure TestWriteConcern.TestGet_cmd_with_mode_equals_majority;
@@ -1480,16 +1481,26 @@ procedure TestWriteConcern.TestGet_cmd_with_jwfsyncwtimeout;
 var
   ACmd : IBson;
 begin
-  fwc.w := 1;
+  fwc.w := 4;
   fwc.fsync := 2;
   fwc.wtimeout := 1000;
   fwc.j := 3;
   fwc.finish;
   ACmd := fwc.cmd;
-  CheckEquals(1, ACmd.value('w'));
+  CheckEquals(4, ACmd.value('w'));
   CheckEquals(2, ACmd.value('fsync'));
   CheckEquals(1000, ACmd.value('wtimeout'));
   CheckEquals(3, ACmd.value('j'));
+end;
+
+procedure TestWriteConcern.TestGet_cmd_with_w_equals2;
+var
+  ACmd : IBson;
+begin
+  fwc.w := 2;
+  fwc.finish;
+  ACmd := fwc.cmd;
+  CheckEquals(2, ACmd.Value('w'), 'w value should equals to 2');
 end;
 
 procedure TestWriteConcern.TestSetAndGet_wtimeout;

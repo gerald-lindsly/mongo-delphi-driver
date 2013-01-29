@@ -9,7 +9,7 @@
 			<ProjectVersion>13.4</ProjectVersion>
 			<Base>True</Base>
 			<Config Condition="'$(Config)'==''">Debug</Config>
-			<Platform Condition="'$(Platform)'==''">Win64</Platform>
+			<Platform Condition="'$(Platform)'==''">Win32</Platform>
 			<TargetedPlatforms>3</TargetedPlatforms>
 			<AppType>Application</AppType>
 		</PropertyGroup>
@@ -187,8 +187,6 @@ $(PreBuildEvent)]]></PreBuildEvent>
 		</PropertyGroup>
 		<PropertyGroup Condition="'$(Cfg_2_Win32)'!=''">
 			<DCC_ExeOutput>X:\Dev\Lib\Suites\MongoClient\mongo-delphi-driver\Tests</DCC_ExeOutput>
-			<PreBuildEvent><![CDATA[copy X:\Dev\Lib\Suites\MongoClient\mongo-c-driver\bin\Win32\Debug_Memory_Protection\MongoC.dll X:\Dev\Lib\Suites\MongoClient\mongo-delphi-driver\Tests\
-$(PreBuildEvent)]]></PreBuildEvent>
 			<DCC_Define>MONGO_MEMORY_PROTECTION;$(DCC_Define)</DCC_Define>
 			<VerInfo_IncludeVerInfo>true</VerInfo_IncludeVerInfo>
 			<DCC_DebugInfoInExe>true</DCC_DebugInfoInExe>
@@ -344,14 +342,6 @@ $(PreBuildEvent)]]></PreBuildEvent>
 			<PostBuildEvent/>
 			<PostBuildEventIgnoreExitCode>False</PostBuildEventIgnoreExitCode>
 		</PropertyGroup>
-		<PropertyGroup Condition="'$(Config)'=='Debug' And '$(Platform)'=='Win32'">
-			<PreBuildEvent>copy X:\Dev\Lib\Suites\MongoClient\mongo-c-driver\bin\Win32\Debug_Memory_Protection\MongoC.dll X:\Dev\Lib\Suites\MongoClient\mongo-delphi-driver\Tests\</PreBuildEvent>
-			<PreBuildEventIgnoreExitCode>False</PreBuildEventIgnoreExitCode>
-			<PreLinkEvent/>
-			<PreLinkEventIgnoreExitCode>False</PreLinkEventIgnoreExitCode>
-			<PostBuildEvent/>
-			<PostBuildEventIgnoreExitCode>False</PostBuildEventIgnoreExitCode>
-		</PropertyGroup>
 		<PropertyGroup Condition="'$(Config)'=='Debug no Overrun' And '$(Platform)'=='Win64'">
 			<PreBuildEvent>copy X:\Dev\Lib\Suites\MongoClient\mongo-c-driver\bin\x64\Debug_Memory_Protection\MongoC.dll X:\Dev\Lib\Suites\MongoClient\mongo-delphi-driver\Tests\</PreBuildEvent>
 			<PreBuildEventIgnoreExitCode>False</PreBuildEventIgnoreExitCode>
@@ -361,7 +351,7 @@ $(PreBuildEvent)]]></PreBuildEvent>
 			<PostBuildEventIgnoreExitCode>False</PostBuildEventIgnoreExitCode>
 		</PropertyGroup>
 		<PropertyGroup Condition="'$(Config)'=='Debug no Overrun' And '$(Platform)'=='Win32'">
-			<PreBuildEvent>\&amp;&amp;copy X:\Dev\Lib\Suites\MongoClient\mongo-c-driver\bin\Win32\Debug_Memory_Protection\MongoC.dll X:\Dev\Lib\Suites\MongoClient\mongo-delphi-driver\Tests\</PreBuildEvent>
+			<PreBuildEvent>\</PreBuildEvent>
 			<PreBuildEventIgnoreExitCode>False</PreBuildEventIgnoreExitCode>
 			<PreLinkEvent/>
 			<PreLinkEventIgnoreExitCode>False</PreLinkEventIgnoreExitCode>
