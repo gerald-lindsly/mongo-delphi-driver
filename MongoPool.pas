@@ -38,7 +38,7 @@ type
     function AcquireFromPool(APool: TList; const AConnectionString: AnsiString): TMongo;
     function CreateNewPool(const AConnectionString: AnsiString): Pointer;
     procedure FreePools;
-    procedure ParseHostUserPwd(const AConnectionString: AnsiString; var AHostName, AUserName, APassword: AnsiString);
+    procedure ParseHostUserPwd(const AConnectionString: AnsiString; var AHostName, AUserName, APassword, AServerName: AnsiString);
   public
     constructor Create;
     destructor Destroy; override;
@@ -47,9 +47,11 @@ type
     function Acquire(const AHostName, AUserName, APassword: AnsiString): TMongoPooledRecord; overload; {$IFDEF DELPHIXE} inline; {$ENDIF}
     function Acquire(const APool: Pointer): TMongo; overload; {$IFDEF DELPHIXE} inline; {$ENDIF}
     procedure Release(const APoolRecord: TMongoPooledRecord); overload; {$IFDEF DELPHIXE} inline; {$ENDIF}
+    function Acquire(const AHostName, AUserName, APassword, ADBName: AnsiString): TMongoPooledRecord; overload;
     procedure Release(APool: Pointer; AMongo: TMongo); overload;
     procedure Release(const AConnectionString: AnsiString; AMongo: TMongo); overload;
     procedure Release(const AHostName, AUserName, APassword: AnsiString; AMongo: TMongo); overload;
+    procedure Release(const AHostName, AUserName, APassword, ADBName: AnsiString; AMongo: TMongo); overload;
   end;
 
 implementation
@@ -136,14 +138,21 @@ var
   AHostName: AnsiString;
   AUserName: AnsiString;
   APassword: AnsiString;
+  ADBName : AnsiString;
+  Passed : boolean;
 begin
   if (APool as TMongoPoolList).Count <= 0 then
   begin
-    ParseHostUserPwd(AConnectionString, AHostName, AUserName, APassword);
+    ParseHostUserPwd(AConnectionString, AHostName, AUserName, APassword, ADBName);
     Result := TMongo.Create(AHostName);
     if AUserName <> '' then
-      if not Result.authenticate(AUserName, APassword) then
-        raise Exception.Create(SFailedAuthenticationToMongoDB);
+      begin
+        if ADBName <> '' then
+          Passed := Result.authenticate(AUserName, APassword, ADBName)
+        else
+          Passed := Result.authenticate(AUserName, APassword);
+        if not Passed then raise Exception.Create(SFailedAuthenticationToMongoDB);
+      end;
   end
   else
   begin
@@ -160,7 +169,8 @@ begin
   end;
 end;
 
-procedure TMongoPool.ParseHostUserPwd(const AConnectionString: AnsiString; var AHostName, AUserName, APassword: AnsiString);
+procedure TMongoPool.ParseHostUserPwd(const AConnectionString: AnsiString; var
+    AHostName, AUserName, APassword, AServerName: AnsiString);
 var
   i: Integer;
 begin
@@ -172,12 +182,16 @@ begin
     i := Pos('|', AUserName);
     APassword := Copy(AUserName, i + 1, Length(AUserName));
     Delete(AUserName, i, Length(AUserName));
+    i := Pos('|', APassword);
+    if (i < Length(APassword)) then
+     AServerName := Copy(APassword, i+1, Length(APassword));
+    Delete(APassword, i, Length(APassword));
   end;
 end;
 
 function TMongoPool.Acquire(const AHostName, AUserName, APassword: AnsiString): TMongoPooledRecord;
 begin
-  Result := Acquire(AHostName + '|' + AUserName + '|' + APassword);
+  Result := Acquire(AHostName, AUserName, APassword, '');
 end;
 
 function TMongoPool.Acquire(const APool: Pointer): TMongo;
@@ -188,6 +202,12 @@ end;
 function TMongoPool.Acquire: TMongoPooledRecord;
 begin
   Result := Acquire(SLOOPBACK);
+end;
+
+function TMongoPool.Acquire(const AHostName, AUserName, APassword, ADBName:
+    AnsiString): TMongoPooledRecord;
+begin
+  Result := Acquire(AHostName + '|' + AUserName + '|' + APassword + '|' + ADBName);
 end;
 
 function TMongoPool.CreateNewPool(const AConnectionString: AnsiString): Pointer;
@@ -231,12 +251,18 @@ begin
 end;
 
 procedure TMongoPool.Release(const AHostName, AUserName, APassword: AnsiString; AMongo: TMongo);
+begin
+  Release(AHostName, AUserName, APassword, '', AMongo);
+end;
+
+procedure TMongoPool.Release(const AHostName, AUserName, APassword, ADBName:
+    AnsiString; AMongo: TMongo);
 var
   AConnectionString: AnsiString;
 begin
   if AUserName <> '' then
-    AConnectionString := AHostName + '|' + AUserName + '|' + APassword
-  else 
+    AConnectionString := AHostName + '|' + AUserName + '|' + APassword + '|' + ADBName
+  else
     AConnectionString := AHostName;
   Release(AConnectionString, AMongo);
 end;
