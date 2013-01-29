@@ -344,6 +344,7 @@ function NewBsonIterator(ABson: IBson): IBsonIterator; overload;
   the document.  User code should not instantiate TBson directly.  Use
   TBsonBuffer and finish() to create BSON documents. }
 function NewBson(AHandle: Pointer): IBson;
+function NewBsonCopy(AHandle: Pointer): IBson;
 
 { Convert a byte to a 2-digit hex string }
 function ByteToHex(InByte: Byte): AnsiString;
@@ -868,8 +869,7 @@ begin
   {$IFDEF MONGO_MEMORY_PROTECTION} CheckValid; {$ENDIF}
   if Handle <> nil then
     begin
-      bson_destroy(Handle);
-      bson_dispose(Handle);
+      bson_dispose_and_destroy(Handle);
       Handle := nil;
     end;
   inherited Destroy;
@@ -1197,8 +1197,7 @@ begin
   {$IFDEF MONGO_MEMORY_PROTECTION} CheckValid; {$ENDIF}
   if FHandle <> nil then
     begin
-      bson_destroy(FHandle);
-      bson_dispose(FHandle);
+      bson_dispose_and_destroy(FHandle);
       FHandle := nil;
     end;
   inherited Destroy();
@@ -1360,7 +1359,7 @@ end;
 
 constructor TBsonCodeWScope.Create(i: IBsonIterator);
 var
-  b, c: Pointer;
+  b : Pointer;
 begin
   inherited Create;
   {$IFDEF OnDemandMongoCLoad}
@@ -1370,9 +1369,7 @@ begin
   b := bson_create();
   try
     bson_iterator_code_scope(i.getHandle, b);
-    c := bson_create();
-    bson_copy(c, b);
-    scope := NewBson(c);
+    scope := NewBsonCopy(b);
   finally
     bson_dispose(b);
   end;
@@ -1710,6 +1707,20 @@ begin
   if absonEmpty = nil then
     absonEmpty := BSON([]);
   Result := absonEmpty;
+end;
+
+function NewBsonCopy(AHandle: Pointer): IBson;
+var
+  b : Pointer;
+begin
+  b := bson_create;
+  try
+    bson_copy(b, AHandle);
+    Result := NewBson(b);
+  except
+    bson_dispose(b);
+    raise;
+  end;
 end;
 
 { Utility functions to create Dynamic Arrays from Open Array parameters }

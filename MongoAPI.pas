@@ -111,10 +111,24 @@ type
   Tmongo_cmd_reset_error = procedure(c : Pointer; db : PAnsiChar); cdecl;
   Tmongo_get_server_err = function (c: Pointer): Integer; cdecl;
   Tmongo_get_server_err_string = function (c: Pointer): PAnsiChar; cdecl;
+  // WriteConcern API
+  Tmongo_write_concern_create = function : Pointer; cdecl;
+  Tmongo_write_concern_free = procedure (write_concern : Pointer); cdecl;
   Tmongo_write_concern_init = procedure(write_concern : pointer); cdecl;
   Tmongo_write_concern_finish = function(write_concern : pointer) : integer; cdecl;
   Tmongo_write_concern_destroy = procedure(write_concern : pointer); cdecl;
   Tmongo_set_write_concern = procedure(conn : pointer; write_concern : pointer); cdecl;
+  Tmongo_write_concern_get_w = function (write_concern : Pointer) : integer; cdecl;
+  Tmongo_write_concern_get_wtimeout = function(write_concern : Pointer) : integer; cdecl;
+  Tmongo_write_concern_get_j = function(write_concern : Pointer) : integer; cdecl;
+  Tmongo_write_concern_get_fsync = function(write_concern : Pointer) : integer; cdecl;
+  Tmongo_write_concern_get_mode = function(write_concern : Pointer) : PAnsiChar; cdecl;
+  Tmongo_write_concern_get_cmd = function(write_concern : Pointer) : Pointer; cdecl;
+  Tmongo_write_concern_set_w = procedure(write_concern : Pointer; w : integer); cdecl;
+  Tmongo_write_concern_set_wtimeout = procedure(write_concern : Pointer; wtimeout : integer); cdecl;
+  Tmongo_write_concern_set_j = procedure(write_concern : Pointer; j : integer); cdecl;
+  Tmongo_write_concern_set_fsync = procedure(write_concern : Pointer; fsync : integer); cdecl;
+  Tmongo_write_concern_set_mode = procedure(write_concern : Pointer; mode : PAnsiChar); cdecl;
   // MongoBSON declarations
   Tbson_free = procedure (b : pointer); cdecl;
   Tbson_init = procedure (b: Pointer); cdecl;
@@ -263,10 +277,24 @@ var
   mongo_cmd_reset_error : Tmongo_cmd_reset_error;
   mongo_get_server_err : Tmongo_get_server_err;
   mongo_get_server_err_string : Tmongo_get_server_err_string;
+  // WriteConcern API
+  mongo_write_concern_create : Tmongo_write_concern_create;
+  mongo_write_concern_free : Tmongo_write_concern_free;
   mongo_write_concern_init : Tmongo_write_concern_init;
   mongo_write_concern_finish : Tmongo_write_concern_finish;
   mongo_write_concern_destroy : Tmongo_write_concern_destroy;
   mongo_set_write_concern : Tmongo_set_write_concern;
+  mongo_write_concern_get_w : Tmongo_write_concern_get_w;
+  mongo_write_concern_get_wtimeout : Tmongo_write_concern_get_wtimeout;
+  mongo_write_concern_get_j : Tmongo_write_concern_get_j;
+  mongo_write_concern_get_fsync : Tmongo_write_concern_get_fsync;
+  mongo_write_concern_get_mode : Tmongo_write_concern_get_mode;
+  mongo_write_concern_get_cmd : Tmongo_write_concern_get_cmd;
+  mongo_write_concern_set_w : Tmongo_write_concern_set_w;
+  mongo_write_concern_set_wtimeout : Tmongo_write_concern_set_wtimeout;
+  mongo_write_concern_set_j : Tmongo_write_concern_set_j;
+  mongo_write_concern_set_fsync : Tmongo_write_concern_set_fsync;
+  mongo_write_concern_set_mode : Tmongo_write_concern_set_mode;
   // MongoBson declarations
   bson_free : Tbson_free;
   bson_init : Tbson_init;
@@ -418,10 +446,24 @@ var
   procedure mongo_cmd_reset_error(c : Pointer; db : PAnsiChar); cdecl; external MongoCDLL;
   function mongo_get_server_err(c: Pointer): Integer; cdecl; external MongoCDLL;
   function mongo_get_server_err_string(c: Pointer): PAnsiChar; cdecl; external MongoCDLL;
+  // WriteConcern API functions
+  function mongo_write_concern_create : Pointer; cdecl; external MongoCDLL;
+  procedure mongo_write_concern_free(write_concern : Pointer); cdecl; external MongoCDLL;
   procedure mongo_write_concern_init(write_concern : pointer); cdecl; external MongoCDLL;
   function mongo_write_concern_finish(write_concern : pointer) : integer; cdecl; external MongoCDLL;
   procedure mongo_write_concern_destroy(write_concern : pointer); cdecl; external MongoCDLL;
   procedure mongo_set_write_concern(conn : pointer; write_concern : pointer); cdecl; external MongoCDLL;
+  function mongo_write_concern_get_w(write_concern : Pointer) : integer; cdecl; external MongoCDLL;
+  function mongo_write_concern_get_wtimeout(write_concern : Pointer) : integer; cdecl; external MongoCDLL;
+  function mongo_write_concern_get_j(write_concern : Pointer) : integer; cdecl; external MongoCDLL;
+  function mongo_write_concern_get_fsync(write_concern : Pointer) : integer; cdecl; external MongoCDLL;
+  function mongo_write_concern_get_mode(write_concern : Pointer) : PAnsiChar; cdecl; external MongoCDLL;
+  function mongo_write_concern_get_cmd(write_concern : Pointer) : Pointer; cdecl; external MongoCDLL;
+  procedure mongo_write_concern_set_w(write_concern : Pointer; w : integer); cdecl; external MongoCDLL;
+  procedure mongo_write_concern_set_wtimeout(write_concern : Pointer; wtimeout : integer); cdecl; external MongoCDLL;
+  procedure mongo_write_concern_set_j(write_concern : Pointer; j : integer); cdecl; external MongoCDLL;
+  procedure mongo_write_concern_set_fsync(write_concern : Pointer; fsync : integer); cdecl; external MongoCDLL;
+  procedure mongo_write_concern_set_mode(write_concern : Pointer; mode : PAnsiChar); cdecl; external MongoCDLL;
   // MongoBson declarations
   procedure bson_free(b : pointer); cdecl; external MongoCDLL;
   procedure bson_init(b: Pointer); cdecl; external MongoCDLL;
@@ -523,6 +565,8 @@ var
 
 {$EndIf}
 
+procedure bson_dispose_and_destroy(bson : Pointer);
+
 implementation
 
 {$IFDEF OnDemandMongoCLoad}
@@ -604,10 +648,24 @@ begin
   mongo_cmd_reset_error := GetProcAddress(HMongoDBDll, 'mongo_cmd_reset_error'); // do not localize
   mongo_get_server_err := GetProcAddress(HMongoDBDll, 'mongo_get_server_err'); // do not localize
   mongo_get_server_err_string := GetProcAddress(HMongoDBDll, 'mongo_get_server_err_string'); // do not localize
+  // WriteConcern API
+  mongo_write_concern_create := GetProcAddress(HMongoDBDll, 'mongo_write_concern_create'); // do not localize
+  mongo_write_concern_free := GetProcAddress(HMongoDBDll, 'mongo_write_concern_free'); // do not localize
   mongo_write_concern_init := GetProcAddress(HMongoDBDll, 'mongo_write_concern_init'); // do not localize
   mongo_write_concern_finish := GetProcAddress(HMongoDBDll, 'mongo_write_concern_finish'); // do not localize
   mongo_write_concern_destroy := GetProcAddress(HMongoDBDll, 'mongo_write_concern_destroy'); // do not localize
   mongo_set_write_concern := GetProcAddress(HMongoDBDll, 'mongo_set_write_concern'); // do not localize
+  mongo_write_concern_get_w := GetProcAddress(HMongoDBDll, 'mongo_write_concern_get_w'); // do not localize
+  mongo_write_concern_get_wtimeout := GetProcAddress(HMongoDBDll, 'mongo_write_concern_get_wtimeout'); // do not localize
+  mongo_write_concern_get_j := GetProcAddress(HMongoDBDll, 'mongo_write_concern_get_j'); // do not localize
+  mongo_write_concern_get_fsync := GetProcAddress(HMongoDBDll, 'mongo_write_concern_get_fsync'); // do not localize
+  mongo_write_concern_get_mode := GetProcAddress(HMongoDBDll, 'mongo_write_concern_get_mode'); // do not localize
+  mongo_write_concern_get_cmd := GetProcAddress(HMongoDBDll, 'mongo_write_concern_get_cmd'); // do not localize
+  mongo_write_concern_set_w := GetProcAddress(HMongoDBDll, 'mongo_write_concern_set_w'); // do not localize
+  mongo_write_concern_set_wtimeout := GetProcAddress(HMongoDBDll, 'mongo_write_concern_set_wtimeout'); // do not localize
+  mongo_write_concern_set_j := GetProcAddress(HMongoDBDll, 'mongo_write_concern_set_j'); // do not localize
+  mongo_write_concern_set_fsync := GetProcAddress(HMongoDBDll, 'mongo_write_concern_set_fsync'); // do not localize
+  mongo_write_concern_set_mode := GetProcAddress(HMongoDBDll, 'mongo_write_concern_set_mode'); // do not localize
   // MongoBson initializations
   bson_free := GetProcAddress(HMongoDBDll, 'bson_free'); // do not localize
   bson_create := GetProcAddress(HMongoDBDll, 'bson_create'); // do not localize
@@ -785,6 +843,12 @@ begin
     raise EMongoFatalError.Create(SDelphiMongoErrorFailedSignatureV);
 end;
 {$ENDIF}
+
+procedure bson_dispose_and_destroy(bson : Pointer);
+begin
+  bson_destroy(bson);
+  bson_dispose(bson);
+end;
 
 initialization
 {$IFNDEF OnDemandMongoCLoad}
