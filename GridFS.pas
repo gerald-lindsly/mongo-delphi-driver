@@ -441,7 +441,7 @@ begin
               gf := TGridfileWriter.Create(Self, gridfile_get_filename(AHandle), True, Meta, GRIDFILE_DEFAULT);
               gridfile_destroy(AHandle);
             finally
-              bson_dispose(meta);
+              bson_dispose(meta); // Dont' call Destroy for this object, data is owned by gridfile
             end;
           end;
         Result := gf;
@@ -622,8 +622,6 @@ end;
 function TGridfile.getMetadata: IBson;
 var
   b: Pointer;
-  res: IBson;
-  h : Pointer;
 begin
   CheckHandle;
   b := bson_create;
@@ -632,19 +630,9 @@ begin
     if bson_size(b) <= 5 then
       Result := nil
     else
-    begin
-      h := bson_create;
-      try
-        res := NewBson(h);
-      except
-        bson_dispose(h);
-        raise;
-      end;
-      bson_copy(res.Handle, b);
-      Result := res;
-    end;
+      Result := NewBsonCopy(b);
   finally
-    bson_dispose(b);
+    bson_dispose(b); // Dont' call Destroy for this object, data is owned by gridfile
   end;
 end;
 
@@ -657,25 +645,15 @@ end;
 function TGridfile.getDescriptor: IBson;
 var
   b : Pointer;
-  res: IBson;
-  h : Pointer;
 begin
   CheckHandle;
   b := bson_create;
   try
     gridfile_get_descriptor(FHandle, b);
-    h := bson_create;
-    try
-      res := NewBson(h);
-    except
-      bson_dispose(h);
-      raise;
-    end;
-    bson_copy(res.Handle, b);
+    Result := NewBsonCopy(b);
   finally
-    bson_dispose(b);
+    bson_dispose(b); // Dont' call Destroy for this object, data is owned by gridfile
   end;
-  Result := res;
 end;
 
 function TGridfile.getChunk(i: Integer): IBson;
@@ -688,7 +666,7 @@ begin
   try
     b := NewBson(h);
   except
-    bson_dispose(h);
+    bson_dispose_and_destroy(h);
     raise;
   end;
   gridfile_get_chunk(FHandle, i, b.Handle);

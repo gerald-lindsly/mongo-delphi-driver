@@ -162,6 +162,7 @@ type
     procedure Testfind;
     procedure TestgetHandle;
     procedure Testiterator;
+    procedure TestNewBsonCopy;
     procedure Testsize;
     procedure TestValue;
   end;
@@ -1139,6 +1140,15 @@ begin
   Check(ReturnValue <> nil, 'Call to get Bson iterator should have returned value <> nil');
   ReturnValue.Next;
   CheckEquals(123, ReturnValue.Value, 'Initial value of iterator is 123');
+end;
+
+procedure TestIBson.TestNewBsonCopy;
+var
+  ACopy : IBson;
+begin
+  ACopy := NewBsonCopy(FIBson.Handle);
+  CheckEquals(123, ACopy.find('ID').value);
+  CheckEqualsString('STR', ACopy.find('S').value);
 end;
 
 procedure TestIBson.Testsize;

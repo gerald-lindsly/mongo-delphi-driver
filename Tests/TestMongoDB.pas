@@ -152,6 +152,26 @@ type
     procedure TestCustomIncrFn;
   end;
 
+type
+  TestWriteConcern = class(TTestCase)
+  private
+    fwc: IWriteConcern;
+  protected
+    procedure SetUp; override;
+    procedure TearDown; override;
+  published
+    procedure TestSetAndGet_j;
+    procedure TestSetAndGet_fsync;
+    procedure TestGet_cmd;
+    procedure TestGet_cmd_check_getlasterror;
+    procedure TestGet_cmd_with_w_equals1;
+    procedure TestGet_cmd_with_mode_equals_majority;
+    procedure TestGet_cmd_with_jwfsyncwtimeout;
+    procedure TestSetAndGet_wtimeout;
+    procedure TestSetAndGet_mode;
+    procedure TestSetAndGet_w;
+  end;
+
 var
   MongoStarted : Boolean;
   FSlaveStarted : Boolean;
@@ -1388,12 +1408,117 @@ begin
   CheckNotEquals(0, CustomIncrFn, 'CustomIncrFn should return a value <> 0');
 end;
 
+procedure TestWriteConcern.SetUp;
+begin
+  inherited;
+  fwc := NewWriteConcern;
+end;
+
+procedure TestWriteConcern.TearDown;
+begin
+  fwc := nil;
+  inherited;
+end;
+
+{ TestWriteConcern }
+
+procedure TestWriteConcern.TestSetAndGet_j;
+begin
+  fwc.j := 101;
+  CheckEquals(101, fwc.j);
+end;
+
+procedure TestWriteConcern.TestSetAndGet_fsync;
+begin
+  fwc.fsync := 101;
+  CheckEquals(101, fwc.fsync);
+end;
+
+procedure TestWriteConcern.TestGet_cmd;
+var
+  ACmd : IBson;
+begin
+  fwc.j := 101;
+  Check(fwc.cmd = nil, 'cmd should be equals to nil');
+  fwc.finish;
+  ACmd := fwc.cmd;
+  Check(ACmd <> nil, 'cmd should be <> nil');
+  CheckEquals(101, ACmd.value('j'));
+end;
+
+procedure TestWriteConcern.TestGet_cmd_check_getlasterror;
+var
+  ACmd : IBson;
+begin
+  fwc.j := 101;
+  fwc.finish;
+  ACmd := fwc.cmd;
+  CheckEquals(1, ACmd.value('getlasterror'));
+end;
+
+procedure TestWriteConcern.TestGet_cmd_with_w_equals1;
+var
+  ACmd : IBson;
+begin
+  fwc.w := 1;
+  fwc.finish;
+  ACmd := fwc.cmd;
+  CheckEquals(1, ACmd.value('w'));
+end;
+
+procedure TestWriteConcern.TestGet_cmd_with_mode_equals_majority;
+var
+  ACmd : IBson;
+begin
+  fwc.mode := 'majority';
+  fwc.finish;
+  ACmd := fwc.cmd;
+  CheckEqualsString('majority', ACmd.value('w'));
+end;
+
+procedure TestWriteConcern.TestGet_cmd_with_jwfsyncwtimeout;
+var
+  ACmd : IBson;
+begin
+  fwc.w := 1;
+  fwc.fsync := 2;
+  fwc.wtimeout := 1000;
+  fwc.j := 3;
+  fwc.finish;
+  ACmd := fwc.cmd;
+  CheckEquals(1, ACmd.value('w'));
+  CheckEquals(2, ACmd.value('fsync'));
+  CheckEquals(1000, ACmd.value('wtimeout'));
+  CheckEquals(3, ACmd.value('j'));
+end;
+
+procedure TestWriteConcern.TestSetAndGet_wtimeout;
+begin
+  fwc.wtimeout := 101;
+  CheckEquals(101, fwc.wtimeout);
+end;
+
+procedure TestWriteConcern.TestSetAndGet_mode;
+begin
+  fwc.mode := 'Hola';
+  CheckEqualsString('Hola', fwc.mode);
+end;
+
+procedure TestWriteConcern.TestSetAndGet_w;
+begin
+  fwc.w := 1;
+  CheckEquals(1, fwc.w);
+  fwc.w := 101;
+  CheckEquals(101, fwc.w);
+end;
+
 initialization
   // Register any test cases with the test runner
   RegisterTest(TestTMongo.Suite);
   RegisterTest(TestTMongoReplset.Suite);
   RegisterTest(TestIMongoCursor.Suite);
   RegisterTest(TestMongoCustomizations.Suite);
+  RegisterTest(TestWriteConcern.Suite);
 finalization
   if MongoStarted then
     ShutDownMongoDB;
