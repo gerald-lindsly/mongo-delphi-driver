@@ -90,6 +90,8 @@ type
     procedure TestauthenticateFail;
     procedure TestcommandWithBson;
     procedure TestcommandWithArgs;
+    procedure TestFindAndModifyBasic;
+    procedure TestFindAndModifyExtended;
     procedure TestgetLastErr;
     procedure TestgetPrevErr;
     procedure TestresetErr;
@@ -895,6 +897,48 @@ begin
   ReturnValue := FMongo.command(db, cmdstr, arg);
   Check(ReturnValue <> nil, 'Call to Mongo.command should return <> nil');
   CheckEquals(True, ReturnValue.Value('ismaster'), 'ismaster should be equals to True');
+end;
+
+procedure TestTMongo.TestFindAndModifyBasic;
+var
+  Res : IBson;
+  ResultBson : IBsonIterator;
+begin
+  Res := FMongo.findAndModify('test_db.test_col', ['key', 0], [], ['key', 11, 'str', 'string'], [], [tfamoNew, tfamoUpsert]);
+  Check(Res <> nil, 'Result from call to findAndModify should be <> nil');
+  ResultBson := Res.find('value').subiterator;
+  Check(ResultBson <> nil, 'subiterator should be <> nil');
+  Check(ResultBson.next, 'Call to iterator.next should return True');
+  CheckNotEqualsString('', ResultBson.getOID.asString);
+  Check(ResultBson.next, 'Call to iterator.next should return True');
+  CheckEquals(11, ResultBson.value);
+  Check(ResultBson.next, 'Call to iterator.next should return True');
+  CheckEqualsString('string', ResultBson.value);
+end;
+
+procedure TestTMongo.TestFindAndModifyExtended;
+var
+  Res : IBson;
+  ResultBson : IBsonIterator;
+begin
+  Res := FMongo.findAndModify('test_db.test_col', ['key', 0], [], ['key', 11, 'str', 'string', 'str_2', 'string_2'], [], [tfamoNew, tfamoUpsert]);
+  Check(Res <> nil, 'Result from call to findAndModify should be <> nil');
+  Res := FMongo.findAndModify('test_db.test_col',
+                              ['key', 11],
+                              ['key', 1],
+                              ['$inc', '{', 'key', 1, '}',
+                               '$set', '{', 'str', 'newstr', '}'],
+                              ['key', 'str'], [tfamoNew]);
+  Check(Res <> nil, 'Result from call to findAndModify should be <> nil');
+  ResultBson := Res.find('value').subiterator;
+  Check(ResultBson <> nil, 'subiterator should be <> nil');
+  Check(ResultBson.next, 'Call to iterator.next should return True');
+  CheckNotEqualsString('', ResultBson.getOID.asString);
+  Check(ResultBson.next, 'Call to iterator.next should return True');
+  CheckEquals(12, ResultBson.value);
+  Check(ResultBson.next, 'Call to iterator.next should return True');
+  CheckEqualsString('newstr', ResultBson.value);
+  Check(not ResultBson.next, 'Call to iterator.next should return false, no more fields returned');
 end;
 
 procedure TestTMongo.TestgetLastErr;

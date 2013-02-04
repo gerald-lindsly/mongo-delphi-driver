@@ -37,6 +37,7 @@ type
   TDoubleArray  = array of Double;
   TBooleanArray = array of Boolean;
   TStringArray  = array of AnsiString;
+  TVarRecArray = array of TVarRec;
   {$IFNDEF DELPHI2007}
   PByte = ^Byte;
   {$ENDIF}
@@ -188,6 +189,12 @@ type
     function startArray(Name: PAnsiChar): Boolean;
     { Indicate that a subobject or array is done. }
     function finishObject: Boolean;
+    { Appends elements defined as an array of TVarRec }
+    function appendElementsAsArray(const def : TVarRecArray): boolean; overload;
+    { Appends elements defined as an array of const }
+    function appendElementsAsArray(const def: array of const): boolean; overload;
+    { Appends an object defined as an array of TVarRec }
+    function appendObjectAsArray(ObjectName : PAnsiChar; const def : TVarRecArray): boolean;
     { Return the current size of the BSON document you are building }
     function size: Integer;
     { Call this when finished appending fields to the buffer to turn it into
@@ -280,6 +287,7 @@ function MkIntArray(const Arr : array of Integer): TIntegerArray;
 function MkDoubleArray(const Arr : array of Double): TDoubleArray;
 function MkBoolArray(const Arr : array of Boolean): TBooleanArray;
 function MkStrArray(const Arr : array of AnsiString): TStringArray;
+function MkVarRecArray(const Arr : array of const): TVarRecArray;
 
 (* The idea for this shorthand way to build a BSON
    document from an array of variants came from Stijn Sanders
@@ -361,6 +369,9 @@ uses
   SysUtils, Variants, Windows, MongoDB;
 
 resourcestring
+  SDefMustContainAnEvenAmountOfElements = 'def must contain an even amount of elements and a minimum of two';
+  SDatatypeNotSupportedToBuildBSON = 'Datatype not supported to build BSON definition';
+  SExpectedDefElementShouldBeAString = 'Expected def element should be a string';
 // START resource string wizard section
   SIteratorHandleIsNil = 'Iterator Handle is nil';
   STBsonHandleIsNil = 'TBson handle is nil';
@@ -425,7 +436,10 @@ type
   TBsonIterator = class(TMongoInterfacedObject, IBsonIterator)
   private
     Handle: Pointer;
+    FIteratorAtEnd : Boolean;
+    procedure CheckIteratorAtEnd(const AFnName: String);
     procedure checkValidHandle;
+    procedure ErrorIteratorAtEnd(const AFnName: String);
     function getAsInt64: Int64;
     procedure iterateAndFillArray(i: IBsonIterator; var Result; var j: Integer;
         BSonType: TBsonType);
@@ -539,8 +553,12 @@ type
     function finishObject: Boolean;
     function size: Integer;
     function finish: IBson;
+    function appendObjectAsArray(ObjectNAme: PAnsiChar; const def: TVarRecArray):
+        boolean;
+    function appendElementsAsArray(const def : TVarRecArray): boolean; overload;
     destructor Destroy; override;
     function appendCode_n(Name, Value: PAnsiChar; Len: Cardinal): Boolean;
+    function appendElementsAsArray(const def: array of const): boolean; overload;
     function appendStr_n(Name, Value: PAnsiChar; Len: Cardinal): Boolean;
     function appendSymbol_n(Name, Value: PAnsiChar; Len: Cardinal): Boolean;
   end;
@@ -662,6 +680,12 @@ begin
   inherited;
 end;
 
+procedure TBsonIterator.CheckIteratorAtEnd(const AFnName: String);
+begin
+  if FIteratorAtEnd then
+    ErrorIteratorAtEnd(AFnName);
+end;
+
 procedure TBsonIterator.checkValidHandle;
 begin
   {$IFDEF MONGO_MEMORY_PROTECTION} CheckValid; {$ENDIF}
@@ -669,27 +693,37 @@ begin
     raise EMongo.Create(SIteratorHandleIsNil);
 end;
 
+procedure TBsonIterator.ErrorIteratorAtEnd(const AFnName: String);
+begin
+  raise EMongo.CreateFmt('Error calling %s. Iterator at end', [AFnName]);
+end;
+
 function TBsonIterator.getAsInt64: Int64;
 begin
   checkValidHandle;
+  CheckIteratorAtEnd('getAsInt64');
   Result := bson_iterator_long(Handle);
 end;
 
 function TBsonIterator.kind: TBsonType;
 begin
   checkValidHandle;
+  CheckIteratorAtEnd('kind');
   Result := bson_iterator_type(Handle);
 end;
 
 function TBsonIterator.next: Boolean;
 begin
   checkValidHandle;
+  CheckIteratorAtEnd('next');
   Result := bson_iterator_next(Handle) <> bsonEOO;
+  FIteratorAtEnd := not Result;
 end;
 
 function TBsonIterator.key: AnsiString;
 begin
   checkValidHandle;
+  CheckIteratorAtEnd('key');
   Result := AnsiString(bson_iterator_key(Handle));
 end;
 
@@ -699,6 +733,7 @@ var
   d: TDateTime;
 begin
   checkValidHandle;
+  CheckIteratorAtEnd('value');
   k := kind();
   case k of
     bsonEOO, bsonNULL:
@@ -730,30 +765,35 @@ end;
 function TBsonIterator.getOID: IBsonOID;
 begin
   checkValidHandle;
+  CheckIteratorAtEnd('getOID');
   Result := NewBsonOID(Self);
 end;
 
 function TBsonIterator.getCodeWScope: IBsonCodeWScope;
 begin
   checkValidHandle;
+  CheckIteratorAtEnd('getCodeWScope');
   Result := NewBsonCodeWScope(Self);
 end;
 
 function TBsonIterator.getRegex: IBsonRegex;
 begin
   checkValidHandle;
+  CheckIteratorAtEnd('getRegex');
   Result := NewBsonRegex(Self);
 end;
 
 function TBsonIterator.getTimestamp: IBsonTimestamp;
 begin
   checkValidHandle;
+  CheckIteratorAtEnd('getTimestamp');
   Result := NewBsonTimestamp(Self);
 end;
 
 function TBsonIterator.getBinary: IBsonBinary;
 begin
   checkValidHandle;
+  CheckIteratorAtEnd('getBinary');
   Result := NewBsonBinary(Self);
 end;
 
@@ -762,6 +802,7 @@ var
   i: IBsonIterator;
 begin
   checkValidHandle;
+  CheckIteratorAtEnd('subiterator');
   i := NewBsonIterator;
   bson_iterator_subiterator(Handle, i.getHandle);
   Result := i;
@@ -773,6 +814,7 @@ var
   j, Count: Integer;
 begin
   checkValidHandle;
+  CheckIteratorAtEnd('getIntegerArray');
   prepareArrayIterator(i, j, count, bsonINT, AnsiString(SArrayComponentIsNotAnInteger));
   SetLength(Result, Count);
   iterateAndFillArray(i, Result, j, bsonINT);
@@ -784,6 +826,7 @@ var
   j, Count: Integer;
 begin
   checkValidHandle;
+  CheckIteratorAtEnd('getDoubleArray');
   prepareArrayIterator(i, j, count, bsonDOUBLE, AnsiString(SArrayComponentIsNotADouble));
   SetLength(Result, Count);
   iterateAndFillArray(i, Result, j, bsonDOUBLE);
@@ -795,6 +838,7 @@ var
   j, Count: Integer;
 begin
   checkValidHandle;
+  CheckIteratorAtEnd('getStringArray');
   prepareArrayIterator(i, j, count, bsonSTRING, AnsiString(SArrayComponentIsNotAString));
   SetLength(Result, Count);
   iterateAndFillArray(i, Result, j, bsonSTRING);
@@ -806,6 +850,7 @@ var
   j, Count: Integer;
 begin
   checkValidHandle;
+  CheckIteratorAtEnd('getBooleanArray');
   prepareArrayIterator(i, j, count, bsonBOOL, AnsiString(SArrayComponentIsNotABoolean));
   SetLength(Result, Count);
   iterateAndFillArray(i, Result, j, bsonBOOL);
@@ -990,7 +1035,7 @@ begin
   case VarType(Value) of
     varNull:
       Result := appendNull(Name);
-    varByte, varInteger:
+    varByte, varInteger, varSmallint {$IFDEF DELPHI2007}, varWord, varShortInt {$ENDIF}:
       Result := append(Name, Integer(Value));
     varSingle, varDouble, varCurrency:
       begin
@@ -1000,7 +1045,7 @@ begin
     varDate:
       Result := appendDate(Name, TDateTime(Value));
     {$IFDEF DELPHI2007}
-    varInt64:
+    varInt64, varLongWord:
       begin
         {$IFDEF DELPHI2009}
         Result := append(Name, Int64(Value));
@@ -1014,6 +1059,7 @@ begin
       Result := append(Name, Boolean(Value));
     varString, varOleStr {$IFDEF DELPHI2009}, varUString {$ENDIF}:
       Result := appendStr(Name, PAnsiChar(AnsiString(Value)));
+    varVariant : Result := appendVariant(Name, Value);
     else
       raise Exception.Create(STBsonAppendVariantTypeNotSupport +
         IntToStr(VarType(Value)) + ')');
@@ -1122,6 +1168,82 @@ function TBsonBuffer.appendCode_n(Name, Value: PAnsiChar; Len: Cardinal):
 begin
   checkBsonBuffer;
   Result := (bson_append_code_n(Handle, Name, Value, Len) = 0);
+end;
+
+function TBsonBuffer.appendElementsAsArray(const def : TVarRecArray): boolean;
+var
+  Fld : AnsiString;
+  i : integer;
+  function AppendString(const Val : Variant) : Boolean;
+  begin
+    if Val = '{' then
+      Result := startObject(PAnsiChar(Fld))
+    else Result := appendVariant(PAnsiChar(Fld), Val);
+  end;
+begin
+  Result := True;
+  if length(def) < 2 then
+    raise EMongo.Create(SDefMustContainAnEvenAmountOfElements);
+  i := low(def);
+  while i <= High(def) do
+    begin
+      if not Result then
+        break;
+      case def[i].VType of
+        vtAnsiString    : Fld := AnsiString(def[i].VAnsiString);
+        vtWideString    : Fld := AnsiString(WideString(def[i].VWideString));
+        vtString        : Fld := def[i].VString^;
+        vtChar          : Fld := def[i].VChar;
+        vtWideChar      : Fld := AnsiChar(def[i].VWideChar);
+        vtPChar         : Fld := AnsiString(def[i].VPChar);
+        vtPWideChar     : Fld := AnsiString(def[i].VPWideChar);
+        {$IFDEF DELPHI2009}
+        vtUnicodeString : Fld := AnsiString(UnicodeString(def[i].VUnicodeString));
+        {$ENDIF}
+        else raise EMongo.Create(SExpectedDefElementShouldBeAString);
+      end;
+      if Fld = '}' then
+        Result := finishObject
+      else
+      begin
+        inc(i);
+        case def[i].VType of
+          vtInteger    : Result := append(PAnsiChar(Fld), def[i].VInteger);
+          vtBoolean    : Result := append(PAnsiChar(Fld), def[i].VBoolean);
+          vtChar       : Result := AppendString(def[i].VChar);
+          vtExtended   : Result := append(PAnsiChar(Fld), def[i].VExtended^);
+          vtPChar      : Result := AppendString(AnsiString(PAnsiChar(def[i].VPChar)));
+          vtWideChar   : Result := AppendString(WideString(def[i].VWideChar));
+          vtPWideChar  : Result := AppendString(WideString(def[i].VPWideChar));
+          vtAnsiString : Result := AppendString(AnsiString(def[i].VAnsiString));
+          vtString     : Result := AppendString(def[i].VString^);
+          vtCurrency   : Result := append(PAnsiChar(Fld), def[i].VCurrency^);
+          vtVariant    : Result := appendVariant(PAnsiChar(Fld), def[i].VVariant^);
+          vtWideString : Result := AppendString(WideString(def[i].VWideString));
+          vtInt64      : Result := append(PAnsiChar(Fld), def[i].VInt64^);
+          {$IFDEF DELPHI2009}
+          vtUnicodeString : AppendString(UnicodeString(def[i].VUnicodeString));
+          {$ENDIF}
+          else raise EMongo.Create(SDatatypeNotSupportedToBuildBSON);
+        end;
+      end;
+      inc(i);
+    end;
+end;
+
+function TBsonBuffer.appendElementsAsArray(const def: array of const): boolean;
+begin
+  Result := appendElementsAsArray(MkVarRecArray(def));
+end;
+
+function TBsonBuffer.appendObjectAsArray(ObjectNAme: PAnsiChar; const def:
+    TVarRecArray): boolean;
+begin
+  Result := startObject(ObjectName);
+  if Result then
+    Result := appendElementsAsArray(def);
+  if Result then
+    Result := finishObject;
 end;
 
 function TBsonBuffer.appendStr_n(Name, Value: PAnsiChar; Len: Cardinal):
@@ -1724,6 +1846,9 @@ begin
 end;
 
 { Utility functions to create Dynamic Arrays from Open Array parameters }
+
+function MkVarRecArray(const Arr : array of const): TVarRecArray;
+{$i MongoBsonArrayBuilder.inc}
 
 function MkIntArray(const Arr : array of Integer): TIntegerArray;
 {$i MongoBsonArrayBuilder.inc}

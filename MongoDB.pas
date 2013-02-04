@@ -56,6 +56,8 @@ const
   cursorPartial = 128;
 
 type
+  TFindAndModifyOptions = (tfamoNew, tfamoUpsert, tfamoRemove);
+  TFindAndModifyOptionsSet = set of TFindAndModifyOptions;
   IMongoCursor = interface;
   IWriteConcern = interface;
 
@@ -312,6 +314,12 @@ type
       { Destroy this TMongo object.  Severs the connection to the server and releases
         external resources. }
     destructor Destroy; override;
+    function findAndModify(const ns: AnsiString; const query, sort, update: array
+        of const; const fields: array of AnsiString; options:
+        TFindAndModifyOptionsSet): IBson; overload;
+    function findAndModify(const ns: AnsiString; const query, sort, update:
+        TVarRecArray; const fields: TStringArray; options:
+        TFindAndModifyOptionsSet): IBson; overload;
       { Create an index for the given collection so that accesses by the given
         key are faster.
         The collection namespace (ns) is in the form 'database.collection'.
@@ -455,6 +463,14 @@ uses
 
 // START resource string wizard section
 const
+  SFindAndModifyCommand = 'findAndModify';
+  FindAndModifyOption_SQuery = 'query';
+  FindAndModifyOption_SSort = 'sort';
+  FindAndModifyOption_SUpdate = 'update';
+  FindAndModifyOption_SFields = 'fields';
+  FindAndModifyOption_SNew = 'new';
+  FindAndModifyOption_SUpsert = 'upsert';
+  FindAndModifyOption_SRemove = 'remove';
   S27017 = ':27017';
   MongoCDLL = 'mongoc.dll';
   S127001 = '127.0.0.1';
@@ -473,8 +489,10 @@ const
   SReseterror = 'reseterror';
   // END resource string wizard section
 
-  // START resource string wizard section
+// START resource string wizard section
 resourcestring
+  SAQueryMustBeProvidedWithAMinimum = 'A query must be provided with a minimum of two elements on it';
+  SIfTfamoRemoveIsNotPassedInTheOpt = 'if tfamoRemove is not passed in the options, then update parameter must have at least two elements';
   SMongoHandleIsNil = 'Mongo handle is nil';
   SCanTUseAnUnfinishedWriteConcern = 'Can''t use an unfinished WriteConcern';
   {$IFDEF OnDemandMongoCLoad}
@@ -664,7 +682,7 @@ begin
   Ret := mongo_replica_set_client(Handle);
   if Ret <> 0 then
     Err := getErr
-  else 
+  else
     Err := 0;
   Result := (Ret = 0) and (Err = 0);
 end;
@@ -1073,7 +1091,7 @@ begin
     Exit;
   if ANeedsParsing then
     parseNamespace(ns, db, collection)
-  else 
+  else
     db := ns;
   Err := cmdGetLastError(db);
   if Err <> nil then
@@ -1094,7 +1112,7 @@ begin
     Exit;
   if ANeedsParsing then
     parseNamespace(ns, db, collection)
-  else 
+  else
     db := ns;
   cmdResetLastError(db);
 end;
@@ -1171,7 +1189,7 @@ begin
     bson_dispose_and_destroy(h);
     Result := nil;
   end
-  else 
+  else
     Result := NewBson(h);
 end;
 
@@ -1179,6 +1197,51 @@ procedure TMongo.cmdResetLastError(const db: AnsiString);
 begin
   CheckHandle;
   mongo_cmd_reset_error(fHandle, PAnsiChar(db));
+end;
+
+function TMongo.findAndModify(const ns: AnsiString; const query, sort, update:
+    array of const; const fields: array of AnsiString; options:
+    TFindAndModifyOptionsSet): IBson;
+begin
+  Result := findAndModify(ns, MkVarRecArray(query), MkVarRecArray(sort), MkVarRecArray(update), MkStrArray(fields), options);
+end;
+
+function TMongo.findAndModify(const ns: AnsiString; const query, sort, update:
+    TVarRecArray; const fields: TStringArray; options:
+    TFindAndModifyOptionsSet): IBson;
+var
+  db, col : AnsiString;
+  cmd : IBsonBuffer;
+  i : integer;
+begin
+  parseNamespace(ns, db, col);
+  cmd := NewBsonBuffer;
+  cmd.appendStr(SFindAndModifyCommand, PAnsiChar(ns));
+  if length(query) < 2 then
+    raise EMongo.Create(SAQueryMustBeProvidedWithAMinimum);
+  if (not (tfamoRemove in options)) and (length(update) < 2) then
+    raise EMongo.Create(SIfTfamoRemoveIsNotPassedInTheOpt);
+  cmd.appendObjectAsArray(FindAndModifyOption_SQuery, query);
+  if length(sort) > 0 then
+    cmd.appendObjectAsArray(FindAndModifyOption_SSort, sort);
+  if length(update) > 0 then
+    cmd.appendObjectAsArray(FindAndModifyOption_SUpdate, update);
+  if length(fields) > 0 then
+    begin
+      cmd.startObject(FindAndModifyOption_SFields);
+      for I := Low(fields) to High(fields) do
+        cmd.append(PAnsiChar(fields[i]), True);
+      cmd.finishObject;
+    end;
+  if tfamoNew in options then
+    cmd.append(FindAndModifyOption_SNew, True);
+  if tfamoUpsert in options then
+    cmd.append(FindAndModifyOption_SUpsert, True);
+  if tfamoRemove in options then
+    cmd.append(FindAndModifyOption_SRemove, True);
+  autoCmdResetLastError(ns, true);
+  Result := command(db, cmd.finish);
+  autoCheckCmdLastError(ns, true);
 end;
 
 function TMongo.getPrevErr(const db: AnsiString): IBson;
@@ -1286,9 +1349,9 @@ begin
   if AWriteConcern <> nil then
     if AWriteConcern.finished then
       mongo_set_write_concern(FHandle, AWriteConcern.Handle)
-    else 
+    else
       raise EMongo.Create(SCanTUseAnUnfinishedWriteConcern)
-  else 
+  else
     mongo_set_write_concern(FHandle, nil);
   FWriteConcern := AWriteConcern;
 end;
@@ -1549,7 +1612,7 @@ begin
   {$IFDEF MONGO_MEMORY_PROTECTION} CheckValid; {$ENDIF}
   if mongo_write_concern_get_mode(FWriteConcern) <> nil then
     Result := AnsiString(mongo_write_concern_get_mode(FWriteConcern))
-  else 
+  else
     Result := '';
 end;
 
@@ -1608,3 +1671,4 @@ begin
 end;
 
 end.
+
