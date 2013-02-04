@@ -98,6 +98,8 @@ type
     procedure TestgetServerErr;
     procedure TestgetServerErrString;
     procedure TestFourThreads;
+    procedure TestgetLoginDatabaseName_Default;
+    procedure TestgetLoginDatabaseName_Defined;
     procedure TestindexCreateUsingBsonKeyAndNameAndOptions;
     procedure TestUseWriteConcern;
     procedure TestTryToUseUnfinishedWriteConcern;
@@ -810,6 +812,20 @@ begin
   RemoveTest_user;
 end;
 
+procedure TestTMongo.TestgetLoginDatabaseName_Default;
+var
+  ReturnValue: Boolean;
+  password: AnsiString;
+  Name: AnsiString;
+begin
+  Name := 'test_user';
+  password := 'test_password';
+  ReturnValue := FMongo.addUser(Name, password);
+  ReturnValue := FMongo.authenticate(Name, password);
+  CheckEquals('admin', FMongo.getLoginDatabaseName, 'Default database name is "admin" when it is not specified');
+  RemoveTest_user;
+end;
+
 procedure TestTMongo.TestaddUserWithDBParam;
 var
   ReturnValue: Boolean;
@@ -1006,6 +1022,22 @@ begin
     for I := low(ts) to high(ts) do
       ts[i].Free;
   end;
+end;
+
+procedure TestTMongo.TestgetLoginDatabaseName_Defined;
+var
+  ReturnValue: Boolean;
+  password: AnsiString;
+  Name: AnsiString;
+  db : AnsiString;
+begin
+  Name := 'test_user';
+  password := 'test_password';
+  db := 'test_database';
+  ReturnValue := FMongo.addUser(Name, password, db);
+  ReturnValue := FMongo.authenticate(Name, password, db);
+  CheckEquals(db, FMongo.getLoginDatabaseName);
+  RemoveTest_user;
 end;
 
 procedure TestTMongo.TestindexCreateUsingBsonKeyAndNameAndOptions;
