@@ -68,6 +68,7 @@ type
   TMongo = class(TMongoObject)
   private
     FAutoCheckLastError: Boolean;
+    FLoginDatabaseName: AnsiString;
     FWriteConcern: IWriteConcern;
     procedure CheckHandle;
     class procedure InitCustomBsonOIDFns;
@@ -320,6 +321,7 @@ type
     function findAndModify(const ns: AnsiString; const query, sort, update:
         TVarRecArray; const fields: TStringArray; options:
         TFindAndModifyOptionsSet): IBson; overload;
+    function getLoginDatabaseName: AnsiString;
       { Create an index for the given collection so that accesses by the given
         key are faster.
         The collection namespace (ns) is in the form 'database.collection'.
@@ -1070,6 +1072,7 @@ end;
 function TMongo.authenticate(const Name, password, db: AnsiString): Boolean;
 begin
   CheckHandle;
+  FLoginDatabaseName := db;
   Result := mongo_cmd_authenticate(fhandle, PAnsiChar(db), PAnsiChar(Name), PAnsiChar(password)) = 0;
 end;
 
@@ -1242,6 +1245,11 @@ begin
   autoCmdResetLastError(ns, true);
   Result := command(db, cmd.finish);
   autoCheckCmdLastError(ns, true);
+end;
+
+function TMongo.getLoginDatabaseName: AnsiString;
+begin
+  Result := FLoginDatabaseName;
 end;
 
 function TMongo.getPrevErr(const db: AnsiString): IBson;
