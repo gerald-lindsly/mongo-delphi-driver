@@ -1073,7 +1073,9 @@ function TMongo.authenticate(const Name, password, db: AnsiString): Boolean;
 begin
   CheckHandle;
   FLoginDatabaseName := db;
-  Result := mongo_cmd_authenticate(fhandle, PAnsiChar(db), PAnsiChar(Name), PAnsiChar(password)) = 0;
+  if Trim(Name) <> '' then
+    Result := mongo_cmd_authenticate(fhandle, PAnsiChar(db), PAnsiChar(Name), PAnsiChar(password)) = 0
+  else result := True;
 end;
 
 function TMongo.authenticate(const Name, password: AnsiString): Boolean;

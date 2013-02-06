@@ -143,31 +143,26 @@ var
   Passed : boolean;
 begin
   if (APool as TMongoPoolList).Count <= 0 then
-  begin
-    ParseHostUserPwd(AConnectionString, AHostName, AUserName, APassword, ADBName);
-    Result := TMongo.Create(AHostName);
-    if AUserName <> '' then
-      begin
-        if ADBName <> '' then
-          Passed := Result.authenticate(AUserName, APassword, ADBName)
-        else
-          Passed := Result.authenticate(AUserName, APassword);
-        if not Passed then raise Exception.Create(SFailedAuthenticationToMongoDB);
-      end;
-  end
-  else
-  begin
-    with APool as TMongoPoolList do
     begin
-      Lock;
-      try
-        Result := Items[APool.Count - 1];
-        Delete(Count - 1);
-      finally
-        Unlock;
+      ParseHostUserPwd(AConnectionString, AHostName, AUserName, APassword, ADBName);
+      Result := TMongo.Create(AHostName);
+      if ADBName <> '' then
+        Passed := Result.authenticate(AUserName, APassword, ADBName)
+      else
+        Passed := Result.authenticate(AUserName, APassword);
+      if not Passed then raise Exception.Create(SFailedAuthenticationToMongoDB);
+    end
+  else
+    with APool as TMongoPoolList do
+      begin
+        Lock;
+        try
+          Result := Items[APool.Count - 1];
+          Delete(Count - 1);
+        finally
+          Unlock;
+        end;
       end;
-    end;
-  end;
 end;
 
 procedure TMongoPool.ParseHostUserPwd(const AConnectionString: AnsiString; var
