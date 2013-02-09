@@ -11,6 +11,9 @@ const
   MongoCDLL = 'mongoc.dll';
 
 type
+  {$IFNDEF DELPHI2007}
+  UTF8String = AnsiString;
+  {$ENDIF}
   EMongoFatalError = class(Exception);
 
   { A value of TBsonType indicates the type of the data associated
@@ -589,7 +592,7 @@ end;
 
 {$IFDEF OnDemandMongoCLoad}
 procedure InitMongoDBLibrary;
-  function GetProcAddress(h : HMODULE; const FnName : AnsiString) : Pointer;
+  function GetProcAddress(h : HMODULE; const FnName : UTF8String) : Pointer;
   begin
     Result := Windows.GetProcAddress(h, PAnsiChar(FnName));
     if Result = nil then
