@@ -49,8 +49,8 @@ type
         { Holds a reference to the TMongo object used in construction.
           Prevents release until the TGridFS is destroyed. }
     conn: TMongo;
-    fdb : AnsiString;
-    FPrefix: AnsiString;
+    fdb : UTF8String;
+    FPrefix: UTF8String;
     procedure CheckHandle;
     procedure setAutoCheckLastError(value : Boolean);
     function getAutoCheckLastError : Boolean;
@@ -61,53 +61,53 @@ type
         Parameter mongo is an already established connection object to the
         server; db is the name of the database in which to construct the GridFS.
         The prefix defaults to 'fs'.}
-    constructor Create(mongo: TMongo; const db: AnsiString); overload;
+    constructor Create(mongo: TMongo; const db: UTF8String); overload;
       { Create a TGridFS object for accessing the GridFS on the MongoDB server.
         Parameter mongo is an already established connection object to the
         server; db is the name of the database in which to construct the GridFS.
         prefix is appended to the database name for the collections that represent
         the GridFS: 'db.prefix.files' & 'db.prefix.chunks'. }
-    constructor Create(mongo: TMongo; const db, prefix: AnsiString); overload;
+    constructor Create(mongo: TMongo; const db, prefix: UTF8String); overload;
       { Store a file on the GridFS.  filename is the path to the file.
         Returns True if successful; otherwise, False. }
-    function storeFile(const FileName: AnsiString; Flags: Integer =
+    function storeFile(const FileName: UTF8String; Flags: Integer =
         GRIDFILE_DEFAULT): Boolean; overload;
       { Store a file on the GridFS.  filename is the path to the file.
         remoteName is the name that the file will be known as within the GridFS.
         Returns True if successful; otherwise, False. }
-    function storeFile(const FileName, remoteName: AnsiString; Flags: Integer =
+    function storeFile(const FileName, remoteName: UTF8String; Flags: Integer =
         GRIDFILE_DEFAULT): Boolean; overload;
       { Store a file on the GridFS.  filename is the path to the file.
         remoteName is the name that the file will be known as within the GridFS.
         contentType is the MIME-type content type of the file.
         Returns True if successful; otherwise, False. }
-    function storeFile(const FileName, remoteName, contentType: AnsiString; Flags:
+    function storeFile(const FileName, remoteName, contentType: UTF8String; Flags:
         Integer = GRIDFILE_DEFAULT): Boolean; overload;
     { Remove a file from the GridFS. }
-    procedure removeFile(const remoteName: AnsiString);
+    procedure removeFile(const remoteName: UTF8String);
       { Store data as a GridFS file.  Pointer is the address of the data and length
         is its size. remoteName is the name that the file will be known as within the GridFS.
         Returns True if successful; otherwise, False. }
-    function store(p: Pointer; Length: Int64; const remoteName: AnsiString; Flags:
+    function store(p: Pointer; Length: Int64; const remoteName: UTF8String; Flags:
         Integer = GRIDFILE_DEFAULT): Boolean; overload;
       { Store data as a GridFS file.  Pointer is the address of the data and length
         is its size. remoteName is the name that the file will be known as within the GridFS.
         contentType is the MIME-type content type of the file.
         Returns True if successful; otherwise, False. }
     function store(p: Pointer; Length: Int64; const remoteName, contentType:
-        AnsiString; Flags: Integer = GRIDFILE_DEFAULT): Boolean; overload;
+        UTF8String; Flags: Integer = GRIDFILE_DEFAULT): Boolean; overload;
       { Create a TGridfileWriter object for writing buffered data to a GridFS file.
         remoteName is the name that the file will be known as within the GridFS. }
-    function writerCreate(const remoteName: AnsiString; Flags: Integer =
+    function writerCreate(const remoteName: UTF8String; Flags: Integer =
         GRIDFILE_DEFAULT): IGridfileWriter; overload;
       { Create a TGridfileWriter object for writing buffered data to a GridFS file.
         remoteName is the name that the file will be known as within the GridFS.
         contentType is the MIME-type content type of the file. }
-    function writerCreate(const remoteName, contentType: AnsiString; Flags: Integer
+    function writerCreate(const remoteName, contentType: UTF8String; Flags: Integer
         = GRIDFILE_DEFAULT): IGridfileWriter; overload;
       { Locate a GridFS file by its remoteName and return a TGridfile object for
         accessing it. }
-    function find(const remoteName: AnsiString; AWriteMode: Boolean): IGridfile;
+    function find(const remoteName: UTF8String; AWriteMode: Boolean): IGridfile;
         overload;
       { Locate a GridFS file by an TBson query document on the GridFS file descriptors.
         Returns a TGridfile object for accessing it. }
@@ -139,15 +139,15 @@ type
     { Get the size of the chunks into which the file is divided. }
     function getChunkSize: Integer;
     { Get the content type of this gridfile. }
-    function getContentType: AnsiString;
+    function getContentType: UTF8String;
     { Get the descriptor of this gridfile as a TBson document. }
     function getDescriptor: IBson;
     { Get the filename (remoteName) of this gridfile. }
-    function getFilename: AnsiString;
+    function getFilename: UTF8String;
     { Get the length of this gridfile. }
     function getLength: Int64;
     { Get the MD5 hash of this gridfile.  This is a 16-digit hex string. }
-    function getMD5: AnsiString;
+    function getMD5: UTF8String;
       { Get any metadata associated with this gridfile as a TBson document.
         Returns nil if there is none. }
     function getMetadata: IBson;
@@ -221,17 +221,17 @@ type
   public
     function getStoredChunkCount: Int64;
     { Get the filename (remoteName) of this gridfile. }
-    function getFilename: AnsiString;
+    function getFilename: UTF8String;
     { Get the size of the chunks into which the file is divided. }
     function getChunkSize: Integer;
     { Get the length of this gridfile. }
     function getLength: Int64;
     { Get the content type of this gridfile. }
-    function getContentType: AnsiString;
+    function getContentType: UTF8String;
     { Get the upload date of this gridfile. }
     function getUploadDate: TDateTime;
     { Get the MD5 hash of this gridfile.  This is a 16-digit hex string. }
-    function getMD5: AnsiString;
+    function getMD5: UTF8String;
       { Get any metadata associated with this gridfile as a TBson document.
         Returns nil if there is none. }
     function getMetadata: IBson;
@@ -273,12 +273,12 @@ type
   public
       { Create a TGridfile writer on the given TGridFS that will write data to
         the given remoteName. }
-    constructor Create(gridfs: TGridFS; remoteName: AnsiString; AInit: Boolean;
+    constructor Create(gridfs: TGridFS; remoteName: UTF8String; AInit: Boolean;
         AMeta: Pointer; Flags: Integer); overload;
       { Create a TGridfile writer on the given TGridFS that will write data to
         the given remoteName. contentType is the MIME-type content type of the gridfile
         to be written. }
-    constructor Create(gridfs: TGridFS; const remoteName, contentType: AnsiString;
+    constructor Create(gridfs: TGridFS; const remoteName, contentType: UTF8String;
         AInit: Boolean; AMeta: Pointer; Flags: Integer); overload;
       { write data to this TGridfileWriter. p is the address of the data and length
         is its size. Multiple calls to write() may be made to append successive
@@ -300,7 +300,7 @@ type
 
 { TGridFS }
 
-constructor TGridFS.Create(mongo: TMongo; const db, prefix: AnsiString);
+constructor TGridFS.Create(mongo: TMongo; const db, prefix: UTF8String);
 begin
   inherited Create;
   {$IFDEF OnDemandMongoCLoad}
@@ -319,7 +319,7 @@ begin
   AutoCheckLastError := True;
 end;
 
-constructor TGridFS.Create(mongo: TMongo; const db: AnsiString);
+constructor TGridFS.Create(mongo: TMongo; const db: UTF8String);
 begin
   inherited Create;
   Create(mongo, db, SFs);
@@ -344,33 +344,33 @@ begin
     raise EMongo.Create(SGridFSHandleIsNil);
 end;
 
-function TGridFS.storeFile(const FileName, remoteName, contentType: AnsiString;
+function TGridFS.storeFile(const FileName, remoteName, contentType: UTF8String;
     Flags: Integer = GRIDFILE_DEFAULT): Boolean;
 var
   RetVal : Integer;
 begin
   CheckHandle;
-  conn.autoCmdResetLastError(PAnsiChar(fdb), False);
+  conn.autoCmdResetLastError(fdb, False);
   RetVal := gridfs_store_file(Handle, PAnsiChar(FileName), PAnsiChar(remoteName), PAnsiChar(contentType), Flags);
   Result := RetVal = 0;
-  conn.autoCheckCmdLastError(PAnsiChar(fdb), False);
+  conn.autoCheckCmdLastError(fdb, False);
 end;
 
-function TGridFS.storeFile(const FileName, remoteName: AnsiString; Flags:
+function TGridFS.storeFile(const FileName, remoteName: UTF8String; Flags:
     Integer = GRIDFILE_DEFAULT): Boolean;
 begin
   {$IFDEF MONGO_MEMORY_PROTECTION} CheckValid; {$ENDIF}
   Result := storeFile(FileName, remoteName, '', Flags);
 end;
 
-function TGridFS.storeFile(const FileName: AnsiString; Flags: Integer =
+function TGridFS.storeFile(const FileName: UTF8String; Flags: Integer =
     GRIDFILE_DEFAULT): Boolean;
 begin
   {$IFDEF MONGO_MEMORY_PROTECTION} CheckValid; {$ENDIF}
   Result := storeFile(FileName, FileName, '', Flags);
 end;
 
-procedure TGridFS.removeFile(const remoteName: AnsiString);
+procedure TGridFS.removeFile(const remoteName: UTF8String);
 begin
   CheckHandle;
   gridfs_remove_filename(Handle, PAnsiChar(remoteName));
@@ -383,27 +383,27 @@ begin
 end;
 
 function TGridFS.store(p: Pointer; Length: Int64; const remoteName,
-    contentType: AnsiString; Flags: Integer = GRIDFILE_DEFAULT): Boolean;
+    contentType: UTF8String; Flags: Integer = GRIDFILE_DEFAULT): Boolean;
 begin
   CheckHandle;
   Result := (gridfs_store_buffer(Handle, p, Length, PAnsiChar(remoteName), PAnsiChar(contentType), Flags) = 0);
 end;
 
-function TGridFS.store(p: Pointer; Length: Int64; const remoteName: AnsiString;
+function TGridFS.store(p: Pointer; Length: Int64; const remoteName: UTF8String;
     Flags: Integer = GRIDFILE_DEFAULT): Boolean;
 begin
   {$IFDEF MONGO_MEMORY_PROTECTION} CheckValid; {$ENDIF}
   Result := store(p, Length, remoteName, '', Flags);
 end;
 
-function TGridFS.writerCreate(const remoteName, contentType: AnsiString; Flags:
+function TGridFS.writerCreate(const remoteName, contentType: UTF8String; Flags:
     Integer = GRIDFILE_DEFAULT): IGridfileWriter;
 begin
   CheckHandle;
   Result := TGridfileWriter.Create(Self, remoteName, contentType, True, bsonEmpty.Handle, Flags);
 end;
 
-function TGridFS.writerCreate(const remoteName: AnsiString; Flags: Integer =
+function TGridFS.writerCreate(const remoteName: UTF8String; Flags: Integer =
     GRIDFILE_DEFAULT): IGridfileWriter;
 begin
   {$IFDEF MONGO_MEMORY_PROTECTION} CheckValid; {$ENDIF}
@@ -459,7 +459,7 @@ begin
   Result := conn.AutoCheckLastError;
 end;
 
-function TGridFS.find(const remoteName: AnsiString; AWriteMode: Boolean):
+function TGridFS.find(const remoteName: UTF8String; AWriteMode: Boolean):
     IGridfile;
 begin
   {$IFDEF MONGO_MEMORY_PROTECTION} CheckValid; {$ENDIF}
@@ -483,7 +483,7 @@ end;
 { TGridfileWriter }
 
 constructor TGridfileWriter.Create(gridfs: TGridFS; const remoteName,
-    contentType: AnsiString; AInit: Boolean; AMeta: Pointer; Flags: Integer);
+    contentType: UTF8String; AInit: Boolean; AMeta: Pointer; Flags: Integer);
 begin
   inherited Create(gridfs);
   if AInit then
@@ -494,7 +494,7 @@ begin
   gridfile_writer_init(Handle, gridfs.Handle, PAnsiChar(remoteName), PAnsiChar(contentType), Flags);
 end;
 
-constructor TGridfileWriter.Create(gridfs: TGridFS; remoteName: AnsiString;
+constructor TGridfileWriter.Create(gridfs: TGridFS; remoteName: UTF8String;
     AInit: Boolean; AMeta: Pointer; Flags: Integer);
 begin
   Create(gridfs, remoteName, '', AInit, AMeta, Flags);
@@ -583,10 +583,10 @@ begin
   end;
 end;
 
-function TGridfile.getFilename: AnsiString;
+function TGridfile.getFilename: UTF8String;
 begin
   CheckHandle;
-  Result := AnsiString(gridfile_get_filename(FHandle));
+  Result := UTF8String(gridfile_get_filename(FHandle));
 end;
 
 function TGridfile.getChunkSize: Integer;
@@ -601,10 +601,10 @@ begin
   Result := gridfile_get_contentlength(FHandle);
 end;
 
-function TGridfile.getContentType: AnsiString;
+function TGridfile.getContentType: UTF8String;
 begin
   CheckHandle;
-  Result := AnsiString(gridfile_get_contenttype(FHandle));
+  Result := UTF8String(gridfile_get_contenttype(FHandle));
 end;
 
 function TGridfile.getUploadDate: TDateTime;
@@ -613,10 +613,10 @@ begin
   Result := Int64toDouble(gridfile_get_uploaddate(FHandle)) / (1000 * 24 * 60 * 60) + 25569;
 end;
 
-function TGridfile.getMD5: AnsiString;
+function TGridfile.getMD5: UTF8String;
 begin
   CheckHandle;
-  Result := AnsiString(gridfile_get_md5(FHandle));
+  Result := UTF8String(gridfile_get_md5(FHandle));
 end;
 
 function TGridfile.getMetadata: IBson;
@@ -721,7 +721,7 @@ begin
   oid := NewBsonOID;
   oid.setValue(TBsonOIDValue(id^));
   buf := NewBsonBuffer;
-  buf.Append(PAnsiChar(SFiles_id), oid);
+  buf.Append(SFiles_id, oid);
   q := buf.finish;
   Result := Trunc(gfs.conn.count(gfs.fdb + '.' + gfs.FPrefix + SChunks, q));
 end;

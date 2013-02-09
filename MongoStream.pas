@@ -51,7 +51,7 @@ type
     FMongo: TMongo;
     FSerializedWithJournal: Boolean;
     FBytesWritten: Cardinal;
-    FDB : AnsiString;
+    FDB : UTF8String;
     FLastSerializeWithJournalResult: IBson;
     FSerializeWithJournalByteWritten: Cardinal;
     procedure CheckGridFile; {$IFDEF DELPHI2007} inline; {$ENDIF}
@@ -73,9 +73,9 @@ type
     procedure SetSize(NewSize: {$IFDef Enterprise} Int64 {$Else} longint {$EndIf}); override;
     {$ENDIF}
   public
-    constructor Create(AMongo: TMongo; const ADB, AFileName: AnsiString; const
+    constructor Create(AMongo: TMongo; const ADB, AFileName: UTF8String; const
         AMode: TMongoStreamModeSet; ACompressed: Boolean); overload;
-    constructor Create(AMongo: TMongo; const ADB, APrefix, AFileName: AnsiString;
+    constructor Create(AMongo: TMongo; const ADB, APrefix, AFileName: UTF8String;
         const AMode: TMongoStreamModeSet; ACaseInsensitiveFileNames, ACompressed:
         Boolean); overload;
     destructor Destroy; override;
@@ -108,13 +108,13 @@ resourcestring
   SFileNotFound = 'File %s not found';
 
 constructor TMongoStream.Create(AMongo: TMongo; const ADB, AFileName:
-    AnsiString; const AMode: TMongoStreamModeSet; ACompressed: Boolean);
+    UTF8String; const AMode: TMongoStreamModeSet; ACompressed: Boolean);
 begin
   Create(AMongo, ADB, SFs, AFileName, AMode, True, ACompressed);
 end;
 
 constructor TMongoStream.Create(AMongo: TMongo; const ADB, APrefix, AFileName:
-    AnsiString; const AMode: TMongoStreamModeSet; ACaseInsensitiveFileNames,
+    UTF8String; const AMode: TMongoStreamModeSet; ACaseInsensitiveFileNames,
     ACompressed: Boolean);
 var
   AFlags : Integer;

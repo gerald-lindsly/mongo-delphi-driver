@@ -12,7 +12,7 @@ unit TestMongoPool;
 interface
 
 uses
-  TestFramework, MongoDB, MongoPool, TestMongoDB, Classes;
+  TestFramework, MongoDB, MongoPool, TestMongoDB, Classes, MongoAPI;
 
 type
   // Test methods for class TMongoPool
@@ -43,13 +43,13 @@ uses
 type
   TMongoPoolThread = class(TThread)
   private
-    FErrorMessage: AnsiString;
+    FErrorMessage: UTF8String;
     FPool: TMongoPool;
-    procedure Error(const AMsg: AnsiString);
+    procedure Error(const AMsg: UTF8String);
   public
     constructor Create(APool: TMongoPool);
     procedure Execute; override;
-    property ErrorMessage: AnsiString read FErrorMessage write FErrorMessage;
+    property ErrorMessage: UTF8String read FErrorMessage write FErrorMessage;
   end;
 
 procedure TestTMongoPool.SetUp;
@@ -70,7 +70,7 @@ end;
 procedure TestTMongoPool.TestAcquireWithHostName;
 var
   ReturnValue: TMongoPooledRecord;
-  AHostName: AnsiString;
+  AHostName: UTF8String;
 begin
   AHostName := '127.0.0.1';
   ReturnValue := FMongoPool.Acquire(AHostName);
@@ -90,7 +90,7 @@ end;
 procedure TestTMongoPool.TestAcquireWithHostNameTwice;
 var
   ReturnValue: TMongoPooledRecord;
-  AHostName: AnsiString;
+  AHostName: UTF8String;
 begin
   AHostName := '127.0.0.1';
   ReturnValue := FMongoPool.Acquire(AHostName);
@@ -104,9 +104,9 @@ end;
 procedure TestTMongoPool.TestAcquireWithHostNameAndPassword;
 var
   ReturnValue: TMongoPooledRecord;
-  APassword: AnsiString;
-  AUserName: AnsiString;
-  AHostName: AnsiString;
+  APassword: UTF8String;
+  AUserName: UTF8String;
+  AHostName: UTF8String;
   AMongo : TMongo;
 begin
   AHostName := '127.0.0.1';
@@ -125,7 +125,7 @@ end;
 procedure TestTMongoPool.TestAcquireWithPoolPointer;
 var
   ReturnValue: TMongoPooledRecord;
-  AHostName: AnsiString;
+  AHostName: UTF8String;
   AOtherMongo : TMongo;
 begin
   AHostName := '127.0.0.1';
@@ -167,7 +167,7 @@ end;
 
 procedure TestTMongoPool.TestRelease;
 var
-  AHostName : AnsiString;
+  AHostName : UTF8String;
   APoolRecord : TMongoPooledRecord;
 begin
   AHostName := '127.0.0.1';
@@ -178,7 +178,7 @@ end;
 
 procedure TestTMongoPool.TestReleaseWithConnStr;
 var
-  AHostName : AnsiString;
+  AHostName : UTF8String;
   APoolRecord : TMongoPooledRecord;
 begin
   AHostName := '127.0.0.1';
@@ -189,7 +189,7 @@ end;
 
 procedure TestTMongoPool.TestReleaseWithHostNameUsrNameAndPassword;
 var
-  AHostName : AnsiString;
+  AHostName : UTF8String;
   APoolRecord : TMongoPooledRecord;
   AMongo : TMongo;
 begin
@@ -206,7 +206,7 @@ end;
 
 procedure TestTMongoPool.TestReleaseWithHostNameUsrNamePassAndDBName;
 var
-  AHostName : AnsiString;
+  AHostName : UTF8String;
   APoolRecord : TMongoPooledRecord;
   AMongo : TMongo;
 begin
@@ -228,7 +228,7 @@ begin
   FPool := APool;
 end;
 
-procedure TMongoPoolThread.Error(const AMsg: AnsiString);
+procedure TMongoPoolThread.Error(const AMsg: UTF8String);
 begin
   FErrorMessage := AMsg;
   abort;
@@ -252,7 +252,7 @@ begin
       end;
   except
     on EAbort do {};
-    on E : Exception do FErrorMessage := AnsiString(E.Message);
+    on E : Exception do FErrorMessage := E.Message;
   end;
 end;
 

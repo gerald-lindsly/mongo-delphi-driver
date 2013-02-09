@@ -12,7 +12,7 @@ unit TestMongoStream;
 interface
 
 uses
-  TestFramework, Classes, MongoStream, MongoDB, GridFS, TestMongoDB, TestGridFS;
+  TestFramework, Classes, MongoStream, MongoDB, GridFS, TestMongoDB, TestGridFS, MongoAPI;
 
 {$I MongoC_defines.inc}
 
@@ -34,7 +34,7 @@ type
   protected
     procedure InternalRunMultiThreaded(AMethodAddr: Pointer; ALoops: Integer);
     procedure Internal_TestEmptyFile;
-    function StandardRemoteFileName: AnsiString; override;
+    function StandardRemoteFileName: UTF8String; override;
   public
     procedure SetUp; override;
     procedure TearDown; override;
@@ -85,13 +85,13 @@ uses
 const
   FILESIZE = 512 * 1024;
   SMALLER_SIZE = 1024;
-  FEW_BYTES_OF_DATA : AnsiString = 'this is just a few bytes of data';
+  FEW_BYTES_OF_DATA : UTF8String = 'this is just a few bytes of data';
 
 type
   TTestProc = procedure of object;
   TMongoStreamThread = class(TThread)
   private
-    FErrorMessage: AnsiString;
+    FErrorMessage: UTF8String;
     FLoops: Integer;
     FTestMongoStream: TestTMongoStream;
     FTestProc: Pointer;
@@ -99,7 +99,7 @@ type
     constructor Create(ATestProc: Pointer; ALoops: Integer);
     destructor Destroy; override;
     procedure Execute; override;
-    property ErrorMessage: AnsiString read FErrorMessage;
+    property ErrorMessage: UTF8String read FErrorMessage;
   end;
 
 var
@@ -126,7 +126,7 @@ procedure TestTMongoStream.InternalRunMultiThreaded(AMethodAddr: Pointer;
 var
   AThreads : array [0..3] of TMongoStreamThread;
   i : integer;
-  AErrorMessages : AnsiString;
+  AErrorMessages : UTF8String;
 begin
   AErrorMessages := '';
   for i := Low(AThreads) to High(AThreads) do
@@ -155,7 +155,7 @@ begin
   inherited;
 end;
 
-function TestTMongoStream.StandardRemoteFileName: AnsiString;
+function TestTMongoStream.StandardRemoteFileName: UTF8String;
 begin
   Result := IntToStr(Int64(Self)) + inherited StandardRemoteFileName;
 end;
@@ -215,8 +215,8 @@ end;
 
 procedure TestTMongoStream.TestCreateStream;
 var
-  AFileName: AnsiString;
-  ADB: AnsiString;
+  AFileName: UTF8String;
+  ADB: UTF8String;
 begin
   ADB := FSDB;
   AFileName := StandardRemoteFileName;
@@ -226,22 +226,22 @@ end;
 
 procedure TestTMongoStream.TestCreateStreamAndOpenWithDifferentCase;
 var
-  AFileName: AnsiString;
-  ADB: AnsiString;
+  AFileName: UTF8String;
+  ADB: UTF8String;
 begin
   ADB := FSDB;
   AFileName := StandardRemoteFileName;
   FMongoStream := TMongoStream.Create(FMongo, ADB, AFileName, [msmCreate, msmWrite], False);
   CheckMongoStreamPointer;
   FreeAndNil(FMongoStream);
-  FMongoStream := TMongoStream.Create(FMongo, ADB, AnsiString(LowerCase(AFileName)), [], False);
+  FMongoStream := TMongoStream.Create(FMongo, ADB, LowerCase(AFileName), [], False);
 end;
 
 procedure TestTMongoStream.TestCreateStreamWithPrefix;
 var
-  AFileName: AnsiString;
-  APrefix: AnsiString;
-  ADB: AnsiString;
+  AFileName: UTF8String;
+  APrefix: UTF8String;
+  ADB: UTF8String;
 begin
   ADB := FSDB;
   AFileName := StandardRemoteFileName;
@@ -366,7 +366,7 @@ begin
   Check(FMongoStream.Status = mssOk, 'Status of file should report OK status');
   FreeAndNil(FMongoStream);
   buf := NewBsonBuffer;
-  buf.Append(PAnsiChar('files_id'), fileid);
+  buf.Append('files_id', fileid);
   q := buf.finish;
   FMongo.remove('fsdb.fs.chunks', q);
   FMongoStream := TMongoStream.Create(FMongo, FSDB, StandardRemoteFileName, [], False);
@@ -452,7 +452,7 @@ begin
   Check(FMongoStream.SerializeWithJournalByteWritten > 0, 'FMongoStream.SerializeWithJournalByteWritten should be higher than zero');
   for i := 1 to 100 do
     begin
-      Count := length(AnsiString(FEW_BYTES_OF_DATA));
+      Count := length(FEW_BYTES_OF_DATA);
       Buffer := PAnsiChar(FEW_BYTES_OF_DATA);
       ReturnValue := FMongoStream.Write(Buffer, Count);
       inc(bytesWritten, Count);
@@ -498,7 +498,7 @@ begin
   Check(FMongoStream.SerializeWithJournalByteWritten > 0, 'FMongoStream.SerializeWithJournalWriteOpCount should be higher than zero');
   for i := 1 to 100 do
     begin
-      Count := length(AnsiString(FEW_BYTES_OF_DATA));
+      Count := length(FEW_BYTES_OF_DATA);
       Buffer := PAnsiChar(FEW_BYTES_OF_DATA);
       ReturnValue := FMongoStream.Write(Buffer, Count);
       CheckEquals(Count, ReturnValue, 'Write didn''t return that I wrote the same amount of bytes written');
@@ -602,15 +602,15 @@ begin
         FTestMongoStream.TearDown;
       end;
   except
-    on E : Exception do FErrorMessage := AnsiString(E.Message);
+    on E : Exception do FErrorMessage := E.Message;
   end;
 end;
 
 procedure TestTMongoStream.Internal_TestEmptyFile;
 const
-  STR_EMPTYFILENAME : AnsiString = 'TestEmptyFile';
+  STR_EMPTYFILENAME : UTF8String = 'TestEmptyFile';
 var
-  FName : AnsiString;
+  FName : UTF8String;
 begin
   FName := STR_EMPTYFILENAME + IntToStr(Random(MaxInt));
   FGridFS.removeFile(FName);
@@ -620,7 +620,7 @@ begin
   except
     // This segment of the test verifies the behavior that GridFS doesn't allow creating a stream NOT for "create" mode if the file
     // doesn't exist in DB
-    on E : Exception do Check(pos('not found', AnsiString(E.Message)) > 0, E.Message);
+    on E : Exception do Check(pos('not found', E.Message) > 0, E.Message);
   end;
   FMongoStream.Free;
   FMongoStream := TMongoStream.Create(FMongo, FSDB, FName, [msmCreate], True); // Let's create an empty file
@@ -681,8 +681,8 @@ end;
 
 procedure TestTMongoStream.TestEmptyFileThenWriteSomeBytes;
 var
-  LittleData : AnsiString;
-  ReadData : AnsiString;
+  LittleData : UTF8String;
+  ReadData : UTF8String;
 begin
   Internal_TestEmptyFile;
   LittleData := 'LittleData';
@@ -699,7 +699,7 @@ const
 var
   ThreadRecreateStream : TMongoStreamThread;
   ThreadOpenReadonly : TMongoStreamThread;
-  AErrorMessages : AnsiString;
+  AErrorMessages : UTF8String;
 begin
   FRecreateLoops := 0;
   FOpenReadonlyLoops := 0;
@@ -773,7 +773,7 @@ begin
   try
     PAnsiChar(Buffer)[Count - 1] := #0;
     FMongoStream.Read(Buffer^, Count - 1);
-    CheckEqualsString(copy(FEW_BYTES_OF_DATA, 2, length(FEW_BYTES_OF_DATA)), AnsiString(PAnsiChar(Buffer)), 'String read after writing didn''t match');
+    CheckEqualsString(copy(FEW_BYTES_OF_DATA, 2, length(FEW_BYTES_OF_DATA)), PAnsiChar(Buffer), 'String read after writing didn''t match');
   finally
     FreeMem(Buffer);
   end;
@@ -810,7 +810,7 @@ begin
     try
       Buffer2[BufSize - ReadStart - ReadReduction] := #0;
       FMongoStream.Read(Buffer2^, BufSize - ReadReduction - ReadStart);
-      CheckEqualsString(copy(AnsiString(PAnsiChar(@Buffer[ReadStart])), 1, BufSize - ReadReduction - ReadStart), AnsiString(PAnsiChar(Buffer2)), 'String read after writing didn''t match');
+      CheckEqualsString(copy(UTF8String(PAnsiChar(@Buffer[ReadStart])), 1, BufSize - ReadReduction - ReadStart), UTF8String(PAnsiChar(Buffer2)), 'String read after writing didn''t match');
     finally
       FreeMem(Buffer2);
     end;
@@ -856,7 +856,7 @@ begin
     try
       Buffer2[BufSize - ReadStart - ReadReduction] := #0;
       FMongoStream.Read(Buffer2^, BufSize - ReadReduction - ReadStart);
-      CheckEqualsString(copy(AnsiString(PAnsiChar(@Buffer[ReadStart])), 1, BufSize - ReadReduction - ReadStart), AnsiString(PAnsiChar(Buffer2)), 'String read after writing didn''t match');
+      CheckEqualsString(copy(UTF8String(PAnsiChar(@Buffer[ReadStart])), 1, BufSize - ReadReduction - ReadStart), UTF8String(PAnsiChar(Buffer2)), 'String read after writing didn''t match');
     finally
       FreeMem(Buffer2);
     end;

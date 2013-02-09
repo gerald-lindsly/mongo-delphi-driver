@@ -36,7 +36,7 @@ type
   TIntegerArray = array of Integer;
   TDoubleArray  = array of Double;
   TBooleanArray = array of Boolean;
-  TStringArray  = array of AnsiString;
+  TStringArray  = array of UTF8String;
   TVarRecArray = array of TVarRec;
   {$IFNDEF DELPHI2007}
   PByte = ^Byte;
@@ -51,7 +51,7 @@ type
     procedure setValue(const AValue: TBsonOIDValue);
     function getValue: PBsonOIDValue;
     { Convert this Object ID to a 24-digit hex string }
-    function asString: AnsiString;
+    function asString: UTF8String;
     { the oid data }
     property Value : PBsonOIDValue read getValue;
   end;
@@ -59,23 +59,23 @@ type
   { A TBsonCodeWScope is used to hold javascript code and its associated scope.
     See TBsonIterator.getCodeWScope() }
   IBsonCodeWScope = interface
-    function getCode: AnsiString;
+    function getCode: UTF8String;
     function getScope: IBson;
-    procedure setCode(const ACode: AnsiString);
+    procedure setCode(const ACode: UTF8String);
     procedure setScope(AScope: IBson);
-    property Code : AnsiString read getCode write setCode;
+    property Code : UTF8String read getCode write setCode;
     property Scope : IBson read getScope write setScope;
   end;
 
   { A TBsonRegex is used to hold a regular expression string and its options.
     See TBsonIterator.getRegex(). }
   IBsonRegex = interface
-    function getPattern: AnsiString;
-    function getOptions: AnsiString;
-    procedure setPattern(const APattern: AnsiString);
-    procedure setOptions(const AOptions: AnsiString);
-    property Pattern : AnsiString read getPattern write setPattern;
-    property Options : AnsiString read getOptions write setOptions;
+    function getPattern: UTF8String;
+    function getOptions: UTF8String;
+    procedure setPattern(const APattern: UTF8String);
+    procedure setOptions(const AOptions: UTF8String);
+    property Pattern : UTF8String read getPattern write setPattern;
+    property Options : UTF8String read getOptions write setOptions;
   end;
 
   { A TBsonTimestamp is used to hold a TDateTime and an increment value.
@@ -122,71 +122,79 @@ type
       end;
     #) }
   IBsonBuffer = interface
-    { append a string (PAnsiChar) to the buffer }
+    { append a string (UTF8String) to the buffer }
     {$IFDEF DELPHI2009}
-    function append(Name: PAnsiChar; Value: PAnsiChar): Boolean; overload;
+    function append(const Name, Value: UTF8String): Boolean; overload;
     {$ENDIF}
-    function appendStr(Name: PAnsiChar; Value: PAnsiChar): Boolean;
+    function appendStr(const Name, Value: UTF8String): Boolean;
     { append an Integer to the buffer }
-    function append(Name: PAnsiChar; Value: Integer): Boolean; overload;
+    function append(const Name: UTF8String; Value: Integer): Boolean; overload;
     { append an Int64 to the buffer }
-    function append(Name: PAnsiChar; Value: Int64): Boolean; overload;
+    function append(const Name: UTF8String; Value: Int64): Boolean; overload;
     { append a Double to the buffer }
-    function append(Name: PAnsiChar; Value: Double): Boolean; overload;
+    function append(const Name: UTF8String; Value: Double): Boolean; overload;
     { append a TDateTime to the buffer; converted to 64-bit POSIX time }
     {$IFDEF DELPHI2009}
-    function append(Name: PAnsiChar; Value: TDateTime): Boolean; overload;
+    function append(const Name: UTF8String; Value: TDateTime): Boolean; overload;
     {$ENDIF}
-    function appendDate(Name: PAnsiChar; Value: TDateTime): Boolean;
+    function appendDate(const Name: UTF8String; Value: TDateTime): Boolean;
     { append a Boolean to the buffer }
-    function append(Name: PAnsiChar; Value: Boolean): Boolean; overload;
+    function append(const Name: UTF8String; Value: Boolean): Boolean; overload;
     { append an Object ID to the buffer }
-    function append(Name: PAnsiChar; Value: IBsonOID): Boolean; overload;
+    function append(const Name: UTF8String; Value: IBsonOID): Boolean; overload;
     { append a CODEWSCOPE to the buffer }
-    function append(Name: PAnsiChar; Value: IBsonCodeWScope): Boolean; overload;
+    function append(const Name: UTF8String; Value: IBsonCodeWScope): Boolean;
+        overload;
     { append a REGEX to the buffer }
-    function append(Name: PAnsiChar; Value: IBsonRegex): Boolean; overload;
+    function append(const Name: UTF8String; Value: IBsonRegex): Boolean; overload;
     { append a TIMESTAMP to the buffer }
-    function append(Name: PAnsiChar; Value: IBsonTimestamp): Boolean; overload;
+    function append(const Name: UTF8String; Value: IBsonTimestamp): Boolean;
+        overload;
     { append BINDATA to the buffer }
-    function append(Name: PAnsiChar; Value: IBsonBinary): Boolean; overload;
+    function append(const Name: UTF8String; Value: IBsonBinary): Boolean; overload;
     { append a TBson document as a subobject }
-    function append(Name: PAnsiChar; Value: IBson): Boolean; overload;
+    function append(const Name: UTF8String; Value: IBson): Boolean; overload;
     { Generic version of append.  Calls one of the other append functions
       if the type contained in the variant is supported. }
     {$IFDEF DELPHI2007}
-    function append(Name: PAnsiChar; const Value: Variant): Boolean; overload;
+    function append(const Name: UTF8String; const Value: Variant): Boolean;
+        overload;
     {$ENDIF}
-    function appendVariant(Name: PAnsiChar; const Value: Variant): Boolean;
+    function appendVariant(const Name: UTF8String; const Value: Variant): Boolean;
     { append an array of Integers }
-    function appendArray(Name: PAnsiChar; const Value: TIntegerArray): Boolean; overload;
+    function appendArray(const Name: UTF8String; const Value: TIntegerArray):
+        Boolean; overload;
     { append an array of Double }
-    function appendArray(Name: PAnsiChar; const Value: TDoubleArray): Boolean; overload;
+    function appendArray(const Name: UTF8String; const Value: TDoubleArray):
+        Boolean; overload;
     { append an array of Booleans }
-    function appendArray(Name: PAnsiChar; const Value: TBooleanArray): Boolean; overload;
+    function appendArray(const Name: UTF8String; const Value: TBooleanArray):
+        Boolean; overload;
     { append an array of strings }
-    function appendArray(Name: PAnsiChar; const Value: TStringArray): Boolean; overload;
+    function appendArray(const Name: UTF8String; const Value: TStringArray):
+        Boolean; overload;
     { append a NULL field to the buffer }
-    function appendNull(Name: PAnsiChar): Boolean;
+    function appendNull(const Name: UTF8String): Boolean;
     { append an UNDEFINED field to the buffer }
-    function appendUndefined(Name: PAnsiChar): Boolean;
+    function appendUndefined(const Name: UTF8String): Boolean;
     { append javascript code to the buffer }
-    function appendCode(Name: PAnsiChar; Value: PAnsiChar): Boolean;
+    function appendCode(const Name, Value: UTF8String): Boolean;
      { append a SYMBOL to the buffer }
-    function appendSymbol(Name: PAnsiChar; Value: PAnsiChar): Boolean;
+    function appendSymbol(const Name, Value: UTF8String): Boolean;
     { Alternate way to append BINDATA directly without first creating a
       TBsonBinary value }
-    function appendBinary(Name: PAnsiChar; Kind: Integer; Data: Pointer; Length: Integer): Boolean;
+    function appendBinary(const Name: UTF8String; Kind: Integer; Data: Pointer;
+        Length: Integer): Boolean;
     { append javascript code to the buffer from PChar Value up to Len chars }
-    function appendCode_n(Name, Value: PAnsiChar; Len: Cardinal): Boolean;
+    function appendCode_n(const Name, Value: UTF8String; Len: Cardinal): Boolean;
     { Appends a string up to Len chars }
-    function appendStr_n(Name, Value: PAnsiChar; Len: Cardinal): Boolean;
+    function appendStr_n(const Name, Value: UTF8String; Len: Cardinal): Boolean;
     { append a SYMBOL to the buffer up to Len chars }
-    function appendSymbol_n(Name, Value: PAnsiChar; Len: Cardinal): Boolean;
+    function appendSymbol_n(const Name, Value: UTF8String; Len: Cardinal): Boolean;
     { Indicate that you will be appending more fields as a subobject }
-    function startObject(Name: PAnsiChar): Boolean;
+    function startObject(const Name: UTF8String): Boolean;
     { Indicate that you will be appending more fields as an array }
-    function startArray(Name: PAnsiChar): Boolean;
+    function startArray(const Name: UTF8String): Boolean;
     { Indicate that a subobject or array is done. }
     function finishObject: Boolean;
     { Appends elements defined as an array of TVarRec }
@@ -194,7 +202,8 @@ type
     { Appends elements defined as an array of const }
     function appendElementsAsArray(const def: array of const): boolean; overload;
     { Appends an object defined as an array of TVarRec }
-    function appendObjectAsArray(ObjectName : PAnsiChar; const def : TVarRecArray): boolean;
+    function appendObjectAsArray(const ObjectName: UTF8String; const def:
+        TVarRecArray): boolean;
     { Return the current size of the BSON document you are building }
     function size: Integer;
     { Call this when finished appending fields to the buffer to turn it into
@@ -232,7 +241,7 @@ type
       iterator. }
     function getTimestamp: IBsonTimestamp;
     { Return the key (or name) of the field pointed to by this iterator. }
-    function key: AnsiString;
+    function key: UTF8String;
     { Return the TBsonType of the field pointed to by this iterator. }
     function Kind: TBsonType;
     { Step to the first or next field of a TBson document.  Returns True
@@ -267,7 +276,7 @@ type
     procedure display;
     { Get a TBsonIterator that points to the field with the given name.
       If name is not found, nil is returned. }
-    function find(Name: PAnsiChar): IBsonIterator;
+    function find(const Name: UTF8String): IBsonIterator;
     function getHandle: Pointer;
     { Get a TBsonIterator that points to the first field of this BSON }
     function iterator: IBsonIterator;
@@ -276,8 +285,8 @@ type
     { Get the value of a field given its name.  This function does not support
       all BSON field types.  Use find() and one of the 'get' functions of
       TBsonIterator to retrieve special values. }
-    function value(Name: PAnsiChar): Variant;
-    function valueAsInt64(Name: PAnsiChar): Int64;
+    function value(const Name: UTF8String): Variant;
+    function valueAsInt64(const Name: UTF8String): Int64;
     { Pointer to externally managed data.  User code should not modify this.
       It is public only because the MongoDB and GridFS units must access it. }
     property Handle: Pointer read getHandle;
@@ -286,7 +295,7 @@ type
 function MkIntArray(const Arr : array of Integer): TIntegerArray;
 function MkDoubleArray(const Arr : array of Double): TDoubleArray;
 function MkBoolArray(const Arr : array of Boolean): TBooleanArray;
-function MkStrArray(const Arr : array of AnsiString): TStringArray;
+function MkStrArray(const Arr : array of UTF8String): TStringArray;
 function MkVarRecArray(const Arr : array of const): TVarRecArray;
 
 (* The idea for this shorthand way to build a BSON
@@ -319,7 +328,7 @@ function NewBsonBinary(p: Pointer; Length: Integer): IBsonBinary; overload;
 function NewBsonBinary(i: IBsonIterator): IBsonBinary; overload;
 
 { Create a TBsonCodeWScope from a javascript string and a TBson scope }
-function NewBsonCodeWScope(const acode: AnsiString; ascope: IBson): IBsonCodeWScope; overload;
+function NewBsonCodeWScope(const acode: UTF8String; ascope: IBson): IBsonCodeWScope; overload;
 { Create a TBsonCodeWScope from a TBSonIterator pointing to a
   CODEWSCOPE field. }
 function NewBsonCodeWScope(i: IBsonIterator): IBsonCodeWScope; overload;
@@ -327,12 +336,12 @@ function NewBsonCodeWScope(i: IBsonIterator): IBsonCodeWScope; overload;
 { Generate an Object ID }
 function NewBsonOID: IBsonOID; overload;
 { Create an ObjectID from a 24-digit hex string }
-function NewBsonOID(const s : AnsiString): IBsonOID; overload;
+function NewBsonOID(const s : UTF8String): IBsonOID; overload;
 { Create an Object ID from a TBsonIterator pointing to an oid field }
 function NewBsonOID(i : IBsonIterator): IBsonOID; overload;
 
 { Create a TBsonRegex from reqular expression and options strings }
-function NewBsonRegex(const apattern, aoptions: AnsiString): IBsonRegex; overload;
+function NewBsonRegex(const apattern, aoptions: UTF8String): IBsonRegex; overload;
 { Create a TBsonRegex from a TBsonIterator pointing to a REGEX field }
 function NewBsonRegex(i : IBsonIterator): IBsonRegex; overload;
 
@@ -355,12 +364,12 @@ function NewBson(AHandle: Pointer): IBson;
 function NewBsonCopy(AHandle: Pointer): IBson;
 
 { Convert a byte to a 2-digit hex string }
-function ByteToHex(InByte: Byte): AnsiString;
+function ByteToHex(InByte: Byte): UTF8String;
 function bsonEmpty: IBson;
 
 {$IFDEF DELPHIXE2}
-function Pos(const SubStr, Str: AnsiString): Integer;
-function IntToStr(i : integer) : AnsiString;
+function Pos(const SubStr, Str: UTF8String): Integer;
+function IntToStr(i : integer) : UTF8String;
 {$ENDIF}
 
 implementation
@@ -410,9 +419,9 @@ type
     Value: TBsonOIDValue;
   public
     constructor Create; overload;
-    constructor Create(const s: AnsiString); overload;
+    constructor Create(const s: UTF8String); overload;
     constructor Create(i: IBsonIterator); overload;
-    function asString: AnsiString;
+    function asString: UTF8String;
     function getValue: PBsonOIDValue;
     procedure setValue(const AValue: TBsonOIDValue);
   end;
@@ -444,11 +453,11 @@ type
     procedure iterateAndFillArray(i: IBsonIterator; var Result; var j: Integer;
         BSonType: TBsonType);
     procedure prepareArrayIterator(var i: IBsonIterator; var j, count: Integer;
-        BSonType: TBsonType; const ATypeErrorMsg: AnsiString);
+        BSonType: TBsonType; const ATypeErrorMsg: UTF8String);
   public
     function getHandle: Pointer;
     function kind: TBsonType;
-    function key: AnsiString;
+    function key: UTF8String;
     function next: Boolean;
     function value: Variant;
     function subiterator: IBsonIterator;
@@ -468,28 +477,28 @@ type
 
   TBsonCodeWScope = class(TMongoInterfacedObject, IBsonCodeWScope)
   private
-    code: AnsiString;
+    code: UTF8String;
     scope: IBson;
   public
-    constructor Create(const acode: AnsiString; ascope: IBson); overload;
+    constructor Create(const acode: UTF8String; ascope: IBson); overload;
     constructor Create(i: IBsonIterator); overload;
-    function getCode: AnsiString;
+    function getCode: UTF8String;
     function getScope: IBson;
-    procedure setCode(const ACode: AnsiString);
+    procedure setCode(const ACode: UTF8String);
     procedure setScope(AScope: IBson);
   end;
 
   TBsonRegex = class(TMongoInterfacedObject, IBsonRegex)
   private
-    pattern: AnsiString;
-    options: AnsiString;
+    pattern: UTF8String;
+    options: UTF8String;
   public
-    constructor Create(const apattern, aoptions: AnsiString); overload;
+    constructor Create(const apattern, aoptions: UTF8String); overload;
     constructor Create(i: IBsonIterator); overload;
-    function getOptions: AnsiString;
-    function getPattern: AnsiString;
-    procedure setOptions(const AOptions: AnsiString);
-    procedure setPattern(const APattern: AnsiString);
+    function getOptions: UTF8String;
+    function getPattern: UTF8String;
+    procedure setOptions(const AOptions: UTF8String);
+    procedure setPattern(const APattern: UTF8String);
   end;
 
   TBsonTimestamp = class(TMongoInterfacedObject, IBsonTimestamp)
@@ -513,54 +522,62 @@ type
     function appendBooleanCallback(i: Integer; const Arr): Boolean;
     function appendStringCallback(i: Integer; const Arr): Boolean;
     procedure checkBsonBuffer;
-    function internalAppendArray(Name: PAnsiChar; const Arr; Len: Integer;
+    function internalAppendArray(const Name: UTF8String; const Arr; Len: Integer;
         AppendElementCallback: Pointer): Boolean;
   public
     constructor Create;
     {$IFDEF DELPHI2009}
-    function append(Name: PAnsiChar; Value: PAnsiChar): Boolean; overload;
+    function append(const Name, Value: UTF8String): Boolean; overload;
     {$EndIf}
-    function appendStr(Name: PAnsiChar; Value: PAnsiChar): Boolean;
-    function append(Name: PAnsiChar; Value: Integer): Boolean; overload;
-    function append(Name: PAnsiChar; Value: Int64): Boolean; overload;
-    function append(Name: PAnsiChar; Value: Double): Boolean; overload;
+    function appendStr(const Name, Value: UTF8String): Boolean;
+    function append(const Name: UTF8String; Value: Integer): Boolean; overload;
+    function append(const Name: UTF8String; Value: Int64): Boolean; overload;
+    function append(const Name: UTF8String; Value: Double): Boolean; overload;
     {$IFDEF DELPHI2009}
-    function append(Name: PAnsiChar; Value: TDateTime): Boolean; overload;
+    function append(const Name: UTF8String; Value: TDateTime): Boolean; overload;
     {$ENDIF}
-    function appendDate(Name: PAnsiChar; Value: TDateTime): Boolean;
-    function append(Name: PAnsiChar; Value: Boolean): Boolean; overload;
-    function append(Name: PAnsiChar; Value: IBsonOID): Boolean; overload;
-    function append(Name: PAnsiChar; Value: IBsonCodeWScope): Boolean; overload;
-    function append(Name: PAnsiChar; Value: IBsonRegex): Boolean; overload;
-    function append(Name: PAnsiChar; Value: IBsonTimestamp): Boolean; overload;
-    function append(Name: PAnsiChar; Value: IBsonBinary): Boolean; overload;
-    function append(Name: PAnsiChar; Value: IBson): Boolean; overload;
+    function appendDate(const Name: UTF8String; Value: TDateTime): Boolean;
+    function append(const Name: UTF8String; Value: Boolean): Boolean; overload;
+    function append(const Name: UTF8String; Value: IBsonOID): Boolean; overload;
+    function append(const Name: UTF8String; Value: IBsonCodeWScope): Boolean;
+        overload;
+    function append(const Name: UTF8String; Value: IBsonRegex): Boolean; overload;
+    function append(const Name: UTF8String; Value: IBsonTimestamp): Boolean;
+        overload;
+    function append(const Name: UTF8String; Value: IBsonBinary): Boolean; overload;
+    function append(const Name: UTF8String; Value: IBson): Boolean; overload;
     {$IFDEF DELPHI2007}
-    function append(Name: PAnsiChar; const Value: Variant): Boolean; overload;
+    function append(const Name: UTF8String; const Value: Variant): Boolean;
+        overload;
     {$ENDIF}
-    function appendVariant(Name: PAnsiChar; const Value: Variant): Boolean;
-    function appendArray(Name: PAnsiChar; const Value: TIntegerArray): Boolean; overload;
-    function appendArray(Name: PAnsiChar; const Value: TDoubleArray): Boolean; overload;
-    function appendArray(Name: PAnsiChar; const Value: TBooleanArray): Boolean; overload;
-    function appendArray(Name: PAnsiChar; const Value: TStringArray): Boolean; overload;
-    function appendNull(Name: PAnsiChar): Boolean;
-    function appendUndefined(Name: PAnsiChar): Boolean;
-    function appendCode(Name: PAnsiChar; Value: PAnsiChar): Boolean;
-    function appendSymbol(Name: PAnsiChar; Value: PAnsiChar): Boolean;
-    function appendBinary(Name: PAnsiChar; Kind: Integer; Data: Pointer; Length: Integer): Boolean;
-    function startObject(Name: PAnsiChar): Boolean;
-    function startArray(Name: PAnsiChar): Boolean;
+    function appendVariant(const Name: UTF8String; const Value: Variant): Boolean;
+    function appendArray(const Name: UTF8String; const Value: TIntegerArray):
+        Boolean; overload;
+    function appendArray(const Name: UTF8String; const Value: TDoubleArray):
+        Boolean; overload;
+    function appendArray(const Name: UTF8String; const Value: TBooleanArray):
+        Boolean; overload;
+    function appendArray(const Name: UTF8String; const Value: TStringArray):
+        Boolean; overload;
+    function appendNull(const Name: UTF8String): Boolean;
+    function appendUndefined(const Name: UTF8String): Boolean;
+    function appendCode(const Name, Value: UTF8String): Boolean;
+    function appendSymbol(const Name, Value: UTF8String): Boolean;
+    function appendBinary(const Name: UTF8String; Kind: Integer; Data: Pointer;
+        Length: Integer): Boolean;
+    function startObject(const Name: UTF8String): Boolean;
+    function startArray(const Name: UTF8String): Boolean;
     function finishObject: Boolean;
     function size: Integer;
     function finish: IBson;
-    function appendObjectAsArray(ObjectNAme: PAnsiChar; const def: TVarRecArray):
-        boolean;
+    function appendObjectAsArray(const ObjectNAme: UTF8String; const def:
+        TVarRecArray): boolean;
     function appendElementsAsArray(const def : TVarRecArray): boolean; overload;
     destructor Destroy; override;
-    function appendCode_n(Name, Value: PAnsiChar; Len: Cardinal): Boolean;
+    function appendCode_n(const Name, Value: UTF8String; Len: Cardinal): Boolean;
     function appendElementsAsArray(const def: array of const): boolean; overload;
-    function appendStr_n(Name, Value: PAnsiChar; Len: Cardinal): Boolean;
-    function appendSymbol_n(Name, Value: PAnsiChar; Len: Cardinal): Boolean;
+    function appendStr_n(const Name, Value: UTF8String; Len: Cardinal): Boolean;
+    function appendSymbol_n(const Name, Value: UTF8String; Len: Cardinal): Boolean;
   end;
 
   TBson = class(TMongoInterfacedObject, IBson)
@@ -572,24 +589,24 @@ type
   public
     function size: Integer;
     function iterator: IBsonIterator;
-    function find(Name: PAnsiChar): IBsonIterator;
-    function value(Name: PAnsiChar): Variant;
+    function find(const Name: UTF8String): IBsonIterator;
+    function value(const Name: UTF8String): Variant;
     procedure display;
-    function valueAsInt64(Name: PAnsiChar): Int64;
+    function valueAsInt64(const Name: UTF8String): Int64;
     constructor Create(h: Pointer);
     destructor Destroy; override;
     property Handle: Pointer read getHandle;
   end;
 
 {$IFDEF DELPHIXE2}
-function Pos(const SubStr, Str: AnsiString): Integer;
+function Pos(const SubStr, Str: UTF8String): Integer;
 begin
   Result := System.Pos(String(SubStr), String(Str));
 end;
 
-function IntToStr(i : integer) : AnsiString;
+function IntToStr(i : integer) : UTF8String;
 begin
-  Result := AnsiString(SysUtils.IntToStr(i));
+  Result := UTF8String(SysUtils.IntToStr(i));
 end;
 {$ENDIF}
 
@@ -604,7 +621,7 @@ begin
   bson_oid_gen(@Value);
 end;
 
-constructor TBsonOID.Create(const s: AnsiString);
+constructor TBsonOID.Create(const s: UTF8String);
 begin
   inherited Create;
   {$IFDEF OnDemandMongoCLoad}
@@ -627,13 +644,13 @@ begin
   Move(p^, Value, 12);
 end;
 
-function TBsonOID.asString: AnsiString;
+function TBsonOID.asString: UTF8String;
 var
   buf: array[0..24] of AnsiChar;
 begin
   {$IFDEF MONGO_MEMORY_PROTECTION} CheckValid; {$ENDIF}
   bson_oid_to_string(@Value, @buf);
-  Result := AnsiString(buf);
+  Result := UTF8String(buf);
 end;
 
 function TBsonOID.getValue: PBsonOIDValue;
@@ -720,11 +737,11 @@ begin
   FIteratorAtEnd := not Result;
 end;
 
-function TBsonIterator.key: AnsiString;
+function TBsonIterator.key: UTF8String;
 begin
   checkValidHandle;
   CheckIteratorAtEnd('key');
-  Result := AnsiString(bson_iterator_key(Handle));
+  Result := UTF8String(bson_iterator_key(Handle));
 end;
 
 function TBsonIterator.value: Variant;
@@ -742,7 +759,7 @@ begin
     bsonDOUBLE:
       Result := bson_iterator_double(Handle);
     bsonSTRING, bsonCODE, bsonSYMBOL:
-      Result := AnsiString(bson_iterator_string(Handle));
+      Result := UTF8String(bson_iterator_string(Handle));
     bsonINT:
       Result := bson_iterator_int(Handle);
     bsonBOOL:
@@ -815,7 +832,7 @@ var
 begin
   checkValidHandle;
   CheckIteratorAtEnd('getIntegerArray');
-  prepareArrayIterator(i, j, count, bsonINT, AnsiString(SArrayComponentIsNotAnInteger));
+  prepareArrayIterator(i, j, count, bsonINT, UTF8String(SArrayComponentIsNotAnInteger));
   SetLength(Result, Count);
   iterateAndFillArray(i, Result, j, bsonINT);
 end;
@@ -827,7 +844,7 @@ var
 begin
   checkValidHandle;
   CheckIteratorAtEnd('getDoubleArray');
-  prepareArrayIterator(i, j, count, bsonDOUBLE, AnsiString(SArrayComponentIsNotADouble));
+  prepareArrayIterator(i, j, count, bsonDOUBLE, UTF8String(SArrayComponentIsNotADouble));
   SetLength(Result, Count);
   iterateAndFillArray(i, Result, j, bsonDOUBLE);
 end;
@@ -839,7 +856,7 @@ var
 begin
   checkValidHandle;
   CheckIteratorAtEnd('getStringArray');
-  prepareArrayIterator(i, j, count, bsonSTRING, AnsiString(SArrayComponentIsNotAString));
+  prepareArrayIterator(i, j, count, bsonSTRING, UTF8String(SArrayComponentIsNotAString));
   SetLength(Result, Count);
   iterateAndFillArray(i, Result, j, bsonSTRING);
 end;
@@ -851,7 +868,7 @@ var
 begin
   checkValidHandle;
   CheckIteratorAtEnd('getBooleanArray');
-  prepareArrayIterator(i, j, count, bsonBOOL, AnsiString(SArrayComponentIsNotABoolean));
+  prepareArrayIterator(i, j, count, bsonBOOL, UTF8String(SArrayComponentIsNotABoolean));
   SetLength(Result, Count);
   iterateAndFillArray(i, Result, j, bsonBOOL);
 end;
@@ -870,7 +887,7 @@ begin
   begin
     case BSonType of
       bsonDOUBLE : TDoubleArray(Result)[j] := i.value;
-      bsonSTRING : TStringArray(Result)[j] := AnsiString(i.value);
+      bsonSTRING : TStringArray(Result)[j] := UTF8String(i.value);
       bsonBOOL : TBooleanArray(Result)[j] := i.value;
       bsonINT : TIntegerArray(Result)[j] := i.value;
       else raise Exception.Create(SDatatypeNotSupported);
@@ -880,7 +897,7 @@ begin
 end;
 
 procedure TBsonIterator.prepareArrayIterator(var i: IBsonIterator; var j,
-    count: Integer; BSonType: TBsonType; const ATypeErrorMsg: AnsiString);
+    count: Integer; BSonType: TBsonType; const ATypeErrorMsg: UTF8String);
 begin
   checkValidHandle;
   if kind <> bsonArray then
@@ -921,108 +938,113 @@ begin
 end;
 
 {$IFDEF DELPHI2009}
-function TBsonBuffer.append(Name: PAnsiChar; Value: PAnsiChar): Boolean;
+function TBsonBuffer.append(const Name, Value: UTF8String): Boolean;
 begin
   {$IFDEF MONGO_MEMORY_PROTECTION} CheckValid; {$ENDIF}
   Result := appendStr(Name, Value);
 end;
 {$EndIf}
 
-function TBsonBuffer.appendStr(Name: PAnsiChar; Value: PAnsiChar): Boolean;
+function TBsonBuffer.appendStr(const Name, Value: UTF8String): Boolean;
 begin
   checkBsonBuffer;
-  Result := (bson_append_string(Handle, Name, Value) = 0);
+  Result := (bson_append_string(Handle, PAnsiChar(Name), PAnsiChar(Value)) = 0);
 end;
 
-function TBsonBuffer.appendCode(Name: PAnsiChar; Value: PAnsiChar): Boolean;
+function TBsonBuffer.appendCode(const Name, Value: UTF8String): Boolean;
 begin
   checkBsonBuffer;
-  Result := (bson_append_code(Handle, Name, Value) = 0);
+  Result := (bson_append_code(Handle, PAnsiChar(Name), PAnsiChar(Value)) = 0);
 end;
 
-function TBsonBuffer.appendSymbol(Name: PAnsiChar; Value: PAnsiChar): Boolean;
+function TBsonBuffer.appendSymbol(const Name, Value: UTF8String): Boolean;
 begin
   checkBsonBuffer;
-  Result := (bson_append_symbol(Handle, Name, Value) = 0);
+  Result := (bson_append_symbol(Handle, PAnsiChar(Name), PAnsiChar(Value)) = 0);
 end;
 
-function TBsonBuffer.append(Name: PAnsiChar; Value: Integer): Boolean;
+function TBsonBuffer.append(const Name: UTF8String; Value: Integer): Boolean;
 begin
   checkBsonBuffer;
-  Result := (bson_append_int(Handle, Name, Value) = 0);
+  Result := (bson_append_int(Handle, PAnsiChar(Name), Value) = 0);
 end;
 
-function TBsonBuffer.append(Name: PAnsiChar; Value: Int64): Boolean;
+function TBsonBuffer.append(const Name: UTF8String; Value: Int64): Boolean;
 begin
   checkBsonBuffer;
-  Result := (bson_append_long(Handle, Name, Value) = 0);
+  Result := (bson_append_long(Handle, PAnsiChar(Name), Value) = 0);
 end;
 
-function TBsonBuffer.append(Name: PAnsiChar; Value: Double): Boolean;
+function TBsonBuffer.append(const Name: UTF8String; Value: Double): Boolean;
 begin
   checkBsonBuffer;
-  Result := (bson_append_double(Handle, Name, Value) = 0);
+  Result := (bson_append_double(Handle, PAnsiChar(Name), Value) = 0);
 end;
 
 {$IFDEF DELPHI2009}
-function TBsonBuffer.append(Name: PAnsiChar; Value: TDateTime): Boolean;
+function TBsonBuffer.append(const Name: UTF8String; Value: TDateTime): Boolean;
 begin
   Result := AppendDate(Name, Value);
 end;
 {$ENDIF}
 
-function TBsonBuffer.appendDate(Name: PAnsiChar; Value: TDateTime): Boolean;
+function TBsonBuffer.appendDate(const Name: UTF8String; Value: TDateTime):
+    Boolean;
 begin
   checkBsonBuffer;
-  Result := (bson_append_date(Handle, Name, Trunc((Value - DATE_ADJUSTER) * 1000 * 60 * 60 * 24)) = 0);
+  Result := (bson_append_date(Handle, PAnsiChar(Name), Trunc((Value - DATE_ADJUSTER) * 1000 * 60 * 60 * 24)) = 0);
 end;
 
-function TBsonBuffer.append(Name: PAnsiChar; Value: Boolean): Boolean;
+function TBsonBuffer.append(const Name: UTF8String; Value: Boolean): Boolean;
 begin
   checkBsonBuffer;
-  Result := (bson_append_bool(Handle, Name, Value) = 0);
+  Result := (bson_append_bool(Handle, PAnsiChar(Name), Value) = 0);
 end;
 
-function TBsonBuffer.append(Name: PAnsiChar; Value: IBsonOID): Boolean;
+function TBsonBuffer.append(const Name: UTF8String; Value: IBsonOID): Boolean;
 begin
   checkBsonBuffer;
-  Result := (bson_append_oid(Handle, Name, Value.getValue) = 0);
+  Result := (bson_append_oid(Handle, PAnsiChar(Name), Value.getValue) = 0);
 end;
 
-function TBsonBuffer.append(Name: PAnsiChar; Value: IBsonCodeWScope): Boolean;
+function TBsonBuffer.append(const Name: UTF8String; Value: IBsonCodeWScope):
+    Boolean;
 begin
   checkBsonBuffer;
-  Result := (bson_append_code_w_scope(Handle, Name, PAnsiChar(Value.getCode), Value.getScope.Handle) = 0);
+  Result := (bson_append_code_w_scope(Handle, PAnsiChar(Name), PAnsiChar(Value.getCode), Value.getScope.Handle) = 0);
 end;
 
-function TBsonBuffer.append(Name: PAnsiChar; Value: IBsonRegex): Boolean;
+function TBsonBuffer.append(const Name: UTF8String; Value: IBsonRegex): Boolean;
 begin
   checkBsonBuffer;
-  Result := (bson_append_regex(Handle, Name, PAnsiChar(Value.getPattern), PAnsiChar(Value.getOptions)) = 0);
+  Result := (bson_append_regex(Handle, PAnsiChar(Name), PAnsiChar(Value.getPattern), PAnsiChar(Value.getOptions)) = 0);
 end;
 
-function TBsonBuffer.append(Name: PAnsiChar; Value: IBsonTimestamp): Boolean;
+function TBsonBuffer.append(const Name: UTF8String; Value: IBsonTimestamp):
+    Boolean;
 begin
   checkBsonBuffer;
-  Result := (bson_append_timestamp2(Handle, Name, Trunc((Value.getTime - DATE_ADJUSTER) * 60 * 60 * 24), Value.getIncrement) = 0);
+  Result := (bson_append_timestamp2(Handle, PAnsiChar(Name), Trunc((Value.getTime - DATE_ADJUSTER) * 60 * 60 * 24), Value.getIncrement) = 0);
 end;
 
-function TBsonBuffer.append(Name: PAnsiChar; Value: IBsonBinary): Boolean;
+function TBsonBuffer.append(const Name: UTF8String; Value: IBsonBinary):
+    Boolean;
 begin
   checkBsonBuffer;
-  Result := (bson_append_binary(Handle, Name, Value.getKind, Value.getData, Value.getLen) = 0);
+  Result := (bson_append_binary(Handle, PAnsiChar(Name), Value.getKind, Value.getData, Value.getLen) = 0);
 end;
 
 {$IFDEF DELPHI2007}
-function TBsonBuffer.append(Name: PAnsiChar; const Value: Variant): Boolean;
+function TBsonBuffer.append(const Name: UTF8String; const Value: Variant):
+    Boolean;
 begin
   {$IFDEF MONGO_MEMORY_PROTECTION} CheckValid; {$ENDIF}
   Result := appendVariant(Name, Value);
 end;
 {$ENDIF}
 
-function TBsonBuffer.appendVariant(Name: PAnsiChar; const Value: Variant):
-    Boolean;
+function TBsonBuffer.appendVariant(const Name: UTF8String; const Value:
+    Variant): Boolean;
 var
   d: Double;
   {$IFDEF DELPHI2007}
@@ -1058,7 +1080,7 @@ begin
     varBoolean:
       Result := append(Name, Boolean(Value));
     varString, varOleStr {$IFDEF DELPHI2009}, varUString {$ENDIF}:
-      Result := appendStr(Name, PAnsiChar(AnsiString(Value)));
+      Result := appendStr(Name, UTF8String(Value));
     varVariant : Result := appendVariant(Name, Value);
     else
       raise Exception.Create(STBsonAppendVariantTypeNotSupport +
@@ -1066,28 +1088,29 @@ begin
   end;
 end;
 
-function TBsonBuffer.appendNull(Name: PAnsiChar): Boolean;
+function TBsonBuffer.appendNull(const Name: UTF8String): Boolean;
 begin
   checkBsonBuffer;
-  Result := (bson_append_null(Handle, Name) = 0);
+  Result := (bson_append_null(Handle, PAnsiChar(Name)) = 0);
 end;
 
-function TBsonBuffer.appendUndefined(Name: PAnsiChar): Boolean;
+function TBsonBuffer.appendUndefined(const Name: UTF8String): Boolean;
 begin
   checkBsonBuffer;
-  Result := (bson_append_undefined(Handle, Name) = 0);
+  Result := (bson_append_undefined(Handle, PAnsiChar(Name)) = 0);
 end;
 
-function TBsonBuffer.appendBinary(Name: PAnsiChar; Kind: Integer; Data: Pointer; Length: Integer): Boolean;
+function TBsonBuffer.appendBinary(const Name: UTF8String; Kind: Integer; Data:
+    Pointer; Length: Integer): Boolean;
 begin
   checkBsonBuffer;
-  Result := (bson_append_binary(Handle, Name, Kind, Data, Length) = 0);
+  Result := (bson_append_binary(Handle, PAnsiChar(Name), Kind, Data, Length) = 0);
 end;
 
-function TBsonBuffer.append(Name: PAnsiChar; Value: IBson): Boolean;
+function TBsonBuffer.append(const Name: UTF8String; Value: IBson): Boolean;
 begin
   checkBsonBuffer;
-  Result := (bson_append_bson(Handle, Name, Value.Handle) = 0);
+  Result := (bson_append_bson(Handle, PAnsiChar(Name), Value.Handle) = 0);
 end;
 
 type
@@ -1117,15 +1140,15 @@ begin
   Result := bson_append_string(Handle, PAnsiChar(IntToStr(i)), PAnsiChar(TStringArray(Arr)[i])) = 0;
 end;
 
-function TBsonBuffer.internalAppendArray(Name: PAnsiChar; const Arr; Len:
-    Integer; AppendElementCallback: Pointer): Boolean;
+function TBsonBuffer.internalAppendArray(const Name: UTF8String; const Arr;
+    Len: Integer; AppendElementCallback: Pointer): Boolean;
 var
   success: Boolean;
   i : Integer;
   AppendElementMethod : TAppendElementCallback;
 begin
   {$IFDEF MONGO_MEMORY_PROTECTION} CheckValid; {$ENDIF}
-  success := (bson_append_start_array(Handle, Name) = 0);
+  success := (bson_append_start_array(Handle, PAnsiChar(Name)) = 0);
   i := 0;
   TMethod(AppendElementMethod).Data := Self;
   TMethod(AppendElementMethod).Code := AppendElementCallback;
@@ -1139,46 +1162,50 @@ begin
   Result := success;
 end;
 
-function TBsonBuffer.appendArray(Name: PAnsiChar; const Value: TIntegerArray): Boolean;
+function TBsonBuffer.appendArray(const Name: UTF8String; const Value:
+    TIntegerArray): Boolean;
 begin
   {$IFDEF MONGO_MEMORY_PROTECTION} CheckValid; {$ENDIF}
   Result := internalAppendArray(Name, Value, length(Value), @TBsonBuffer.appendIntCallback);
 end;
 
-function TBsonBuffer.appendArray(Name: PAnsiChar; const Value: TDoubleArray): Boolean;
+function TBsonBuffer.appendArray(const Name: UTF8String; const Value:
+    TDoubleArray): Boolean;
 begin
   {$IFDEF MONGO_MEMORY_PROTECTION} CheckValid; {$ENDIF}
   Result := internalAppendArray(Name, Value, length(Value), @TBsonBuffer.appendDoubleCallback);
 end;
 
-function TBsonBuffer.appendArray(Name: PAnsiChar; const Value: TBooleanArray): Boolean;
+function TBsonBuffer.appendArray(const Name: UTF8String; const Value:
+    TBooleanArray): Boolean;
 begin
   {$IFDEF MONGO_MEMORY_PROTECTION} CheckValid; {$ENDIF}
   Result := internalAppendArray(Name, Value, length(Value), @TBsonBuffer.appendBooleanCallback);
 end;
 
-function TBsonBuffer.appendArray(Name: PAnsiChar; const Value: TStringArray): Boolean;
+function TBsonBuffer.appendArray(const Name: UTF8String; const Value:
+    TStringArray): Boolean;
 begin
   {$IFDEF MONGO_MEMORY_PROTECTION} CheckValid; {$ENDIF}
   Result := internalAppendArray(Name, Value, length(Value), @TBsonBuffer.appendStringCallback);
 end;
 
-function TBsonBuffer.appendCode_n(Name, Value: PAnsiChar; Len: Cardinal):
-    Boolean;
+function TBsonBuffer.appendCode_n(const Name, Value: UTF8String; Len:
+    Cardinal): Boolean;
 begin
   checkBsonBuffer;
-  Result := (bson_append_code_n(Handle, Name, Value, Len) = 0);
+  Result := (bson_append_code_n(Handle, PAnsiChar(Name), PAnsiChar(Value), Len) = 0);
 end;
 
 function TBsonBuffer.appendElementsAsArray(const def : TVarRecArray): boolean;
 var
-  Fld : AnsiString;
+  Fld : UTF8String;
   i : integer;
   function AppendString(const Val : Variant) : Boolean;
   begin
     if Val = '{' then
-      Result := startObject(PAnsiChar(Fld))
-    else Result := appendVariant(PAnsiChar(Fld), Val);
+      Result := startObject(Fld)
+    else Result := appendVariant(Fld, Val);
   end;
 begin
   Result := True;
@@ -1190,15 +1217,15 @@ begin
       if not Result then
         break;
       case def[i].VType of
-        vtAnsiString    : Fld := AnsiString(def[i].VAnsiString);
-        vtWideString    : Fld := AnsiString(WideString(def[i].VWideString));
+        vtAnsiString    : Fld := UTF8String(def[i].VAnsiString);
+        vtWideString    : Fld := UTF8String(WideString(def[i].VWideString));
         vtString        : Fld := def[i].VString^;
         vtChar          : Fld := def[i].VChar;
         vtWideChar      : Fld := AnsiChar(def[i].VWideChar);
-        vtPChar         : Fld := AnsiString(def[i].VPChar);
-        vtPWideChar     : Fld := AnsiString(def[i].VPWideChar);
+        vtPChar         : Fld := UTF8String(def[i].VPChar);
+        vtPWideChar     : Fld := UTF8String(def[i].VPWideChar);
         {$IFDEF DELPHI2009}
-        vtUnicodeString : Fld := AnsiString(UnicodeString(def[i].VUnicodeString));
+        vtUnicodeString : Fld := UTF8String(UnicodeString(def[i].VUnicodeString));
         {$ENDIF}
         else raise EMongo.Create(SExpectedDefElementShouldBeAString);
       end;
@@ -1208,19 +1235,19 @@ begin
       begin
         inc(i);
         case def[i].VType of
-          vtInteger    : Result := append(PAnsiChar(Fld), def[i].VInteger);
-          vtBoolean    : Result := append(PAnsiChar(Fld), def[i].VBoolean);
+          vtInteger    : Result := append(Fld, def[i].VInteger);
+          vtBoolean    : Result := append(Fld, def[i].VBoolean);
           vtChar       : Result := AppendString(def[i].VChar);
-          vtExtended   : Result := append(PAnsiChar(Fld), def[i].VExtended^);
-          vtPChar      : Result := AppendString(AnsiString(PAnsiChar(def[i].VPChar)));
+          vtExtended   : Result := append(Fld, def[i].VExtended^);
+          vtPChar      : Result := AppendString(UTF8String(PAnsiChar(def[i].VPChar)));
           vtWideChar   : Result := AppendString(WideString(def[i].VWideChar));
           vtPWideChar  : Result := AppendString(WideString(def[i].VPWideChar));
-          vtAnsiString : Result := AppendString(AnsiString(def[i].VAnsiString));
+          vtAnsiString : Result := AppendString(UTF8String(def[i].VAnsiString));
           vtString     : Result := AppendString(def[i].VString^);
-          vtCurrency   : Result := append(PAnsiChar(Fld), def[i].VCurrency^);
-          vtVariant    : Result := appendVariant(PAnsiChar(Fld), def[i].VVariant^);
+          vtCurrency   : Result := append(Fld, def[i].VCurrency^);
+          vtVariant    : Result := appendVariant(Fld, def[i].VVariant^);
           vtWideString : Result := AppendString(WideString(def[i].VWideString));
-          vtInt64      : Result := append(PAnsiChar(Fld), def[i].VInt64^);
+          vtInt64      : Result := append(Fld, def[i].VInt64^);
           {$IFDEF DELPHI2009}
           vtUnicodeString : AppendString(UnicodeString(def[i].VUnicodeString));
           {$ENDIF}
@@ -1236,8 +1263,8 @@ begin
   Result := appendElementsAsArray(MkVarRecArray(def));
 end;
 
-function TBsonBuffer.appendObjectAsArray(ObjectNAme: PAnsiChar; const def:
-    TVarRecArray): boolean;
+function TBsonBuffer.appendObjectAsArray(const ObjectNAme: UTF8String; const
+    def: TVarRecArray): boolean;
 begin
   Result := startObject(ObjectName);
   if Result then
@@ -1246,18 +1273,18 @@ begin
     Result := finishObject;
 end;
 
-function TBsonBuffer.appendStr_n(Name, Value: PAnsiChar; Len: Cardinal):
+function TBsonBuffer.appendStr_n(const Name, Value: UTF8String; Len: Cardinal):
     Boolean;
 begin
   checkBsonBuffer;
-  Result := (bson_append_string_n(Handle, Name, Value, Len) = 0);
+  Result := (bson_append_string_n(Handle, PAnsiChar(Name), PAnsiChar(Value), Len) = 0);
 end;
 
-function TBsonBuffer.appendSymbol_n(Name, Value: PAnsiChar; Len: Cardinal):
-    Boolean;
+function TBsonBuffer.appendSymbol_n(const Name, Value: UTF8String; Len:
+    Cardinal): Boolean;
 begin
   checkBsonBuffer;
-  Result := (bson_append_symbol_n(Handle, Name, Value, Len) = 0);
+  Result := (bson_append_symbol_n(Handle, PAnsiChar(Name), PAnsiChar(Value), Len) = 0);
 end;
 
 procedure TBsonBuffer.checkBsonBuffer;
@@ -1267,16 +1294,16 @@ begin
     raise Exception.Create(SBsonBufferAlreadyFinished);
 end;
 
-function TBsonBuffer.startObject(Name: PAnsiChar): Boolean;
+function TBsonBuffer.startObject(const Name: UTF8String): Boolean;
 begin
   checkBsonBuffer;
-  Result := (bson_append_start_object(Handle, Name) = 0);
+  Result := (bson_append_start_object(Handle, PAnsiChar(Name)) = 0);
 end;
 
-function TBsonBuffer.startArray(Name: PAnsiChar): Boolean;
+function TBsonBuffer.startArray(const Name: UTF8String): Boolean;
 begin
   checkBsonBuffer;
-  Result := (bson_append_start_array(Handle, Name) = 0);
+  Result := (bson_append_start_array(Handle, PAnsiChar(Name)) = 0);
 end;
 
 function TBsonBuffer.finishObject: Boolean;
@@ -1325,7 +1352,7 @@ begin
   inherited Destroy();
 end;
 
-function TBson.value(Name: PAnsiChar): Variant;
+function TBson.value(const Name: UTF8String): Variant;
 var
   i: IBsonIterator;
 begin
@@ -1348,13 +1375,13 @@ begin
   Result := bson_size(FHandle);
 end;
 
-function TBson.find(Name: PAnsiChar): IBsonIterator;
+function TBson.find(const Name: UTF8String): IBsonIterator;
 var
   i: IBsonIterator;
 begin
   checkHandle;
   i := NewBsonIterator;
-  if bson_find(i.getHandle, FHandle, Name) = bsonEOO then
+  if bson_find(i.getHandle, FHandle, PAnsiChar(Name)) = bsonEOO then
     i := nil;
   Result := i;
 end;
@@ -1456,7 +1483,7 @@ begin
   Result := FHandle;
 end;
 
-function TBson.valueAsInt64(Name: PAnsiChar): Int64;
+function TBson.valueAsInt64(const Name: UTF8String): Int64;
 var
   i: IBsonIterator;
 begin
@@ -1469,7 +1496,7 @@ end;
 
 { TBsonCodeWScope }
 
-constructor TBsonCodeWScope.Create(const acode: AnsiString; ascope: IBson);
+constructor TBsonCodeWScope.Create(const acode: UTF8String; ascope: IBson);
 begin
   inherited Create;
   {$IFDEF OnDemandMongoCLoad}
@@ -1487,7 +1514,7 @@ begin
   {$IFDEF OnDemandMongoCLoad}
   InitMongoDBLibrary;
   {$ENDIF}
-  code := AnsiString(bson_iterator_code(i.getHandle));
+  code := UTF8String(bson_iterator_code(i.getHandle));
   b := bson_create();
   try
     bson_iterator_code_scope(i.getHandle, b);
@@ -1497,7 +1524,7 @@ begin
   end;
 end;
 
-function TBsonCodeWScope.getCode: AnsiString;
+function TBsonCodeWScope.getCode: UTF8String;
 begin
   {$IFDEF MONGO_MEMORY_PROTECTION} CheckValid; {$ENDIF}
   Result := Code;
@@ -1509,7 +1536,7 @@ begin
   Result := Scope;
 end;
 
-procedure TBsonCodeWScope.setCode(const ACode: AnsiString);
+procedure TBsonCodeWScope.setCode(const ACode: UTF8String);
 begin
   {$IFDEF MONGO_MEMORY_PROTECTION} CheckValid; {$ENDIF}
   Code := ACode;
@@ -1523,7 +1550,7 @@ end;
 
 { TBsonRegex }
 
-constructor TBsonRegex.Create(const apattern, aoptions: AnsiString);
+constructor TBsonRegex.Create(const apattern, aoptions: UTF8String);
 begin
   inherited Create;
   {$IFDEF OnDemandMongoCLoad}
@@ -1539,29 +1566,29 @@ begin
   {$IFDEF OnDemandMongoCLoad}
   InitMongoDBLibrary;
   {$ENDIF}
-  pattern := AnsiString(bson_iterator_regex(i.getHandle));
-  options := AnsiString(bson_iterator_regex_opts(i.getHandle));
+  pattern := UTF8String(bson_iterator_regex(i.getHandle));
+  options := UTF8String(bson_iterator_regex_opts(i.getHandle));
 end;
 
-function TBsonRegex.getOptions: AnsiString;
+function TBsonRegex.getOptions: UTF8String;
 begin
   {$IFDEF MONGO_MEMORY_PROTECTION} CheckValid; {$ENDIF}
   Result := Options;
 end;
 
-function TBsonRegex.getPattern: AnsiString;
+function TBsonRegex.getPattern: UTF8String;
 begin
   {$IFDEF MONGO_MEMORY_PROTECTION} CheckValid; {$ENDIF}
   Result := Pattern;
 end;
 
-procedure TBsonRegex.setOptions(const AOptions: AnsiString);
+procedure TBsonRegex.setOptions(const AOptions: UTF8String);
 begin
   {$IFDEF MONGO_MEMORY_PROTECTION} CheckValid; {$ENDIF}
   Options := AOptions;
 end;
 
-procedure TBsonRegex.setPattern(const APattern: AnsiString);
+procedure TBsonRegex.setPattern(const APattern: UTF8String);
 begin
   {$IFDEF MONGO_MEMORY_PROTECTION} CheckValid; {$ENDIF}
   Pattern := APattern;
@@ -1687,7 +1714,7 @@ begin
   Kind := AKind;
 end;
 
-function ByteToHex(InByte: Byte): AnsiString;
+function ByteToHex(InByte: Byte): UTF8String;
 const
   digits: array[0..15] of AnsiChar = '0123456789ABCDEF';
 begin
@@ -1702,9 +1729,9 @@ var
   i: Integer;
   bb: IBsonBuffer;
   depth: Integer;
-  key: AnsiString;
-  Value: AnsiString;
-  Name: PAnsiChar;
+  key: UTF8String;
+  Value: UTF8String;
+  Name: UTF8String;
 begin
   bb := NewBsonBuffer;
   Len := Length(x);
@@ -1712,7 +1739,7 @@ begin
   depth := 0;
   while i < Len do
   begin
-    key := AnsiString(VarToStr(x[i]));
+    key := UTF8String(VarToStr(x[i]));
     if key = '}' then
     begin
       if depth = 0 then
@@ -1722,11 +1749,11 @@ begin
     end
     else
     begin
-      Name := PAnsiChar(key);
+      Name := key;
       Inc(i);
       if i = Len then
         raise Exception.Create(SBSONExpectedValueFor + key);
-      Value := AnsiString(VarToStr(x[i]));
+      Value := UTF8String(VarToStr(x[i]));
       if Value = '{' then
       begin
         bb.startObject(Name);
@@ -1754,7 +1781,7 @@ begin
   Result := TBsonBinary.Create(i);
 end;
 
-function NewBsonCodeWScope(const acode: AnsiString; ascope: IBson): IBsonCodeWScope;
+function NewBsonCodeWScope(const acode: UTF8String; ascope: IBson): IBsonCodeWScope;
 begin
   Result := TBsonCodeWScope.Create(acode, ascope);
 end;
@@ -1769,7 +1796,7 @@ begin
   Result := TBsonOID.Create;
 end;
 
-function NewBsonOID(const s : AnsiString): IBsonOID; overload;
+function NewBsonOID(const s : UTF8String): IBsonOID; overload;
 begin
   Result := TBsonOID.Create(s);
 end;
@@ -1779,7 +1806,7 @@ begin
   Result := TBsonOID.Create(i);
 end;
 
-function NewBsonRegex(const apattern, aoptions: AnsiString): IBsonRegex; overload;
+function NewBsonRegex(const apattern, aoptions: UTF8String): IBsonRegex; overload;
 begin
   Result := TBsonRegex.Create(apattern, aoptions);
 end;
@@ -1859,7 +1886,7 @@ function MkDoubleArray(const Arr : array of Double): TDoubleArray;
 function MkBoolArray(const Arr : array of Boolean): TBooleanArray;
 {$i MongoBsonArrayBuilder.inc}
 
-function MkStrArray(const Arr : array of AnsiString): TStringArray;
+function MkStrArray(const Arr : array of UTF8String): TStringArray;
 {$i MongoBsonArrayBuilder.inc}
 
 initialization
