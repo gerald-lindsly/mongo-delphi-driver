@@ -462,7 +462,7 @@ function CustomIncrFn: Integer; cdecl;
 implementation
 
 uses
-  Windows {$IFDEF DELPHIXE2}, AnsiStrings {$ENDIF};
+  Windows;
 
 // START resource string wizard section
 const
@@ -1074,7 +1074,9 @@ function TMongo.authenticate(const Name, password, db: UTF8String): Boolean;
 begin
   CheckHandle;
   FLoginDatabaseName := db;
-  Result := mongo_cmd_authenticate(fhandle, PAnsiChar(db), PAnsiChar(Name), PAnsiChar(password)) = 0;
+  if Trim(Name) <> '' then
+    Result := mongo_cmd_authenticate(fhandle, PAnsiChar(db), PAnsiChar(Name), PAnsiChar(password)) = 0
+  else result := True;
 end;
 
 function TMongo.authenticate(const Name, password: UTF8String): Boolean;
