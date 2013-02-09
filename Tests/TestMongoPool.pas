@@ -27,12 +27,15 @@ type
     procedure TestAcquireWithoutParams;
     procedure TestAcquireWithHostNameTwice;
     procedure TestAcquireWithHostNameAndPassword;
+    procedure TestAcquireWithHostNamePasswordAndDBName;
+    procedure TestAcquireWithHostAndDBName;
     procedure TestAcquireWithPoolPointer;
     procedure TestMultiThreaded;
     procedure TestRelease;
     procedure TestReleaseWithConnStr;
     procedure TestReleaseWithHostNameUsrNameAndPassword;
     procedure TestReleaseWithHostNameUsrNamePassAndDBName;
+    procedure TestReleaseWithHostNameDBName;
   end;
 
 implementation
@@ -117,6 +120,52 @@ begin
   Check(AMongo <> nil, 'Call to FMongoPool.Acquire should return value <> nil');
   Check(AMongo.addUser(AUserName, APassword), 'Call to addUser should return true');
   ReturnValue := FMongoPool.Acquire(AHostName, AUserName, APassword);
+  Check(ReturnValue.Mongo <> nil, 'Call to FMongoPool.Acquire should return value <> nil');
+  FMongoPool.Release(ReturnValue);
+  FMongoPool.Release(ReturnValue.Pool, AMongo);
+end;
+
+procedure TestTMongoPool.TestAcquireWithHostNamePasswordAndDBName;
+var
+  ReturnValue: TMongoPooledRecord;
+  ADBName : AnsiString;
+  APassword: AnsiString;
+  AUserName: AnsiString;
+  AHostName: AnsiString;
+  AMongo : TMongo;
+begin
+  AHostName := '127.0.0.1';
+  AUserName := 'testuser';
+  APassword := 'testpwd';
+  ADBName := 'testdb';
+  ReturnValue := FMongoPool.Acquire(AHostName);
+  AMongo := ReturnValue.Mongo;
+  Check(AMongo <> nil, 'Call to FMongoPool.Acquire should return value <> nil');
+  Check(AMongo.addUser(AUserName, APassword, ADBName), 'Call to addUser should return true');
+  ReturnValue := FMongoPool.Acquire(AHostName, AUserName, APassword, ADBName);
+  Check(ReturnValue.Mongo <> nil, 'Call to FMongoPool.Acquire should return value <> nil');
+  FMongoPool.Release(ReturnValue);
+  FMongoPool.Release(ReturnValue.Pool, AMongo);
+end;
+
+procedure TestTMongoPool.TestAcquireWithHostAndDBName;
+var
+  ReturnValue: TMongoPooledRecord;
+  ADBName : AnsiString;
+  APassword: AnsiString;
+  AUserName: AnsiString;
+  AHostName: AnsiString;
+  AMongo : TMongo;
+begin
+  AHostName := '127.0.0.1';
+  AUserName := '';
+  APassword := '';
+  ADBName := 'testdb2';
+  ReturnValue := FMongoPool.Acquire(AHostName);
+  AMongo := ReturnValue.Mongo;
+  Check(AMongo <> nil, 'Call to FMongoPool.Acquire should return value <> nil');
+  AMongo.addUser(AUserName, APassword, ADBName);
+  ReturnValue := FMongoPool.Acquire(AHostName, AUserName, APassword, ADBName);
   Check(ReturnValue.Mongo <> nil, 'Call to FMongoPool.Acquire should return value <> nil');
   FMongoPool.Release(ReturnValue);
   FMongoPool.Release(ReturnValue.Pool, AMongo);
@@ -220,6 +269,24 @@ begin
   Check(APoolRecord.Mongo <> nil, 'Call to FMongoPool.Acquire should return value <> nil');
   FMongoPool.Release(AHostName, '', '', AMongo);
   FMongoPool.Release(AHostName, 'test', 'test', 'test', APoolRecord.Mongo);
+end;
+
+procedure TestTMongoPool.TestReleaseWithHostNameDBName;
+var
+  AHostName : AnsiString;
+  APoolRecord : TMongoPooledRecord;
+  AMongo : TMongo;
+begin
+  AHostName := '127.0.0.1';
+  APoolRecord := FMongoPool.Acquire(AHostName);
+  AMongo := APoolRecord.Mongo;
+  Check(AMongo <> nil, 'Call to FMongoPool.Acquire should return value <> nil');
+  AMongo.addUser('', '', 'test');
+
+  APoolRecord := FMongoPool.Acquire(AHostName, '', '', 'test');
+  Check(APoolRecord.Mongo <> nil, 'Call to FMongoPool.Acquire should return value <> nil');
+  FMongoPool.Release(AHostName, '', '', AMongo);
+  FMongoPool.Release(AHostName, '', '', 'test', APoolRecord.Mongo);
 end;
 
 constructor TMongoPoolThread.Create(APool: TMongoPool);
