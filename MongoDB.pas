@@ -15,10 +15,7 @@
 }
 
 { Use define OnDemandMongoCLoad if you want the MongoC.dll library to be loaded dynamically upon first use of a TMongo or
-  TMongoReplset object
-
-  VERY IMPORTANT!!! If MongoC was compiled with memory protection you have to define MONGO_MEMORY_PROTECTION to compile this file
-  otherwise WriteConcerns are not going to work }
+  TMongoReplset object }
 
 { This unit implements the TMongo connection class for connecting to a MongoDB server
   and performing database operations on that server. }
