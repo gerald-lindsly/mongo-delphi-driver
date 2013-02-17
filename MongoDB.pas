@@ -52,13 +52,33 @@ const
   { Allow reads even if a shard is down. }
   cursorPartial = 128;
 
+  // Delphi driver produced error codes
+  E_ConnectionToMongoServerFailed    = 90000;
+  E_AQueryMustBeProvidedWithAMinimum = 90001;
+  E_IfTfamoRemoveIsNotPassedInTheOpt = 90002;
+  E_MongoHandleIsNil                 = 90003;
+  E_MongoCursorHandleIsNil           = 90004;
+  E_CanTUseAnUnfinishedWriteConcern  = 90005;
+  E_TMongoDropExpectedAInTheNamespac = 90006;
+  E_ExpectedAInTheNamespace          = 90007;
+  E_MongoDBServerError               = 91000;
+
 type
   TFindAndModifyOptions = (tfamoNew, tfamoUpsert, tfamoRemove);
   TFindAndModifyOptionsSet = set of TFindAndModifyOptions;
   IMongoCursor = interface;
   IWriteConcern = interface;
 
-  EMongo = class(Exception);
+  EMongo = class(Exception)
+  private
+    FErrorCode: Integer;
+  public
+    constructor Create(const AMsg: string; ACode: Integer); overload;
+    constructor Create(const AMsg, AStrParam: string; ACode: Integer); overload;
+    procedure Create(const AMsg: string); overload; // Declared as procedure in purpose to fail compilation
+    procedure CreateFmt; // Declared as procedure in purpose to fail compilation
+    property ErrorCode: Integer read FErrorCode;
+  end;
 
   { TMongo objects establish a connection to a MongoDB server and are
     used for subsequent database operations on that server. }
@@ -67,7 +87,7 @@ type
     FAutoCheckLastError: Boolean;
     FLoginDatabaseName: UTF8String;
     FWriteConcern: IWriteConcern;
-    procedure CheckHandle;
+    procedure CheckHandle(const FnName: String);
     class procedure InitCustomBsonOIDFns;
   protected
       { Pointer to externally managed data describing the connection.
@@ -113,7 +133,7 @@ type
     { Get the host:post of the primary server that this TMongo is connected to. }
     function getPrimary: UTF8String;
     { Get the TCP/IP socket number being used for network communication }
-    function getSocket: Integer;
+    function getSocket: Pointer;
     { Get a list of databases from the server as an array of string }
     function getDatabases: TStringArray;
       { Given a database name as a string, get the namespaces of the collections
@@ -487,21 +507,22 @@ const
   SDistinct = 'distinct';
   SKey = 'key';
   SReseterror = 'reseterror';
-  // END resource string wizard section
+// END resource string wizard section
 
 // START resource string wizard section
 resourcestring
-  SAQueryMustBeProvidedWithAMinimum = 'A query must be provided with a minimum of two elements on it';
-  SIfTfamoRemoveIsNotPassedInTheOpt = 'if tfamoRemove is not passed in the options, then update parameter must have at least two elements';
-  SMongoHandleIsNil = 'Mongo handle is nil';
-  SCanTUseAnUnfinishedWriteConcern = 'Can''t use an unfinished WriteConcern';
-  {$IFDEF OnDemandMongoCLoad}
-  SFailedLoadingMongocDll = 'Failed loading mongoc.dll';
-  SFunctionNotFoundOnMongoCLibrary = 'Function "%s" not found on MongoC library';
-  {$ENDIF}
-  STMongoDropExpectedAInTheNamespac = 'TMongo.drop: expected a ''.'' in the namespace.';
-  SExpectedAInTheNamespace = 'Expected a ''.'' in the namespace';
-  // END resource string wizard section
+  SDonTTryToUseEMongoCreateConstruc = 'Don''t try to use EMongo.Create constructor without parameters';
+  SDonTUseEMongoCreateFmt = 'Don''t use EMongo.CreateFmt()';
+
+  SConnectionToMongoServerFailed = 'Connection to Mongo server failed (D%d)';
+  SAQueryMustBeProvidedWithAMinimum = 'A query must be provided with a minimum of two elements on it (D%d)';
+  SIfTfamoRemoveIsNotPassedInTheOpt = 'if tfamoRemove is not passed in the options, then update parameter must have at least two elements (D%d)';
+  SMongoHandleIsNil = 'Mongo handle is nil calling %s (D%d)';
+  SMongoCursorHandleIsNil = 'Mongo cursor handle is nil calling %s (D%d)';
+  SCanTUseAnUnfinishedWriteConcern = 'Can''t use an unfinished WriteConcern (D%d)';
+  STMongoDropExpectedAInTheNamespac = 'TMongo.drop: expected a ''.'' in the namespace (D%d)';
+  SExpectedAInTheNamespace = 'Expected a ''.'' in the namespace (D%d)';
+// END resource string wizard section
 
 procedure parseHost(const host: UTF8String; var hosturl: UTF8String; var port: Integer);
 var
@@ -557,7 +578,7 @@ type
     fskip: Integer;
     foptions: Integer;
     fconn: TMongo;
-    procedure CheckHandle;
+    procedure CheckHandle(const FnName: String);
     function GetConn: TMongo;
     function GetFields: IBson;
     function GetHandle: Pointer;
@@ -668,7 +689,7 @@ var
   hosturl: UTF8String;
   port: Integer;
 begin
-  CheckHandle;
+  CheckHandle('addSeed');
   parseHost(host, hosturl, port);
   mongo_replica_set_add_seed(Handle, PAnsiChar(hosturl), port);
 end;
@@ -678,7 +699,7 @@ var
   Ret: Integer;
   Err: Integer;
 begin
-  CheckHandle;
+  CheckHandle('Connect');
   Ret := mongo_replica_set_client(Handle);
   if Ret <> 0 then
     Err := getErr
@@ -689,49 +710,49 @@ end;
 
 function TMongo.isConnected: Boolean;
 begin
-  CheckHandle;
+  CheckHandle('isConnected');
   Result := mongo_is_connected(fhandle);
 end;
 
 function TMongo.checkConnection: Boolean;
 begin
-  CheckHandle;
+  CheckHandle('checkConnection');
   Result := mongo_check_connection(fhandle) = 0;
 end;
 
 function TMongo.isMaster: Boolean;
 begin
-  CheckHandle;
+  CheckHandle('isMaster');
   Result := mongo_cmd_ismaster(fhandle, nil);
 end;
 
 procedure TMongo.disconnect;
 begin
-  CheckHandle;
+  CheckHandle('disconnect');
   mongo_disconnect(fhandle);
 end;
 
 function TMongo.reconnect: Boolean;
 begin
-  CheckHandle;
+  CheckHandle('reconnect');
   Result := mongo_reconnect(fhandle) = 0;
 end;
 
 function TMongo.getErr: Integer;
 begin
-  CheckHandle;
+  CheckHandle('getErr');
   Result := mongo_get_err(fhandle);
 end;
 
 function TMongo.setTimeout(millis: Integer): Boolean;
 begin
-  CheckHandle;
+  CheckHandle('setTimeout');
   Result := mongo_set_op_timeout(fhandle, millis) = 0;
 end;
 
 function TMongo.getTimeout: Integer;
 begin
-  CheckHandle;
+  CheckHandle('getTimeout');
   Result := mongo_get_op_timeout(fhandle);
 end;
 
@@ -739,7 +760,7 @@ function TMongo.getPrimary: UTF8String;
 var
   APrimary: PAnsiChar;
 begin
-  CheckHandle;
+  CheckHandle('getPrimary');
   APrimary := mongo_get_primary(fhandle);
   try
     Result := UTF8String(APrimary);
@@ -749,9 +770,9 @@ begin
   end;
 end;
 
-function TMongo.getSocket: Integer;
+function TMongo.getSocket: Pointer;
 begin
-  CheckHandle;
+  CheckHandle('getSocket');
   Result := mongo_get_socket(fhandle);
 end;
 
@@ -759,7 +780,7 @@ end;
 
 function TMongoReplset.getHostCount: Integer;
 begin
-  CheckHandle;
+  CheckHandle('getHostCount');
   Result := mongo_get_host_count(Handle);
 end;
 
@@ -767,7 +788,7 @@ function TMongoReplset.getHost(i: Integer): UTF8String;
 var
   AHost: PAnsiChar;
 begin
-  CheckHandle;
+  CheckHandle('getHost');
   AHost := mongo_get_host(Handle, i);
   try
     Result := UTF8String(AHost);
@@ -876,7 +897,7 @@ begin
   {$IFDEF MONGO_MEMORY_PROTECTION} CheckValid; {$ENDIF}
   parseNamespace(ns, db, collection);
   if db = '' then
-    raise EMongo.Create(STMongoDropExpectedAInTheNamespac);
+    raise EMongo.Create(STMongoDropExpectedAInTheNamespac, E_TMongoDropExpectedAInTheNamespac);
   autoCmdResetLastError(db, false);
   Result := mongo_cmd_drop_collection(fhandle, PAnsiChar(db), PAnsiChar(collection), nil) = 0;
   autoCheckCmdLastError(db, false);
@@ -884,7 +905,7 @@ end;
 
 function TMongo.dropDatabase(const db: UTF8String): Boolean;
 begin
-  CheckHandle;
+  CheckHandle('dropDatabase');
   autoCmdResetLastError(db, false);
   Result := mongo_cmd_drop_db(fhandle, PAnsiChar(db)) = 0;
   autoCheckCmdLastError(db, false);
@@ -892,7 +913,7 @@ end;
 
 function TMongo.Insert(const ns: UTF8String; b: IBson): Boolean;
 begin
-  CheckHandle;
+  CheckHandle('Insert(UTF8String; IBson)');
   autoCmdResetLastError(ns, true);
   Result := mongo_insert(fhandle, PAnsiChar(ns), b.Handle, nil) = 0;
   autoCheckCmdLastError(ns, true);
@@ -907,7 +928,7 @@ var
   i: Integer;
   Len: Integer;
 begin
-  CheckHandle;
+  CheckHandle('Insert(UTF8String; array of IBson)');
   Len := Length(bs);
   GetMem(ps, Len * SizeOf(Pointer));
   try
@@ -923,7 +944,7 @@ end;
 
 function TMongo.update(const ns: UTF8String; criteria, objNew: IBson; flags: Integer): Boolean;
 begin
-  CheckHandle;
+  CheckHandle('update(UTF8String; IBson; IBson; Integer)');
   autoCmdResetLastError(ns, true);
   Result := mongo_update(fhandle, PAnsiChar(ns), criteria.Handle, objNew.Handle, flags, nil) = 0;
   autoCheckCmdLastError(ns, true);
@@ -937,7 +958,7 @@ end;
 
 function TMongo.remove(const ns: UTF8String; criteria: IBson): Boolean;
 begin
-  CheckHandle;
+  CheckHandle('remove');
   autoCmdResetLastError(ns, true);
   Result := mongo_remove(fhandle, PAnsiChar(ns), criteria.Handle, nil) = 0;
   autoCheckCmdLastError(ns, true);
@@ -947,7 +968,7 @@ function TMongo.findOne(const ns: UTF8String; query, fields: IBson): IBson;
 var
   res: Pointer;
 begin
-  CheckHandle;
+  CheckHandle('findOne');
   res := bson_create;
   try
     autoCmdResetLastError(ns, true);
@@ -979,7 +1000,7 @@ var
   bb: IBsonBuffer;
   ch: Pointer;
 begin
-  CheckHandle;
+  CheckHandle('find');
   if Cursor.fields = nil then
     Cursor.fields := bsonEmpty;
   q := Cursor.query;
@@ -1014,10 +1035,10 @@ var
   db: UTF8String;
   collection: UTF8String;
 begin
-  CheckHandle;
+  CheckHandle('count(UTF8String; IBson)');
   parseNamespace(ns, db, collection);
   if db = '' then
-    raise EMongo.Create(SExpectedAInTheNamespace);
+    raise EMongo.Create(SExpectedAInTheNamespace, E_ExpectedAInTheNamespace);
   autoCmdResetLastError(db, false);
   Result := mongo_count(fhandle, PAnsiChar(db), PAnsiChar(collection), query.Handle);
   autoCheckCmdLastError(db, false);
@@ -1057,7 +1078,7 @@ end;
 
 function TMongo.addUser(const Name, password, db: UTF8String): Boolean;
 begin
-  CheckHandle;
+  CheckHandle('addUser');
   Result := mongo_cmd_add_user(fhandle, PAnsiChar(db), PAnsiChar(Name), PAnsiChar(password)) = 0;
 end;
 
@@ -1069,7 +1090,7 @@ end;
 
 function TMongo.authenticate(const Name, password, db: UTF8String): Boolean;
 begin
-  CheckHandle;
+  CheckHandle('authenticate');
   FLoginDatabaseName := db;
   if Trim(Name) <> '' then
     Result := mongo_cmd_authenticate(fhandle, PAnsiChar(db), PAnsiChar(Name), PAnsiChar(password)) = 0
@@ -1101,7 +1122,7 @@ begin
   begin
     it := Err.iterator;
     it.Next;
-    raise EMongo.Create(it.Value);
+    raise EMongo.Create(it.Value, E_MongoDBServerError);
   end;
 end;
 
@@ -1120,18 +1141,18 @@ begin
   cmdResetLastError(db);
 end;
 
-procedure TMongo.CheckHandle;
+procedure TMongo.CheckHandle(const FnName: String);
 begin
   {$IFDEF MONGO_MEMORY_PROTECTION} CheckValid; {$ENDIF}
   if fhandle = nil then
-    raise EMongo.Create(SMongoHandleIsNil);
+    raise EMongo.Create(SMongoHandleIsNil, FnName, E_MongoHandleIsNil);
 end;
 
 function TMongo.command(const db: UTF8String; command: IBson): IBson;
 var
   res: Pointer;
 begin
-  CheckHandle;
+  CheckHandle('command');
   res := bson_create;
   try
     if mongo_run_command(fhandle, PAnsiChar(db), command.Handle, res) = 0 then
@@ -1151,7 +1172,7 @@ begin
   {$IFDEF MONGO_MEMORY_PROTECTION} CheckValid; {$ENDIF}
   parseNamespace(ns, db, collection);
   if db = '' then
-    raise EMongo.Create(SExpectedAInTheNamespace);
+    raise EMongo.Create(SExpectedAInTheNamespace, E_ExpectedAInTheNamespace);
   buf := NewBsonBuffer;
   buf.AppendStr(SDistinct, PAnsiChar(collection));
   buf.AppendStr(SKey, PAnsiChar(key));
@@ -1169,7 +1190,7 @@ function TMongo.getLastErr(const db: UTF8String): IBson;
 var
   res: Pointer;
 begin
-  CheckHandle;
+  CheckHandle('getLastErr');
   res := bson_create;
   try
     if mongo_cmd_get_last_error(fhandle, PAnsiChar(db), res) <> 0 then
@@ -1185,7 +1206,7 @@ function TMongo.cmdGetLastError(const db: UTF8String): IBson;
 var
   h: Pointer;
 begin
-  CheckHandle;
+  CheckHandle('cmdGetLastError');
   h := bson_create;
   if mongo_cmd_get_last_error(fHandle, PAnsiChar(db), h) = 0 then
   begin
@@ -1198,7 +1219,7 @@ end;
 
 procedure TMongo.cmdResetLastError(const db: UTF8String);
 begin
-  CheckHandle;
+  CheckHandle('cmdResetLastError');
   mongo_cmd_reset_error(fHandle, PAnsiChar(db));
 end;
 
@@ -1221,9 +1242,9 @@ begin
   cmd := NewBsonBuffer;
   cmd.appendStr(SFindAndModifyCommand, PAnsiChar(ns));
   if length(query) < 2 then
-    raise EMongo.Create(SAQueryMustBeProvidedWithAMinimum);
+    raise EMongo.Create(SAQueryMustBeProvidedWithAMinimum, E_AQueryMustBeProvidedWithAMinimum);
   if (not (tfamoRemove in options)) and (length(update) < 2) then
-    raise EMongo.Create(SIfTfamoRemoveIsNotPassedInTheOpt);
+    raise EMongo.Create(SIfTfamoRemoveIsNotPassedInTheOpt, E_IfTfamoRemoveIsNotPassedInTheOpt);
   cmd.appendObjectAsArray(FindAndModifyOption_SQuery, query);
   if length(sort) > 0 then
     cmd.appendObjectAsArray(FindAndModifyOption_SSort, sort);
@@ -1256,7 +1277,7 @@ function TMongo.getPrevErr(const db: UTF8String): IBson;
 var
   res: Pointer;
 begin
-  CheckHandle;
+  CheckHandle('getPrevErr');
   res := bson_create;
   try
     if mongo_cmd_get_prev_error(fhandle, PAnsiChar(db), res) <> 0 then
@@ -1276,13 +1297,13 @@ end;
 
 function TMongo.getServerErr: Integer;
 begin
-  CheckHandle;
+  CheckHandle('getServerErr');
   Result := mongo_get_server_err(fhandle);
 end;
 
 function TMongo.getServerErrString: UTF8String;
 begin
-  CheckHandle;
+  CheckHandle('getServerErrString');
   Result := UTF8String(mongo_get_server_err_string(fhandle));
 end;
 
@@ -1294,7 +1315,7 @@ var
   h: Pointer;
   AName : PAnsiChar;
 begin
-  CheckHandle;
+  CheckHandle('indexCreate');
   h := bson_create;
   try
     res := NewBson(h);
@@ -1335,6 +1356,8 @@ begin
   fhandle := mongo_create;
   parseHost(AHost, hosturl, port);
   mongo_client(fhandle, PAnsiChar(hosturl), port);
+  if not checkConnection then
+    raise EMongo.Create(SConnectionToMongoServerFailed, E_ConnectionToMongoServerFailed);
 end;
 
 procedure TMongo.parseNamespace(const ns: UTF8String; var db: UTF8String; var Collection: UTF8String);
@@ -1357,12 +1380,12 @@ end;
 
 procedure TMongo.setWriteConcern(AWriteConcern: IWriteConcern);
 begin
-  CheckHandle;
+  CheckHandle('setWriteConcern');
   if AWriteConcern <> nil then
     if AWriteConcern.finished then
       mongo_set_write_concern(FHandle, AWriteConcern.Handle)
     else
-      raise EMongo.Create(SCanTUseAnUnfinishedWriteConcern)
+      raise EMongo.Create(SCanTUseAnUnfinishedWriteConcern, E_CanTUseAnUnfinishedWriteConcern)
   else
     mongo_set_write_concern(FHandle, nil);
   FWriteConcern := AWriteConcern;
@@ -1396,11 +1419,11 @@ begin
   inherited;
 end;
 
-procedure TMongoCursor.CheckHandle;
+procedure TMongoCursor.CheckHandle(const FnName: String);
 begin
   {$IFDEF MONGO_MEMORY_PROTECTION} CheckValid; {$ENDIF}
   if FHandle = nil then
-    raise EMongo.Create(SMongoHandleIsNil);
+    raise EMongo.Create(SMongoCursorHandleIsNil, FnName, E_MongoCursorHandleIsNil);
 end;
 
 procedure TMongoCursor.DestroyCursor;
@@ -1485,7 +1508,7 @@ end;
 
 function TMongoCursor.next: Boolean;
 begin
-  CheckHandle;
+  CheckHandle('next');
   Result := mongo_cursor_next(Handle) = 0;
 end;
 
@@ -1541,7 +1564,7 @@ end;
 
 function TMongoCursor.value: IBson;
 begin
-  CheckHandle;
+  CheckHandle('value');
   Result := NewBsonCopy(mongo_cursor_bson(Handle));
 end;
 
@@ -1680,6 +1703,28 @@ begin
   {$IFDEF MONGO_MEMORY_PROTECTION} CheckValid; {$ENDIF}
   mongo_write_concern_set_wtimeout(FWriteConcern, Value);
   Modified;
+end;
+
+constructor EMongo.Create(const AMsg: string; ACode: Integer);
+begin
+  inherited CreateFmt(AMsg, [ACode]);
+  FErrorCode := ACode;
+end;
+
+constructor EMongo.Create(const AMsg, AStrParam: string; ACode: Integer);
+begin
+  inherited CreateFmt(AMsg, [AStrParam, ACode]);
+  FErrorCode := ACode;
+end;
+
+procedure EMongo.Create(const AMsg: string);
+begin
+  raise Exception.Create(SDonTTryToUseEMongoCreateConstruc);
+end;
+
+procedure EMongo.CreateFmt;
+begin
+  raise Exception.Create(SDonTUseEMongoCreateFmt);
 end;
 
 end.

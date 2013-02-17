@@ -38,6 +38,11 @@ const
   GRIDFILE_NOMD5 = 1;
   GRIDFILE_COMPRESS = 2;
 
+  E_GridFSHandleIsNil                = 90200;
+  E_GridFileHandleIsNil              = 90201;
+  E_InternalErrorOIDDescriptorOfFile = 90202;
+  E_UnableToCreateGridFS             = 90203;
+
 type
   IGridfile       = interface;
   IGridfileWriter = interface;
@@ -198,10 +203,10 @@ const
 
 // START resource string wizard section
 resourcestring
-  SGridFSHandleIsNil = 'GridFS Handle is nil';
-  SGridFileHandleIsNil = 'GridFile Handle is nil';
-  SInternalErrorOIDDescriptorOfFile = 'Internal error. OID descriptor of file is nil';
-  SUnableToCreateGridFS = 'Unable to create GridFS';
+  SGridFSHandleIsNil = 'GridFS Handle is nil (D%d)';
+  SGridFileHandleIsNil = 'GridFile Handle is nil (D%d)';
+  SInternalErrorOIDDescriptorOfFile = 'Internal error. OID descriptor of file is nil (D%d)';
+  SUnableToCreateGridFS = 'Unable to create GridFS (D%d)';
   // END resource string wizard section
 
 type
@@ -314,7 +319,7 @@ begin
     PAnsiChar(prefix), Handle) <> 0 then
   begin
     gridfs_dispose(Handle);
-    raise Exception.Create(SUnableToCreateGridFS);
+    raise EMongo.Create(SUnableToCreateGridFS, E_UnableToCreateGridFS);
   end;
   AutoCheckLastError := True;
 end;
@@ -341,7 +346,7 @@ procedure TGridFS.CheckHandle;
 begin
   {$IFDEF MONGO_MEMORY_PROTECTION} CheckValid; {$ENDIF}
   if Handle = nil then
-    raise EMongo.Create(SGridFSHandleIsNil);
+    raise EMongo.Create(SGridFSHandleIsNil, E_GridFSHandleIsNil);
 end;
 
 function TGridFS.storeFile(const FileName, remoteName, contentType: UTF8String;
@@ -569,7 +574,7 @@ procedure TGridfile.CheckHandle;
 begin
   {$IFDEF MONGO_MEMORY_PROTECTION} CheckValid; {$ENDIF}
   if FHandle = nil then
-    raise EMongo.Create(SGridFileHandleIsNil);
+    raise EMongo.Create(SGridFileHandleIsNil, E_GridFileHandleIsNil);
 end;
 
 procedure TGridfile.DestroyGridFile;
@@ -699,7 +704,7 @@ begin
   CheckHandle;
   poid := gridfile_get_id(FHandle);
   if poid = nil then
-    raise EMongo.Create(SInternalErrorOIDDescriptorOfFile);
+    raise EMongo.Create(SInternalErrorOIDDescriptorOfFile, E_InternalErrorOIDDescriptorOfFile);
   Result := NewBsonOID;
   Result.setValue(TBsonOIDValue(poid^));
 end;

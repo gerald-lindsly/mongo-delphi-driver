@@ -25,6 +25,10 @@ interface
 uses
   MongoDB, Classes, SyncObjs, MongoAPI;
 
+const
+  E_ConnectionStringProvidedForMongo = 90400;
+  E_FailedAuthenticationToMongoDB    = 90401;
+
 type
   TMongoPooledRecord = record
     Mongo: TMongo;
@@ -60,15 +64,15 @@ implementation
 uses
   SysUtils;
 
-// START resource string wizard section
+  // START resource string wizard section
 const
   SLOOPBACK = '127.0.0.1';
   // END resource string wizard section
 
   // START resource string wizard section
 resourcestring
-  SConnectionStringProvidedForMongo = 'ConnectionString provided for Mongo pool doesn''t exist';
-  SFailedAuthenticationToMongoDB    = 'Failed authentication to MongoDB';
+  SConnectionStringProvidedForMongo = 'ConnectionString provided for Mongo pool doesn''t exist (D%d)';
+  SFailedAuthenticationToMongoDB    = 'Failed authentication to MongoDB (D%d)';
   // END resource string wizard section
 
 type
@@ -150,7 +154,7 @@ begin
         Passed := Result.authenticate(AUserName, APassword, ADBName)
       else
         Passed := Result.authenticate(AUserName, APassword);
-      if not Passed then raise Exception.Create(SFailedAuthenticationToMongoDB);
+      if not Passed then raise EMongo.Create(SFailedAuthenticationToMongoDB, E_FailedAuthenticationToMongoDB);
     end
   else
     with APool as TMongoPoolList do
@@ -185,7 +189,8 @@ begin
          AServerName := Copy(APassword, i+1, Length(APassword));
         Delete(APassword, i, Length(APassword));
       end;
-  end;
+  end
+  else AHostName := AConnectionString;
 end;
 
 function TMongoPool.Acquire(const AHostName, AUserName, APassword: UTF8String): TMongoPooledRecord;
@@ -250,7 +255,7 @@ begin
     if idx >= 0 then
       Release(FPools.Objects[idx] as TMongoPoolList, AMongo)
     else 
-      raise Exception.Create(SConnectionStringProvidedForMongo)
+      raise EMongo.Create(SConnectionStringProvidedForMongo, E_ConnectionStringProvidedForMongo)
     finally
       FLock.Leave;
   end;

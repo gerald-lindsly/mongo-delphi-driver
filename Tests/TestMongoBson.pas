@@ -112,6 +112,7 @@ type
     procedure TestappendCode_n;
     procedure TestAppendElementsAsArrayOfConst;
     procedure TestAppendElementsAsArraySubObjects;
+    procedure TestAppendElementsAsArrayArray;
     procedure TestAppendElementsAsVarRecArray;
     procedure TestAppendElementsAsArrayWithErrors;
     procedure TestAppendStr_n;
@@ -173,11 +174,23 @@ type
   end;
 
   TestBsonAPI = class(TTestCase)
-  public
   published
     procedure Test_bson_set_oid_inc;
     procedure Test_bson_set_oid_fuzz;
+  end;
 
+  TestArrayBuildingFunctions = class(TTestCase)
+  published
+    procedure TestBuildIntArray;
+    procedure TestBuildDoubleArray;
+    procedure TestBuildBooleanArray;
+    procedure TestAppendToBooleanArray;
+    procedure TestAppendToDoubleArray;
+    procedure TestAppendToIntArray;
+    procedure TestBuildStrArray;
+    procedure TestAppendToStrArray;
+    procedure TestBuildVarRecArray;
+    procedure TestAppendToVarRecArray;
   end;
 
 implementation
@@ -959,6 +972,51 @@ begin
   CheckEquals(2, it.value, 'value of key subobject attribute doesn''t match');
 end;
 
+procedure TestIBsonBuffer.TestAppendElementsAsArrayArray;
+var
+  Obj : IBson;
+  it : IBsonIterator;
+  SubIt : IBsonIterator;
+begin
+  Check(FIBsonBuffer.appendElementsAsArray(['int', 1, 'sub_array',
+                                            '[', 'element 1', 'element 2', 'subobject',
+                                                                             '{',
+                                                                             's', 'Str', '}',
+                                             3, 4, 'final_obj', '{', 'subarr', '[', '10', '20', ']', '}', ']']), 'Call t appendElementsAsArray failed');
+  Obj := FIBsonBuffer.finish;
+  CheckEquals(1, Obj.value('int'), 'Value of int doesn''t match');
+  it := Obj.find('sub_array');
+  Check(it <> nil, 'iterator sub_obj should be <> nil');
+  it := it.subiterator;
+  Check(it.next, 'first call to it.next should return true');
+  Check(it <> nil, 'subiterator of sub_array should be <> nil');
+  CheckEqualsString('element 1', it.value, 'first value of array doesn''t match');
+  Check(it.next, 'call to it.next should return true');
+  CheckEqualsString('element 2', it.value, 'second value of array doesn''t match');
+  Check(it.next, 'call to it.next should return value <> nil');
+  SubIt := it.subiterator;
+  Check(SubIt <> nil, 'Sub iterator should be <> nil');
+  Check(SubIt.next, 'call to SubIt.next should return true');
+  CheckEqualsString('s', SubIt.key, 'key of first element of subobject should be s');
+  CheckEqualsString('Str', SubIt.value, 'value of first attribute of subobject should be Str');
+  Check(it.next, 'call to it.next should return true');
+  CheckEquals(3, it.value, 'third value of array doesn''t match');
+  Check(it.next, 'call to it.next should return true');
+  CheckEquals(4, it.value, 'fourth value of array doesn''t match');
+  Check(it.next, 'call to it.next should return true');
+  SubIt := it.subiterator;
+  Check(SubIt <> nil, 'call to subiterator should be <> nil');
+  Check(SubIt.next, 'first call to SubIt.next should be true');
+  CheckEqualsString('subarr', SubIt.key, 'first key of SubIt doesn''t match');
+  SubIt := SubIt.subiterator;
+  Check(SubIT <> nil, 'SubIterator of subiterator should be <> nil');
+  Check(SubIt.next, 'first call to subit.next should be true');
+  CheckEquals(10, SubIt.value, 'First value of last array should be 10');
+  Check(SubIt.next, 'second call of subit.next should for last array should be true');
+  CheckEquals(20, SubIt.value, 'Last element of subarray should be 20');
+  Check(not SubIt.next, 'Call to SubIt.next after last element should be false');
+end;
+
 procedure TestIBsonBuffer.TestAppendElementsAsVarRecArray;
 const
   int_fld : UTF8String = 'int_fld';
@@ -1166,7 +1224,7 @@ begin
     FIBsonBuffer.appendElementsAsArray(Def);
     Fail('call to appendElementsAsArray should have raise exception');
   except
-    on E : Exception do Check(pos('even amount', E.Message) > 0, 'appendElementsAsArray should have raised exception. error: ' + E.Message);
+    on E : Exception do Check(pos('minimum', E.Message) > 0, 'appendElementsAsArray should have raised exception. error: ' + E.Message);
   end;
 end;
 
@@ -1615,6 +1673,184 @@ begin
   Check(CustomOIDFuzz, 'CustomSetOIDIncCalled should be true after creating BsonOID');
 end;
 
+{ TestArrayBuildingFunctions }
+
+procedure TestArrayBuildingFunctions.TestBuildIntArray;
+var
+  Arr : TIntegerArray;
+begin
+  Arr := MkIntArray([0, 1, 2]);
+  CheckEquals(0, Arr[0], 'Arr[0] value doesn''t match');
+  CheckEquals(1, Arr[1], 'Arr[1] value doesn''t match');
+  CheckEquals(2, Arr[2], 'Arr[2] value doesn''t match');
+end;
+
+
+procedure TestArrayBuildingFunctions.TestBuildDoubleArray;
+var
+  Arr : TDoubleArray;
+begin
+  Arr := MkDoubleArray([0.1, 1.1, 2.1]);
+  CheckEqualsString(FloatToStr(0.1), FloatToStr(Arr[0]), 'Arr[0] value doesn''t match');
+  CheckEqualsString(FloatToStr(1.1), FloatToStr(Arr[1]), 'Arr[1] value doesn''t match');
+  CheckEqualsString(FloatToStr(2.1), FloatToStr(Arr[2]), 'Arr[2] value doesn''t match');
+end;
+
+procedure TestArrayBuildingFunctions.TestBuildBooleanArray;
+var
+  Arr : TBooleanArray;
+begin
+  Arr := MkBoolArray([True, False, True]);
+  Check(Arr[0], 'Arr[0] value doesn''t match');
+  Check(not Arr[1], 'Arr[1] value doesn''t match');
+  Check(Arr[2], 'Arr[2] value doesn''t match');
+end;
+
+procedure TestArrayBuildingFunctions.TestAppendToBooleanArray;
+var
+  Arr : TBooleanArray;
+  procedure CheckFirstElements;
+  begin
+    Check(Arr[0], 'Arr[0] value doesn''t match');
+    Check(not Arr[1], 'Arr[1] value doesn''t match');
+    Check(Arr[2], 'Arr[2] value doesn''t match');
+    Check(not Arr[3], 'Arr[3] value doesn''t match');
+    Check(not Arr[4], 'Arr[4] value doesn''t match');
+    Check(Arr[5], 'Arr[5] value doesn''t match');
+    Check(Arr[6], 'Arr[6] value doesn''t match');
+  end;
+begin
+  Arr := MkBoolArray([True, False, True]);
+  AppendToBoolArray([False, False, True, True], Arr);
+  CheckEquals(7, length(Arr), 'Length of modified array doesn''t match');
+  CheckFirstElements;
+  SetLength(Arr, 10);
+  AppendToBoolArray([True, True, False], Arr, 7);
+  CheckEquals(10, length(Arr), 'Length of modified array doesn''t match');
+  CheckFirstElements;
+  Check(Arr[7], 'Arr[7] value doesn''t match');
+  Check(Arr[8], 'Arr[8] value doesn''t match');
+  Check(not Arr[9], 'Arr[9] value doesn''t match');
+end;
+
+procedure TestArrayBuildingFunctions.TestAppendToDoubleArray;
+var
+  Arr : TDoubleArray;
+  procedure CheckFirstElements;
+  begin
+    CheckEqualsString(FloatToStr(0.1), FloatToStr(Arr[0]), 'Arr[0] value doesn''t match');
+    CheckEqualsString(FloatToStr(1.1), FloatToStr(Arr[1]), 'Arr[1] value doesn''t match');
+    CheckEqualsString(FloatToStr(2.1), FloatToStr(Arr[2]), 'Arr[2] value doesn''t match');
+    CheckEqualsString(FloatToStr(2.2), FloatToStr(Arr[3]), 'Arr[3] value doesn''t match');
+    CheckEqualsString(FloatToStr(2.3), FloatToStr(Arr[4]), 'Arr[4] value doesn''t match');
+  end;
+begin
+  Arr := MkDoubleArray([0.1, 1.1, 2.1]);
+  AppendToDoubleArray([2.2, 2.3], Arr);
+  CheckFirstElements;
+  SetLength(Arr, 7);
+  AppendToDoubleArray([2.4, 2.5], Arr, 5);
+  CheckEqualsString(FloatToStr(2.4), FloatToStr(Arr[5]), 'Arr[5] value doesn''t match');
+  CheckEqualsString(FloatToStr(2.5), FloatToStr(Arr[6]), 'Arr[6] value doesn''t match');
+end;
+
+procedure TestArrayBuildingFunctions.TestAppendToIntArray;
+var
+  Arr : TIntegerArray;
+  procedure CheckFirstElements;
+  begin
+    CheckEquals(0, Arr[0], 'Arr[0] value doesn''t match');
+    CheckEquals(1, Arr[1], 'Arr[1] value doesn''t match');
+    CheckEquals(2, Arr[2], 'Arr[2] value doesn''t match');
+    CheckEquals(5, Arr[3], 'Arr[3] value doesn''t match');
+    CheckEquals(6, Arr[4], 'Arr[4] value doesn''t match');
+  end;
+begin
+  Arr := MkIntArray([0, 1, 2]);
+  AppendToIntArray([5, 6], Arr);
+  CheckFirstElements;
+  SetLength(Arr, 7);
+  AppendToIntArray([7, 8], Arr, 5);
+  CheckFirstElements;
+  CheckEquals(7, Arr[5], 'Arr[5] value doesn''t match');
+  CheckEquals(8, Arr[6], 'Arr[6] value doesn''t match');
+end;
+
+procedure TestArrayBuildingFunctions.TestBuildStrArray;
+var
+  Arr : TStringArray;
+begin
+  Arr := MkStrArray(['Hello', 'How', 'Are']);
+  CheckEqualsString('Hello', Arr[0], 'Arr[0] value doesn''t match');
+  CheckEqualsString('How', Arr[1], 'Arr[1] value doesn''t match');
+  CheckEqualsString('Are', Arr[2], 'Arr[2] value doesn''t match');
+end;
+
+procedure TestArrayBuildingFunctions.TestAppendToStrArray;
+var
+  Arr : TStringArray;
+  procedure CheckFirstElements;
+  begin
+    CheckEqualsString('Hello', Arr[0], 'Arr[0] value doesn''t match');
+    CheckEqualsString('How', Arr[1], 'Arr[1] value doesn''t match');
+    CheckEqualsString('Are', Arr[2], 'Arr[2] value doesn''t match');
+    CheckEqualsString('Doing', Arr[3], 'Arr[3] value doesn''t match');
+    CheckEqualsString('Hope', Arr[4], 'Arr[4] value doesn''t match');
+    CheckEqualsString('Well', Arr[5], 'Arr[5] value doesn''t match');
+  end;
+begin
+  Arr := MkStrArray(['Hello', 'How', 'Are']);
+  AppendToStrArray(['Doing', 'Hope', 'Well'], Arr);
+  CheckFirstElements;
+  SetLength(Arr, 8);
+  AppendToStrArray(['T', 'Ze'], Arr, 6);
+  CheckFirstElements;
+  CheckEqualsString('T', Arr[6], 'Arr[6] value doesn''t match');
+  CheckEqualsString('Ze', Arr[7], 'Arr[7] value doesn''t match');
+end;
+
+procedure TestArrayBuildingFunctions.TestBuildVarRecArray;
+var
+  Arr : TVarRecArray;
+begin
+  Arr := MkVarRecArray([0, ShortString('Hi'), 2.1]);
+  CheckEquals(vtInteger, Arr[0].VType, 'Type of Arr[0] doesn''t match');
+  CheckEquals(0, Arr[0].VInteger, 'Arr[0] value doesn''t match');
+  CheckEquals(vtString, Arr[1].VType, 'Type of Arr[1] doesn''t match');
+  CheckEqualsString('Hi', Arr[1].VString^, 'Arr[1] value doesn''t match');
+  CheckEquals(vtExtended, Arr[2].VType, 'Type of Arr[2] doesn''t match');
+  CheckEqualsString(FloatToStr(2.1), FloatToStr(Arr[2].VExtended^), 'Arr[2] value doesn''t match');
+end;
+
+procedure TestArrayBuildingFunctions.TestAppendToVarRecArray;
+var
+  Arr : TVarRecArray;
+  procedure CheckFirstElements;
+  begin
+    CheckEquals(vtInteger, Arr[0].VType, 'Type of Arr[0] doesn''t match');
+    CheckEquals(0, Arr[0].VInteger, 'Arr[0] value doesn''t match');
+    CheckEquals(vtString, Arr[1].VType, 'Type of Arr[1] doesn''t match');
+    CheckEqualsString('Hi', Arr[1].VString^, 'Arr[1] value doesn''t match');
+    CheckEquals(vtExtended, Arr[2].VType, 'Type of Arr[2] doesn''t match');
+    CheckEqualsString(FloatToStr(2.1), FloatToStr(Arr[2].VExtended^), 'Arr[2] value doesn''t match');
+    CheckEquals(vtInteger, Arr[3].VType, 'Type of Arr[3] doesn''t match');
+    CheckEquals(4, Arr[3].VInteger, 'Arr[3] value doesn''t match');
+    CheckEquals(vtBoolean, Arr[4].VType, 'Type of Arr[4] doesn''t match');
+    Check(Arr[4].VBoolean, 'Arr[4] value doesn''t match');
+  end;
+begin
+  Arr := MkVarRecArray([0, ShortString('Hi'), 2.1]);
+  AppendToVarRecArray([4, True], Arr);
+  CheckFirstElements;
+  SetLength(Arr, 7);
+  AppendToVarRecArray([5, False], Arr, 5);
+  CheckFirstElements;
+  CheckEquals(vtInteger, Arr[5].VType, 'Type of Arr[5] doesn''t match');
+  CheckEquals(5, Arr[5].VInteger, 'Arr[5] value doesn''t match');
+  CheckEquals(vtBoolean, Arr[6].VType, 'Type of Arr[6] doesn''t match');
+  Check(not Arr[6].VBoolean, 'Arr[6] value doesn''t match');
+end;
+
 initialization
   // Register any test cases with the test runner
   RegisterTest(TestIBsonOID.Suite);
@@ -1626,6 +1862,7 @@ initialization
   RegisterTest(TestIBsonIterator.Suite);
   RegisterTest(TestBsonAPI.Suite);
   RegisterTest(TestIBson.Suite);
+  RegisterTest(TestArrayBuildingFunctions.Suite);
   {$IFDEF OnDemandMongoCLoad}
   InitMongoDBLibrary;
   {$ENDIF}
