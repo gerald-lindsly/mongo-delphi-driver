@@ -30,6 +30,7 @@ type
     procedure TestAcquireWithHostNamePasswordAndDBName;
     procedure TestAcquireWithHostAndDBName;
     procedure TestAcquireWithPoolPointer;
+    procedure TestFailConnectionOnAcquire;
     procedure TestMultiThreaded;
     procedure TestRelease;
     procedure TestReleaseWithConnStr;
@@ -184,6 +185,20 @@ begin
   Check(AOtherMongo <> nil, 'Call to FMongoPool.Acquire with pool pointer must return <> nil');
   FMongoPool.Release(ReturnValue);
   FMongoPool.Release(ReturnValue.Pool, AOtherMongo);
+end;
+
+procedure TestTMongoPool.TestFailConnectionOnAcquire;
+var
+  ReturnValue: TMongoPooledRecord;
+  AHostName: UTF8String;
+begin
+  AHostName := '127.0.0.1:9999';
+  try
+    ReturnValue := FMongoPool.Acquire(AHostName);
+    Fail('Attempt to connect to an unexisting server should return EMongo exception');
+  except
+    on E : EMongo do Check(pos('failed', E.Message) > 0, 'Connection to Mongo Server should fail');
+  end;
 end;
 
 procedure TestTMongoPool.TestMultiThreaded;

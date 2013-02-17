@@ -30,6 +30,32 @@ interface
 uses
   MongoAPI;
 
+const
+  E_WasNotExpectingCloseOfObjectOper    = 90100;
+  E_DefMustContainAMinimumOfTwoElements = 90101;
+  E_DatatypeNotSupportedToBuildBSON     = 90102;
+  E_ExpectedDefElementShouldBeAString   = 90103;
+  E_IteratorHandleIsNil                 = 90104;
+  E_TBsonHandleIsNil                    = 90105;
+  {$IFNDEF DELPHI2007}
+  E_CanTAccessAnInt64UsingAVariantOn    = 90106;
+  {$ENDIF}
+  E_DatatypeNotSupported                = 90107;
+  E_ExpectedA24DigitHexString           = 90108;
+  E_NotSupportedByTBsonIteratorValue    = 90109;
+  E_IteratorDoesNotPointToAnArray       = 90110;
+  E_ArrayComponentIsNotAnInteger        = 90111;
+  E_ArrayComponentIsNotADouble          = 90112;
+  E_ArrayComponentIsNotAString          = 90113;
+  E_ArrayComponentIsNotABoolean         = 90114;
+  E_BsonBufferAlreadyFinished           = 90115;
+  E_TBsonAppendVariantTypeNotSupport    = 90116;
+  E_ErrorCallingIteratorAtEnd           = 90117;
+  E_WasNotExpectingCloseOfArrayOperator = 90118;
+  E_BSONUnexpected                      = 90119;
+  E_BSONExpectedValueFor                = 90120;
+  E_BSONOpenSubobject                   = 90121;
+
 type
   IBsonIterator = interface;
   IBson = interface;
@@ -298,6 +324,12 @@ function MkBoolArray(const Arr : array of Boolean): TBooleanArray;
 function MkStrArray(const Arr : array of UTF8String): TStringArray;
 function MkVarRecArray(const Arr : array of const): TVarRecArray;
 
+procedure AppendToIntArray(const Arr : array of Integer; var TargetArray : TIntegerArray; FromIndex : Cardinal = 0);
+procedure AppendToDoubleArray(const Arr : array of Double; var TargetArray : TDoubleArray; FromIndex : Cardinal = 0);
+procedure AppendToBoolArray(const Arr : array of Boolean; var TargetArray : TBooleanArray; FromIndex : Cardinal = 0);
+procedure AppendToStrArray(const Arr : array of UTF8String; var TargetArray : TStringArray; FromIndex : Cardinal = 0);
+procedure AppendToVarRecArray(const Arr : array of const; var TargetArray : TVarRecArray; FromIndex : Cardinal = 0);
+
 (* The idea for this shorthand way to build a BSON
    document from an array of variants came from Stijn Sanders
    and his TMongoWire, located here:
@@ -375,38 +407,40 @@ function IntToStr(i : integer) : UTF8String;
 implementation
 
 uses
-  SysUtils, Variants, Windows, MongoDB;
+  SysUtils, Variants, Windows, MongoDB, uStack;
 
-resourcestring
-  SDefMustContainAnEvenAmountOfElements = 'def must contain an even amount of elements and a minimum of two';
-  SDatatypeNotSupportedToBuildBSON = 'Datatype not supported to build BSON definition';
-  SExpectedDefElementShouldBeAString = 'Expected def element should be a string';
 // START resource string wizard section
-  SIteratorHandleIsNil = 'Iterator Handle is nil';
-  STBsonHandleIsNil = 'TBson handle is nil';
+resourcestring
+  SWasNotExpectingCloseOfArrayOperator = 'Was not expecting close of array operator (D%d)';
+  SErrorCallingIteratorAtEnd = 'Error calling %s. Iterator at end (D%d)';
+  SWasNotExpectingCloseOfObjectOper = 'Was not expecting close of object operator (D%d)';
+  SDefMustContainAMinimumOfTwoElements = 'def must contain a minimum of two entries (D%d)';
+  SDatatypeNotSupportedToBuildBSON = 'Datatype not supported to build BSON definition (D%d)';
+  SExpectedDefElementShouldBeAString = 'Expected def element should be a string (D%d)';
+  SIteratorHandleIsNil = 'Iterator Handle is nil (D%d)';
+  STBsonHandleIsNil = 'TBson handle is nil (D%d)';
   {$IFNDEF DELPHI2007}
-  SCanTAccessAnInt64UsingAVariantOn = 'Can''t access an Int64 using a variant on old version of Delphi. Use AsInt64 instead';
+  SCanTAccessAnInt64UsingAVariantOn = 'Can''t access an Int64 using a variant on old version of Delphi. Use AsInt64 instead (D%d)';
   {$ENDIF}
-  SDatatypeNotSupported = 'Datatype not supported calling IterateAndFillArray';
-  SExpectedA24DigitHexString = 'Expected a 24 digit hex string';
-  SBsonType = 'BsonType (';
-  SNotSupportedByTBsonIteratorValue = ') not supported by TBsonIterator.value';
-  SIteratorDoesNotPointToAnArray = 'Iterator does not point to an array';
-  SArrayComponentIsNotAnInteger = 'Array component is not an Integer';
-  SArrayComponentIsNotADouble = 'Array component is not a Double';
-  SArrayComponentIsNotAString = 'Array component is not a string';
-  SArrayComponentIsNotABoolean = 'Array component is not a Boolean';
-  SBsonBufferAlreadyFinished = 'BsonBuffer already finished';
-  STBsonAppendVariantTypeNotSupport = 'TBson.append(variant): type not supported (';
+  SDatatypeNotSupported = 'Datatype not supported calling IterateAndFillArray (D%d)';
+  SExpectedA24DigitHexString = 'Expected a 24 digit hex string (D%d)';
+  SNotSupportedByTBsonIteratorValue = 'BsonType (%s) not supported by TBsonIterator.value (D%d)';
+  SIteratorDoesNotPointToAnArray = 'Iterator does not point to an array (D%d)';
+  SArrayComponentIsNotAnInteger = 'Array component is not an Integer (D%d)';
+  SArrayComponentIsNotADouble = 'Array component is not a Double (D%d)';
+  SArrayComponentIsNotAString = 'Array component is not a string (D%d)';
+  SArrayComponentIsNotABoolean = 'Array component is not a Boolean (D%d)';
+  SBsonBufferAlreadyFinished = 'BsonBuffer already finished (D%d)';
+  STBsonAppendVariantTypeNotSupport = 'TBson.append(variant): type not supported (%s) (D%d)';
   SUNDEFINED = 'UNDEFINED';
   SNULL = 'NULL';
   SCODEWSCOPE = 'CODEWSCOPE ';
   SBINARY = 'BINARY (';
   SUNKNOWN = 'UNKNOWN';
   SNilBSON = 'nil BSON';
-  SBSONUnexpected = 'BSON(): unexpected "}"';
-  SBSONExpectedValueFor = 'BSON(): expected value for ';
-  SBSONOpenSubobject = 'BSON: open subobject';
+  SBSONUnexpected = 'BSON(): unexpected "}" (D%d)';
+  SBSONExpectedValueFor = 'BSON(): expected value for %s (D%d)';
+  SBSONOpenSubobject = 'BSON: open subobject (D%d)';
 // END resource string wizard section
 
 const
@@ -524,6 +558,7 @@ type
     procedure checkBsonBuffer;
     function internalAppendArray(const Name: UTF8String; const Arr; Len: Integer;
         AppendElementCallback: Pointer): Boolean;
+    class function UTF8StringFromTVarRec(const AVarRec: TVarRec): UTF8String;
   public
     constructor Create;
     {$IFDEF DELPHI2009}
@@ -707,12 +742,12 @@ procedure TBsonIterator.checkValidHandle;
 begin
   {$IFDEF MONGO_MEMORY_PROTECTION} CheckValid; {$ENDIF}
   if Handle = nil then
-    raise EMongo.Create(SIteratorHandleIsNil);
+    raise EMongo.Create(SIteratorHandleIsNil, E_IteratorHandleIsNil);
 end;
 
 procedure TBsonIterator.ErrorIteratorAtEnd(const AFnName: String);
 begin
-  raise EMongo.CreateFmt('Error calling %s. Iterator at end', [AFnName]);
+  raise EMongo.Create(SErrorCallingIteratorAtEnd, AFnName, E_ErrorCallingIteratorAtEnd);
 end;
 
 function TBsonIterator.getAsInt64: Int64;
@@ -775,7 +810,7 @@ begin
       {$ELSE}
       Result := bson_iterator_long(Handle);
       {$ENDIF}
-    else raise Exception.Create(SBsonType + IntToStr(Ord(k)) + SNotSupportedByTBsonIteratorValue);
+    else raise EMongo.Create(SNotSupportedByTBsonIteratorValue, IntToStr(Ord(k)), E_NotSupportedByTBsonIteratorValue);
   end;
 end;
 
@@ -1200,61 +1235,112 @@ end;
 function TBsonBuffer.appendElementsAsArray(const def : TVarRecArray): boolean;
 var
   Fld : UTF8String;
-  i : integer;
-  function AppendString(const Val : Variant) : Boolean;
+  i, CurArrayIndex : integer;
+  OperStack, ArrayIndexStack : IStack;
+  ProcessingArray : boolean;
+  procedure BackupStack(BsonType : TBsonType);
   begin
-    if Val = '{' then
-      Result := startObject(Fld)
-    else Result := appendVariant(Fld, Val);
+    if (not OperStack.Empty) and (OperStack.Peek = bsonARRAY) then
+      ArrayIndexStack.Push(CurArrayIndex);
+    OperStack.Push(BsonType);
+  end;
+  procedure RestoreStack;
+  begin
+    Fld := '';
+    if (not OperStack.Empty) and (OperStack.Peek = bsonARRAY) then
+      CurArrayIndex := ArrayIndexStack.Pop;
+  end;
+  function AppendString(const Val : Variant) : Boolean;
+  var
+    APeekNext : UTF8String;
+  begin
+    if length(Val) = 1 then // We assume Val is a string, so this call is safe
+      case UTF8String(Val)[1] of
+        '{' :
+          begin
+            BackupStack(bsonOBJECT);
+            Result := startObject(Fld);
+            exit;
+          end;
+        '[' :
+          begin
+            BackupStack(bsonARRAY);
+            Result := startArray(Fld);
+            CurArrayIndex := -1; // CurArrayIndex will be incremented when this function returns
+            exit;
+          end;
+        ']' :
+          begin
+            if OperStack.Pop <> bsonARRAY then
+              raise EMongo.Create(SWasNotExpectingCloseOfArrayOperator, E_WasNotExpectingCloseOfArrayOperator);
+            Result := finishObject;
+            RestoreStack;
+            exit;
+          end;
+      end;
+    if (not OperStack.Empty) and (OperStack.Peek = bsonARRAY) then
+      begin
+        // Let's take a peek if next operator is a start of object or array before
+        // we add the element as an attribute
+        if i + 1 <= High(def) then
+          begin
+            APeekNext := UTF8StringFromTVarRec(def[i + 1]);
+            if (APeekNext <> '') and (APeekNext[1] in ['{', '[']) then
+              begin
+                Fld := Val; // The value passed as parameter is really the name of an array of object
+                Result := True;
+                dec(CurArrayIndex); // CurArrayIndex will be incremented when this function returns and we didn't add anything
+                exit;
+              end;
+          end;
+      end;
+    Result := appendVariant(Fld, Val);
   end;
 begin
+  OperStack := NewStack;
+  ArrayIndexStack := NewStack;
   Result := True;
   if length(def) < 2 then
-    raise EMongo.Create(SDefMustContainAnEvenAmountOfElements);
+    raise EMongo.Create(SDefMustContainAMinimumOfTwoElements, E_DefMustContainAMinimumOfTwoElements);
   i := low(def);
   while i <= High(def) do
     begin
       if not Result then
         break;
-      case def[i].VType of
-        vtAnsiString    : Fld := UTF8String(def[i].VAnsiString);
-        vtWideString    : Fld := UTF8String(WideString(def[i].VWideString));
-        vtString        : Fld := def[i].VString^;
-        vtChar          : Fld := def[i].VChar;
-        vtWideChar      : Fld := AnsiChar(def[i].VWideChar);
-        vtPChar         : Fld := UTF8String(def[i].VPChar);
-        vtPWideChar     : Fld := UTF8String(def[i].VPWideChar);
-        {$IFDEF DELPHI2009}
-        vtUnicodeString : Fld := UTF8String(UnicodeString(def[i].VUnicodeString));
-        {$ENDIF}
-        else raise EMongo.Create(SExpectedDefElementShouldBeAString);
-      end;
+      if (OperStack.Empty) or (OperStack.Peek = bsonOBJECT) then
+        begin
+          Fld := UTF8StringFromTVarRec(def[i]);
+          if Fld = '' then
+            raise EMongo.Create(SExpectedDefElementShouldBeAString, E_ExpectedDefElementShouldBeAString);
+          inc(i);
+        end;
       if Fld = '}' then
-        Result := finishObject
+        begin
+          if OperStack.Pop <> bsonOBJECT then
+            raise EMongo.Create(SWasNotExpectingCloseOfObjectOper, E_WasNotExpectingCloseOfObjectOper);
+          Result := finishObject;
+          RestoreStack;
+        end
       else
       begin
-        inc(i);
+        ProcessingArray := (not OperStack.Empty) and (OperStack.Peek = bsonARRAY);
+        if ProcessingArray then
+          Fld := IntToStr(CurArrayIndex);
         case def[i].VType of
           vtInteger    : Result := append(Fld, def[i].VInteger);
           vtBoolean    : Result := append(Fld, def[i].VBoolean);
-          vtChar       : Result := AppendString(def[i].VChar);
           vtExtended   : Result := append(Fld, def[i].VExtended^);
-          vtPChar      : Result := AppendString(UTF8String(PAnsiChar(def[i].VPChar)));
-          vtWideChar   : Result := AppendString(WideString(def[i].VWideChar));
-          vtPWideChar  : Result := AppendString(WideString(def[i].VPWideChar));
-          vtAnsiString : Result := AppendString(UTF8String(def[i].VAnsiString));
-          vtString     : Result := AppendString(def[i].VString^);
           vtCurrency   : Result := append(Fld, def[i].VCurrency^);
           vtVariant    : Result := appendVariant(Fld, def[i].VVariant^);
-          vtWideString : Result := AppendString(WideString(def[i].VWideString));
           vtInt64      : Result := append(Fld, def[i].VInt64^);
-          {$IFDEF DELPHI2009}
-          vtUnicodeString : AppendString(UnicodeString(def[i].VUnicodeString));
-          {$ENDIF}
-          else raise EMongo.Create(SDatatypeNotSupportedToBuildBSON);
+          vtChar, vtPChar, vtWideChar, vtPWideChar, vtAnsiString, vtString,
+          vtWideString {$IFDEF DELPHI2009}, vtUnicodeString {$ENDIF} : AppendString(UTF8StringFromTVarRec(def[i]));
+          else raise EMongo.Create(SDatatypeNotSupportedToBuildBSON, E_DatatypeNotSupportedToBuildBSON);
         end;
+        if ProcessingArray then
+          inc(CurArrayIndex);
+        inc(i);
       end;
-      inc(i);
     end;
 end;
 
@@ -1328,6 +1414,24 @@ begin
   end
   else
     Result := nil;
+end;
+
+class function TBsonBuffer.UTF8StringFromTVarRec(const AVarRec: TVarRec):
+    UTF8String;
+begin
+  case AVarRec.VType of
+    vtAnsiString    : Result := UTF8String(AVarRec.VAnsiString);
+    vtWideString    : Result := UTF8String(WideString(AVarRec.VWideString));
+    vtString        : Result := AVarRec.VString^;
+    vtChar          : Result := AVarRec.VChar;
+    vtWideChar      : Result := AnsiChar(AVarRec.VWideChar);
+    vtPChar         : Result := UTF8String(AVarRec.VPChar);
+    vtPWideChar     : Result := UTF8String(AVarRec.VPWideChar);
+    {$IFDEF DELPHI2009}
+    vtUnicodeString : Result := UTF8String(UnicodeString(AVarRec.VUnicodeString));
+    {$ENDIF}
+    else Result := '';
+  end;
 end;
 
 { TBson }
@@ -1465,7 +1569,7 @@ procedure TBson.checkHandle;
 begin
   {$IFDEF MONGO_MEMORY_PROTECTION} CheckValid; {$ENDIF}
   if FHandle = nil then
-    raise EMongo.Create(STBsonHandleIsNil);
+    raise EMongo.Create(STBsonHandleIsNil, E_TBsonHandleIsNil);
 end;
 
 procedure TBson.display;
@@ -1888,6 +1992,21 @@ function MkBoolArray(const Arr : array of Boolean): TBooleanArray;
 
 function MkStrArray(const Arr : array of UTF8String): TStringArray;
 {$i MongoBsonArrayBuilder.inc}
+
+procedure AppendToIntArray(const Arr : array of Integer; var TargetArray : TIntegerArray; FromIndex : Cardinal = 0);
+{$i MongoBsonArrayAppender.inc}
+
+procedure AppendToDoubleArray(const Arr : array of Double; var TargetArray : TDoubleArray; FromIndex : Cardinal = 0);
+{$i MongoBsonArrayAppender.inc}
+
+procedure AppendToBoolArray(const Arr : array of Boolean; var TargetArray : TBooleanArray; FromIndex : Cardinal = 0);
+{$i MongoBsonArrayAppender.inc}
+
+procedure AppendToStrArray(const Arr : array of UTF8String; var TargetArray : TStringArray; FromIndex : Cardinal = 0);
+{$i MongoBsonArrayAppender.inc}
+
+procedure AppendToVarRecArray(const Arr : array of const; var TargetArray : TVarRecArray; FromIndex : Cardinal = 0);
+{$i MongoBsonArrayAppender.inc}
 
 initialization
 finalization

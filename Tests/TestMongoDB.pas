@@ -90,6 +90,7 @@ type
     procedure TestauthenticateFail;
     procedure TestcommandWithBson;
     procedure TestcommandWithArgs;
+    procedure TestFailedConnection;
     procedure TestFindAndModifyBasic;
     procedure TestFindAndModifyExtended;
     procedure TestgetLastErr;
@@ -518,10 +519,10 @@ end;
 
 procedure TestTMongo.TestgetSocket;
 var
-  ReturnValue: Integer;
+  ReturnValue: Pointer;
 begin
   ReturnValue := FMongo.getSocket;
-  CheckNotEquals(0, ReturnValue, 'getSocket should return a non-zero value');
+  CheckNotEquals(0, Int64(ReturnValue), 'getSocket should return a non-zero value');
 end;
 
 procedure TestTMongo.TestgetDatabases;
@@ -915,6 +916,16 @@ begin
   ReturnValue := FMongo.command(db, cmdstr, arg);
   Check(ReturnValue <> nil, 'Call to Mongo.command should return <> nil');
   CheckEquals(True, ReturnValue.Value('ismaster'), 'ismaster should be equals to True');
+end;
+
+procedure TestTMongo.TestFailedConnection;
+begin
+  try
+    TMongo.Create('127.0.0.1:9999');
+    Fail('Attempt to create mongo object with unexisting server should result on Exception');
+  except
+    on EMongo do Check(True, 'Attempt to create mongo object should result in error, server doesn''t exist');
+  end;
 end;
 
 procedure TestTMongo.TestFindAndModifyBasic;

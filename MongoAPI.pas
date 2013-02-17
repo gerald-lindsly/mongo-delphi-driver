@@ -85,7 +85,7 @@ type
   Tmongo_disconnect = procedure (c: Pointer); cdecl;
   Tmongo_reconnect = function (c: Pointer): Integer; cdecl;
   Tmongo_cmd_ismaster = function (c: Pointer; b: Pointer): Longbool; cdecl;
-  Tmongo_get_socket = function (c: Pointer): Cardinal; cdecl;
+  Tmongo_get_socket = function (c: Pointer): Pointer; cdecl;
   Tmongo_get_host_count = function (c: Pointer): Integer; cdecl;
   Tmongo_get_host = function (c: Pointer; i: Integer): PAnsiChar; cdecl;
   Tmongo_insert = function (c: Pointer; ns: PAnsiChar; b: Pointer; wc: Pointer): Integer; cdecl;
@@ -420,7 +420,7 @@ var
   procedure mongo_disconnect(c: Pointer); cdecl; external MongoCDLL;
   function mongo_reconnect(c: Pointer): Integer; cdecl; external MongoCDLL;
   function mongo_cmd_ismaster(c: Pointer; b: Pointer): Longbool; cdecl; external MongoCDLL;
-  function mongo_get_socket(c: Pointer): Cardinal; cdecl; external MongoCDLL;
+  function mongo_get_socket(c: Pointer): Pointer; cdecl; external MongoCDLL;
   function mongo_get_host_count(c: Pointer): Integer; cdecl; external MongoCDLL;
   function mongo_get_host(c: Pointer; i: Integer): PAnsiChar; cdecl; external MongoCDLL;
   function mongo_insert(c: Pointer; ns: PAnsiChar; b: Pointer; wc: Pointer): Integer; cdecl; external MongoCDLL;

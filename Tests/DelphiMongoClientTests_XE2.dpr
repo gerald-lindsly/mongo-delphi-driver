@@ -32,7 +32,9 @@ uses
   MongoDB in '..\MongoDB.pas',
   MongoPool in '..\MongoPool.pas',
   MongoStream in '..\MongoStream.pas',
-  Ufilemanagement in '..\Ufilemanagement.pas';
+  Ufilemanagement in '..\Ufilemanagement.pas',
+  uStack in '..\uStack.pas',
+  TestuStack in 'TestuStack.pas';
 
 {$R *.RES}
 
