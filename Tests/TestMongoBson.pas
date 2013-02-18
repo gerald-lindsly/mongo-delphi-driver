@@ -196,7 +196,7 @@ type
 implementation
 
 uses
-  Classes, Variants, MongoAPI;
+  Classes, Variants, MongoAPI, MongoDB;
 
 const
   DELTA_DATE = 0.00009999;
@@ -1204,7 +1204,7 @@ begin
     FIBsonBuffer.appendElementsAsArray(Def);
     Fail('call to appendElementsAsArray should have raise exception');
   except
-    on E : Exception do Check(pos('def element should be a string', E.Message) > 0, 'appendElementsAsArray should have raised exception. error: ' + E.Message);
+    on E : EMongo do CheckEquals(E_ExpectedDefElementShouldBeAString, E.ErrorCode, 'appendElementsAsArray should have raised exception. error: ' + E.Message);
   end;
 
   SetLength(Def, 2);
@@ -1216,7 +1216,7 @@ begin
     FIBsonBuffer.appendElementsAsArray(Def);
     Fail('call to appendElementsAsArray should have raise exception');
   except
-    on E : Exception do Check(pos('not supported', E.Message) > 0, 'appendElementsAsArray should have raised exception. error: ' + E.Message);
+    on E : EMongo do CheckEquals(E_DatatypeNotSupportedToBuildBSON, E.ErrorCode, 'appendElementsAsArray should have raised exception. error: ' + E.Message);
   end;
 
   SetLength(Def, 0);
@@ -1224,7 +1224,7 @@ begin
     FIBsonBuffer.appendElementsAsArray(Def);
     Fail('call to appendElementsAsArray should have raise exception');
   except
-    on E : Exception do Check(pos('minimum', E.Message) > 0, 'appendElementsAsArray should have raised exception. error: ' + E.Message);
+    on E : EMongo do CheckEquals(E_DefMustContainAMinimumOfTwoElements, E.ErrorCode, 'appendElementsAsArray should have raised exception. error: ' + E.Message);
   end;
 end;
 
@@ -1553,7 +1553,7 @@ begin
     FIBsonIterator.Kind;
     Fail('Call to Kind when past end of iterator should result on error');
   except
-    on E : Exception do if pos('Iterator at end', E.Message) <= 0 then raise;
+    on E : EMongo do CheckEquals(E_ErrorCallingIteratorAtEnd, E.ErrorCode, 'Exception expected calling Kind when iterator is past end');
   end;
 end;
 

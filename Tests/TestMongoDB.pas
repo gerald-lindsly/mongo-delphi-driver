@@ -924,7 +924,7 @@ begin
     TMongo.Create('127.0.0.1:9999');
     Fail('Attempt to create mongo object with unexisting server should result on Exception');
   except
-    on EMongo do Check(True, 'Attempt to create mongo object should result in error, server doesn''t exist');
+    on E : EMongo do CheckEquals(E_ConnectionToMongoServerFailed, E.ErrorCode, 'Attempt to create mongo object should result in error, server doesn''t exist');
   end;
 end;
 
@@ -948,25 +948,39 @@ end;
 procedure TestTMongo.TestFindAndModifyExtended;
 var
   Res : IBson;
-  ResultBson : IBsonIterator;
+  ResultBson, SubIt : IBsonIterator;
 begin
-  Res := FMongo.findAndModify('test_db.test_col', ['key', 0], [], ['key', 11, 'str', 'string', 'str_2', 'string_2'], [], [tfamoNew, tfamoUpsert]);
+  Res := FMongo.findAndModify('test_db.test_col', ['key', 0], [], ['key', 11, 'str', 'string', 'str_2', 'string_2', 'arr', '[', 0, ']'], [], [tfamoNew, tfamoUpsert]);
   Check(Res <> nil, 'Result from call to findAndModify should be <> nil');
   Res := FMongo.findAndModify('test_db.test_col',
                               ['key', 11],
                               ['key', 1],
                               ['$inc', '{', 'key', 1, '}',
-                               '$set', '{', 'str', 'newstr', '}'],
-                              ['key', 'str'], [tfamoNew]);
+                               '$set', '{', 'str', 'newstr', 'arr', '[', 1, 2, 3, ']', '}'],
+                              ['key', 'str', 'arr'], [tfamoNew]);
+  // Interesting to notice that data on the result BSON is returned with attributes on alphabetical order,
+  // not on the order that was passed as parameter to FindAndModify
   Check(Res <> nil, 'Result from call to findAndModify should be <> nil');
   ResultBson := Res.find('value').subiterator;
   Check(ResultBson <> nil, 'subiterator should be <> nil');
   Check(ResultBson.next, 'Call to iterator.next should return True');
   CheckNotEqualsString('', ResultBson.getOID.asString);
   Check(ResultBson.next, 'Call to iterator.next should return True');
+  CheckEqualsString('arr', ResultBson.key, 'Key of last element should be equals to arr');
+  SubIt := ResultBson.subiterator;
+  Check(SubIt <> nil, 'SubIterator should bve <> nil');
+  Check(SubIt.next, 'SubIt.next should return true');
+  CheckEquals(1, SubIt.value, 'First value of sub array doesn''t match');
+  Check(SubIt.next, 'SubIt.next should return true');
+  CheckEquals(2, SubIt.value, 'Second value of sub array doesn''t match');
+  Check(SubIt.next, 'SubIt.next should return true');
+  CheckEquals(3, SubIt.value, 'Third value of sub array doesn''t match');
+  Check(ResultBson.next, 'Call to iterator.next should return True');
+  CheckEqualsString('key', ResultBson.key, 'attribute on result BSON not expected');
   CheckEquals(12, ResultBson.value);
   Check(ResultBson.next, 'Call to iterator.next should return True');
   CheckEqualsString('newstr', ResultBson.value);
+  Check(not SubIt.next, 'Call to SubIt.next should return false at end of array');
   Check(not ResultBson.next, 'Call to iterator.next should return false, no more fields returned');
 end;
 
@@ -1095,7 +1109,7 @@ begin
     FMongo.setWriteConcern(wc);
     Fail('Should have failed with error that tried to use unfinished writeconcern');
   except
-    on E : EMongo do Check(pos('unfinished', E.Message) > 0, 'Exception expected should be that tried to use unfinished writeconcern');
+    on E : EMongo do CheckEquals(E_CanTUseAnUnfinishedWriteConcern, E.ErrorCode, 'Exception expected should be that tried to use unfinished writeconcern');
   end;
 end;
 
@@ -1344,7 +1358,7 @@ begin
     FMongoSecondary.find(SampleDataDB, FIMongoCursor);
     Fail('Call to FMongoSecondary.Find should error out and it didn''t because no option to read from Secondary was set');
   except
-    on E : Exception do Check(pos('not master', E.Message) > 0, 'Call should have errored our because Secondary option was not set');
+    on E : EMongo do Check((E.ErrorCode = E_MongoDBServerError) and (pos('not master', E.Message) > 0), 'Call should have errored our because Secondary option was not set');
   end;
   FIMongoCursor := nil;
   FIMongoCursor := NewMongoCursor;
