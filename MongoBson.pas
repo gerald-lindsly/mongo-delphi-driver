@@ -55,6 +55,7 @@ const
   E_BSONUnexpected                      = 90119;
   E_BSONExpectedValueFor                = 90120;
   E_BSONOpenSubobject                   = 90121;
+  E_NilInterfacePointerNotSupported     = 90122;
 
 type
   IBsonIterator = interface;
@@ -419,6 +420,7 @@ uses
 
 // START resource string wizard section
 resourcestring
+  SNilInterfacePointerNotSupported = 'Nil interface pointer not supported (D%d)';
   SWasNotExpectingCloseOfArrayOperator = 'Was not expecting close of array operator (D%d)';
   SErrorCallingIteratorAtEnd = 'Error calling %s. Iterator at end (D%d)';
   SWasNotExpectingCloseOfObjectOper = 'Was not expecting close of object operator (D%d)';
@@ -456,6 +458,10 @@ const
   DATE_ADJUSTER = 25569;
 
 type
+  {$IFNDEF DELPHI2007}
+  IInterface = IUnknown;
+  {$ENDIF}
+
   TBsonOID = class(TMongoInterfacedObject, IBsonOID)
   private
     Value: TBsonOIDValue;
@@ -1246,26 +1252,37 @@ var
   i, CurArrayIndex : integer;
   OperStack, ArrayIndexStack : IStack;
   ProcessingArray : boolean;
-  i_bsonoid : IBsonOID;
-  i_bsonbin : IBsonBinary;
-  i_bsoncodewscope : IBsonCodeWScope;
-  i_bsonregex : IBsonRegex;
-  i_bsontimestamp : IBsonTimestamp;
+  i_bsonobj : IUnknown;
   procedure BackupStack(BsonType : TBsonType);
   begin
-    if (not OperStack.Empty) and (OperStack.Peek = bsonARRAY) then
+    if BsonType = bsonARRAY then
       ArrayIndexStack.Push(CurArrayIndex);
     OperStack.Push(BsonType);
   end;
-  procedure RestoreStack;
+  function RestoreStack : TBsonType;
   begin
     Fld := '';
     if (not OperStack.Empty) and (OperStack.Peek = bsonARRAY) then
       CurArrayIndex := ArrayIndexStack.Pop;
+    Result := TBsonType(integer(OperStack.Pop));
   end;
-  function AppendString(const Val : Variant) : Boolean;
+  function PeekIfNextElementIsArrayOrObject : Boolean;
   var
     APeekNext : UTF8String;
+  begin
+    Result := False;
+    if (not OperStack.Empty) and (OperStack.Peek = bsonARRAY) then
+      begin
+        // Let's take a peek if next operator is a start of object or array before
+        // we add the element as an attribute
+        if i + 1 <= High(def) then
+          begin
+            APeekNext := UTF8StringFromTVarRec(def[i + 1]);
+            Result := (APeekNext <> '') and (APeekNext[1] in ['{', '[']);
+          end;
+      end;
+  end;
+  function AppendString(const Val : Variant) : Boolean;
   begin
     if length(Val) = 1 then // We assume Val is a string, so this call is safe
       case UTF8String(Val)[1] of
@@ -1284,30 +1301,47 @@ var
           end;
         ']' :
           begin
-            if OperStack.Pop <> bsonARRAY then
+            if RestoreStack <> bsonARRAY then
               raise EMongo.Create(SWasNotExpectingCloseOfArrayOperator, E_WasNotExpectingCloseOfArrayOperator);
             Result := finishObject;
-            RestoreStack;
             exit;
           end;
       end;
-    if (not OperStack.Empty) and (OperStack.Peek = bsonARRAY) then
+    if PeekIfNextElementIsArrayOrObject then
       begin
-        // Let's take a peek if next operator is a start of object or array before
-        // we add the element as an attribute
-        if i + 1 <= High(def) then
-          begin
-            APeekNext := UTF8StringFromTVarRec(def[i + 1]);
-            if (APeekNext <> '') and (APeekNext[1] in ['{', '[']) then
-              begin
-                Fld := Val; // The value passed as parameter is really the name of an array of object
-                Result := True;
-                dec(CurArrayIndex); // CurArrayIndex will be incremented when this function returns and we didn't add anything
-                exit;
-              end;
-          end;
-      end;
-    Result := appendVariant(Fld, Val);
+        Fld := Val; // The value passed as parameter is really the name of an array of object
+        Result := True;
+        dec(CurArrayIndex); // CurArrayIndex will be incremented when this function returns and we didn't add anything
+      end
+    else  Result := appendVariant(Fld, Val);
+  end;
+  function AppendElement : Boolean;
+  begin
+    case def[i].VType of
+      vtInteger    : Result := append(Fld, def[i].VInteger);
+      vtBoolean    : Result := append(Fld, def[i].VBoolean);
+      vtExtended   : Result := append(Fld, def[i].VExtended^);
+      vtCurrency   : Result := append(Fld, def[i].VCurrency^);
+      vtVariant    : Result := appendVariant(Fld, def[i].VVariant^);
+      vtInt64      : Result := append(Fld, def[i].VInt64^);
+      vtInterface  :
+        if def[i].VInterface <> nil then
+          if IInterface(def[i].VInterface).QueryInterface(IBsonOID, i_bsonobj) = S_OK then
+            Result := append(Fld, IBsonOID(i_bsonobj))
+          else if IInterface(def[i].VInterface).QueryInterface(IBsonBinary, i_bsonobj) = S_OK then
+            Result := append(Fld, IBsonBinary(i_bsonobj))
+          else if IInterface(def[i].VInterface).QueryInterface(IBsonCodeWScope, i_bsonobj) = S_OK then
+            Result := append(Fld, IBsonCodeWScope(i_bsonobj))
+          else if IInterface(def[i].VInterface).QueryInterface(IBsonRegex, i_bsonobj) = S_OK then
+            Result := append(Fld, IBsonRegex(i_bsonobj))
+          else if IInterface(def[i].VInterface).QueryInterface(IBsonTimestamp, i_bsonobj) = S_OK then
+            Result := append(Fld, IBsonTimestamp(i_bsonobj))
+          else raise EMongo.Create(SDatatypeNotSupportedToBuildBSON, E_DatatypeNotSupportedToBuildBSON)
+        else raise EMongo.Create(SNilInterfacePointerNotSupported, E_NilInterfacePointerNotSupported);
+      vtChar, vtPChar, vtWideChar, vtPWideChar, vtAnsiString, vtString,
+      vtWideString {$IFDEF DELPHI2009}, vtUnicodeString {$ENDIF} : Result := AppendString(UTF8StringFromTVarRec(def[i]));
+      else raise EMongo.Create(SDatatypeNotSupportedToBuildBSON, E_DatatypeNotSupportedToBuildBSON);
+    end;
   end;
 begin
   OperStack := NewStack;
@@ -1329,39 +1363,16 @@ begin
         end;
       if Fld = '}' then
         begin
-          if OperStack.Pop <> bsonOBJECT then
+          if RestoreStack <> bsonOBJECT then
             raise EMongo.Create(SWasNotExpectingCloseOfObjectOper, E_WasNotExpectingCloseOfObjectOper);
           Result := finishObject;
-          RestoreStack;
         end
       else
       begin
         ProcessingArray := (not OperStack.Empty) and (OperStack.Peek = bsonARRAY);
         if ProcessingArray then
           Fld := IntToStr(CurArrayIndex);
-        case def[i].VType of
-          vtInteger    : Result := append(Fld, def[i].VInteger);
-          vtBoolean    : Result := append(Fld, def[i].VBoolean);
-          vtExtended   : Result := append(Fld, def[i].VExtended^);
-          vtCurrency   : Result := append(Fld, def[i].VCurrency^);
-          vtVariant    : Result := appendVariant(Fld, def[i].VVariant^);
-          vtInt64      : Result := append(Fld, def[i].VInt64^);
-          vtInterface  :
-            if IInterface(def[i].VInterface).QueryInterface(IBsonOID, i_bsonoid) = S_OK then
-              Result := append(Fld, i_bsonoid)
-            else if IInterface(def[i].VInterface).QueryInterface(IBsonBinary, i_bsonbin) = S_OK then
-              Result := append(Fld, i_bsonbin)
-            else if IInterface(def[i].VInterface).QueryInterface(IBsonCodeWScope, i_bsoncodewscope) = S_OK then
-              Result := append(Fld, i_bsoncodewscope)
-            else if IInterface(def[i].VInterface).QueryInterface(IBsonRegex, i_bsonregex) = S_OK then
-              Result := append(Fld, i_bsonregex)
-            else if IInterface(def[i].VInterface).QueryInterface(IBsonTimestamp, i_bsontimestamp) = S_OK then
-              Result := append(Fld, i_bsontimestamp)
-            else EMongo.Create(SDatatypeNotSupportedToBuildBSON, E_DatatypeNotSupportedToBuildBSON);
-          vtChar, vtPChar, vtWideChar, vtPWideChar, vtAnsiString, vtString,
-          vtWideString {$IFDEF DELPHI2009}, vtUnicodeString {$ENDIF} : AppendString(UTF8StringFromTVarRec(def[i]));
-          else raise EMongo.Create(SDatatypeNotSupportedToBuildBSON, E_DatatypeNotSupportedToBuildBSON);
-        end;
+        Result := AppendElement;
         if ProcessingArray then
           inc(CurArrayIndex);
         inc(i);

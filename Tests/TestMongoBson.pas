@@ -603,7 +603,9 @@ var
   {$IFDEF DELPHI2009}
   v_int64 : Int64;
   {$ENDIF}
+  {$IFNDEF DELPHI2007}
   v_longword : LongWord;
+  {$ENDIF}
 begin
   Name := 'VARIANTFLD_NULL';
   Value := Null;
@@ -635,11 +637,13 @@ begin
   ReturnValue := FIBsonBuffer.AppendVariant(Name, Value);
   Check(ReturnValue, 'ReturnValue should be True inserting VARIANTFLD_INT');
 
+  {$IFNDEF DELPHI2007}
   Name := 'VARIANTFLD_LONGWORD';
   v_longword := 1000000000;
-  Value := v_longword;
+  Value := integer(v_longword);
   ReturnValue := FIBsonBuffer.AppendVariant(Name, Value);
   Check(ReturnValue, 'ReturnValue should be True inserting VARIANTFLD_LONGWORD');
+  {$ENDIF}
 
   Name := 'VARIANTFLD_SINGLE';
   var_single := 1000.1;
@@ -1216,7 +1220,7 @@ begin
     FIBsonBuffer.appendElementsAsArray(Def);
     Fail('call to appendElementsAsArray should have raise exception');
   except
-    on E : EMongo do CheckEquals(E_DatatypeNotSupportedToBuildBSON, E.ErrorCode, 'appendElementsAsArray should have raised exception. error: ' + E.Message);
+    on E : EMongo do CheckEquals(E_NilInterfacePointerNotSupported, E.ErrorCode, 'appendElementsAsArray should have raised exception. error: ' + E.Message);
   end;
 
   SetLength(Def, 0);

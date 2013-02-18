@@ -1122,7 +1122,7 @@ begin
   begin
     it := Err.iterator;
     it.Next;
-    raise EMongo.Create(it.Value, E_MongoDBServerError);
+    raise EMongo.Create(UTF8String(it.Value), E_MongoDBServerError);
   end;
 end;
 
