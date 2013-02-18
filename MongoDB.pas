@@ -1240,7 +1240,7 @@ var
 begin
   parseNamespace(ns, db, col);
   cmd := NewBsonBuffer;
-  cmd.appendStr(SFindAndModifyCommand, PAnsiChar(ns));
+  cmd.appendStr(SFindAndModifyCommand, PAnsiChar(col));
   if length(query) < 2 then
     raise EMongo.Create(SAQueryMustBeProvidedWithAMinimum, E_AQueryMustBeProvidedWithAMinimum);
   if (not (tfamoRemove in options)) and (length(update) < 2) then

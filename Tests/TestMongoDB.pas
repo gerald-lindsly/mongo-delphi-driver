@@ -92,6 +92,7 @@ type
     procedure TestcommandWithArgs;
     procedure TestFailedConnection;
     procedure TestFindAndModifyBasic;
+    procedure TestFindAndModifyUsingBSONOID;
     procedure TestFindAndModifyExtended;
     procedure TestgetLastErr;
     procedure TestgetPrevErr;
@@ -943,6 +944,37 @@ begin
   CheckEquals(11, ResultBson.value);
   Check(ResultBson.next, 'Call to iterator.next should return True');
   CheckEqualsString('string', ResultBson.value);
+end;
+
+procedure TestTMongo.TestFindAndModifyUsingBSONOID;
+const
+  Data : UTF8String = 'Hello world';
+var
+  Res : IBson;
+  buf : IBsonBuffer;
+  id, id2 : IBsonOID;
+  ResultBson : IBsonIterator;
+begin
+  id := NewBsonOID;
+  buf := NewBsonBuffer;
+  buf.append('_id', id);
+  buf.appendStr('strattr', 'hello');
+  Check(FMongo.Insert('test_db.test_col', buf.finish), 'Call to FMongo.Insert should return true');
+  id2 := NewBsonOID(id.asString);
+  Res := FMongo.findAndModify('test_db.test_col', ['_id', id2], [],
+                              ['strattr', 'world', 'ts', NewBsonTimestamp(Now, 0), 'bin', NewBsonBinary(PAnsiString(Data), length(Data))], [], [tfamoNew]);
+  Check(Res <> nil, 'Result from call to findAndModify should be <> nil');
+  ResultBson := Res.find('value').subiterator;
+  Check(ResultBson <> nil, 'subiterator should be <> nil');
+  Check(ResultBson.next, 'Call to iterator.next should return True');
+  CheckEqualsString(id.asString, ResultBson.getOID.asString);
+  Check(ResultBson.next, 'Call to iterator.next should return True');
+  CheckEqualsString('world', ResultBson.value, 'value of attribute strattr doesn''t match');
+  Check(ResultBson.next, 'Call to iterator.next should return True');
+  Check(ResultBson.getTimestamp <> nil, 'value of attribute should be a timestamp');
+  Check(ResultBson.next, 'Call to iterator.next should return True');
+  CheckEquals(length(Data), ResultBson.getBinary.Len, 'value of attribute should be a binary');
+  Check(not ResultBson.next, 'Call to iterator.next should return False');
 end;
 
 procedure TestTMongo.TestFindAndModifyExtended;

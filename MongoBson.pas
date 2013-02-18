@@ -74,6 +74,7 @@ type
   { A TBsonOID is used to store BSON Object IDs.
     See http://www.mongodb.org/display/DOCS/Object+IDs }
   IBsonOID = interface
+    ['{9DFE3466-DCB0-421F-92A9-F7C4209161C9}']
     procedure setValue(const AValue: TBsonOIDValue);
     function getValue: PBsonOIDValue;
     { Convert this Object ID to a 24-digit hex string }
@@ -85,6 +86,7 @@ type
   { A TBsonCodeWScope is used to hold javascript code and its associated scope.
     See TBsonIterator.getCodeWScope() }
   IBsonCodeWScope = interface
+    ['{4AD5B260-B47D-4F05-AB12-8FB8A11D604F}']
     function getCode: UTF8String;
     function getScope: IBson;
     procedure setCode(const ACode: UTF8String);
@@ -96,6 +98,7 @@ type
   { A TBsonRegex is used to hold a regular expression string and its options.
     See TBsonIterator.getRegex(). }
   IBsonRegex = interface
+    ['{2EA7E5BB-66F0-4FCA-B3BD-87FD2738C23C}']
     function getPattern: UTF8String;
     function getOptions: UTF8String;
     procedure setPattern(const APattern: UTF8String);
@@ -108,6 +111,7 @@ type
     See http://www.mongodb.org/display/DOCS/Timestamp+data+type and
     TBsonIterator.getTimestamp() }
   IBsonTimestamp = interface
+    ['{06802587-D513-4797-9613-08F66E2692EA}']
     function getTime: TDateTime;
     function getIncrement: Integer;
     procedure setTime(ATime: TDateTime);
@@ -119,6 +123,7 @@ type
   { A TBsonBinary is used to hold the contents of BINDATA fields.
     See TBsonIterator.getBinary() }
   IBsonBinary = interface
+    ['{16F18439-48F8-426F-AF06-B4229DC9041A}']
     function getData: Pointer;
     function getLen: Integer;
     function getKind: Integer;
@@ -148,6 +153,7 @@ type
       end;
     #) }
   IBsonBuffer = interface
+    ['{9137CDF4-36DA-4D0D-A6F2-7F7620A49894}']
     { append a string (UTF8String) to the buffer }
     {$IFDEF DELPHI2009}
     function append(const Name, Value: UTF8String): Boolean; overload;
@@ -239,6 +245,7 @@ type
 
   { TBsonIterators are used to step through the fields of a TBson document. }
   IBsonIterator = interface
+    ['{BB81B815-9B18-43B7-A894-2FBE4F9B7562}']
     function GetAsInt64: Int64;
     function getHandle: Pointer;
     { Get a TBsonBinary object for the BINDATA field pointed to by this
@@ -297,6 +304,7 @@ type
     It is used to represent documents in MongoDB and also for network traffic.
     See http://www.mongodb.org/display/DOCS/BSON   }
   IBson = interface
+    ['{797F38B2-7659-46C7-9FD7-0F7EF81063CE}']
     { Display this BSON document on the console.  subobjects and arrays are
      appropriately indented. }
     procedure display;
@@ -1238,6 +1246,11 @@ var
   i, CurArrayIndex : integer;
   OperStack, ArrayIndexStack : IStack;
   ProcessingArray : boolean;
+  i_bsonoid : IBsonOID;
+  i_bsonbin : IBsonBinary;
+  i_bsoncodewscope : IBsonCodeWScope;
+  i_bsonregex : IBsonRegex;
+  i_bsontimestamp : IBsonTimestamp;
   procedure BackupStack(BsonType : TBsonType);
   begin
     if (not OperStack.Empty) and (OperStack.Peek = bsonARRAY) then
@@ -1333,6 +1346,18 @@ begin
           vtCurrency   : Result := append(Fld, def[i].VCurrency^);
           vtVariant    : Result := appendVariant(Fld, def[i].VVariant^);
           vtInt64      : Result := append(Fld, def[i].VInt64^);
+          vtInterface  :
+            if IInterface(def[i].VInterface).QueryInterface(IBsonOID, i_bsonoid) = S_OK then
+              Result := append(Fld, i_bsonoid)
+            else if IInterface(def[i].VInterface).QueryInterface(IBsonBinary, i_bsonbin) = S_OK then
+              Result := append(Fld, i_bsonbin)
+            else if IInterface(def[i].VInterface).QueryInterface(IBsonCodeWScope, i_bsoncodewscope) = S_OK then
+              Result := append(Fld, i_bsoncodewscope)
+            else if IInterface(def[i].VInterface).QueryInterface(IBsonRegex, i_bsonregex) = S_OK then
+              Result := append(Fld, i_bsonregex)
+            else if IInterface(def[i].VInterface).QueryInterface(IBsonTimestamp, i_bsontimestamp) = S_OK then
+              Result := append(Fld, i_bsontimestamp)
+            else EMongo.Create(SDatatypeNotSupportedToBuildBSON, E_DatatypeNotSupportedToBuildBSON);
           vtChar, vtPChar, vtWideChar, vtPWideChar, vtAnsiString, vtString,
           vtWideString {$IFDEF DELPHI2009}, vtUnicodeString {$ENDIF} : AppendString(UTF8StringFromTVarRec(def[i]));
           else raise EMongo.Create(SDatatypeNotSupportedToBuildBSON, E_DatatypeNotSupportedToBuildBSON);
