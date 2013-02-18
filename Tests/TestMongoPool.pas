@@ -197,7 +197,7 @@ begin
     ReturnValue := FMongoPool.Acquire(AHostName);
     Fail('Attempt to connect to an unexisting server should return EMongo exception');
   except
-    on E : EMongo do Check(pos('failed', E.Message) > 0, 'Connection to Mongo Server should fail');
+    on E : EMongo do CheckEquals(E_ConnectionToMongoServerFailed, E.ErrorCode, 'Connection to Mongo Server should fail');
   end;
 end;
 
