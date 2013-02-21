@@ -982,13 +982,13 @@ var
   Res : IBson;
   ResultBson, SubIt : IBsonIterator;
 begin
-  Res := FMongo.findAndModify('test_db.test_col', ['key', 0], [], ['key', 11, 'str', 'string', 'str_2', 'string_2', 'arr', '[', 0, ']'], [], [tfamoNew, tfamoUpsert]);
+  Res := FMongo.findAndModify('test_db.test_col', ['key', 0], [], ['key', 11, 'str', 'string', 'str_2', 'string_2', 'arr', Start_Array, 0, End_Array], [], [tfamoNew, tfamoUpsert]);
   Check(Res <> nil, 'Result from call to findAndModify should be <> nil');
   Res := FMongo.findAndModify('test_db.test_col',
                               ['key', 11],
                               ['key', 1],
-                              ['$inc', '{', 'key', 1, '}',
-                               '$set', '{', 'str', 'newstr', 'arr', '[', 1, 2, 3, ']', '}'],
+                              ['$inc', Start_Object, 'key', 1, End_Object,
+                               '$set', Start_Object, 'str', 'newstr', 'arr', Start_Array, 1, 2, 3, End_Array, End_Object],
                               ['key', 'str', 'arr'], [tfamoNew]);
   // Interesting to notice that data on the result BSON is returned with attributes on alphabetical order,
   // not on the order that was passed as parameter to FindAndModify

@@ -960,8 +960,8 @@ var
   it : IBsonIterator;
 begin
   Check(FIBsonBuffer.appendElementsAsArray(['int', 1, 'sub_obj',
-                                            '{', 'str', 'string',
-                                                 'int_2', 2, '}']), 'Call t appendElementsAsArray failed');
+                                            Start_Object, 'str', 'string',
+                                                 'int_2', 2, End_Object]), 'Call t appendElementsAsArray failed');
   Obj := FIBsonBuffer.finish;
   CheckEquals(1, Obj.value('int'), 'Value of int doesn''t match');
   it := Obj.find('sub_obj');
@@ -983,10 +983,10 @@ var
   SubIt : IBsonIterator;
 begin
   Check(FIBsonBuffer.appendElementsAsArray(['int', 1, 'sub_array',
-                                            '[', 'element 1', 'element 2', 'subobject',
-                                                                             '{',
-                                                                             's', 'Str', '}',
-                                             3, 4, 'final_obj', '{', 'subarr', '[', '10', '20', ']', '}', ']']), 'Call t appendElementsAsArray failed');
+                                            Start_Array, 'element 1', 'element 2', 'subobject',
+                                                                             Start_Object,
+                                                                             's', 'Str', End_Object,
+                                             3, 4, 'final_obj', Start_Object, 'subarr', Start_Array, '10', '20', End_Array, End_Object, End_Array]), 'Call t appendElementsAsArray failed');
   Obj := FIBsonBuffer.finish;
   CheckEquals(1, Obj.value('int'), 'Value of int doesn''t match');
   it := Obj.find('sub_array');
