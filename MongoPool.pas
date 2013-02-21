@@ -43,7 +43,6 @@ type
     function BuildConnectionString(const AHostName, AUserName, APassword, ADBName: UTF8String): UTF8String;
     function CreateNewPool(const AConnectionString: UTF8String): Pointer;
     procedure FreePools;
-    procedure ParseHostUserPwd(const AConnectionString: UTF8String; var AHostName, AUserName, APassword, AServerName: UTF8String);
   public
     constructor Create;
     destructor Destroy; override;
@@ -53,6 +52,7 @@ type
     function Acquire(const APool: Pointer): TMongo; overload; {$IFDEF DELPHIXE} inline; {$ENDIF}
     procedure Release(const APoolRecord: TMongoPooledRecord); overload; {$IFDEF DELPHIXE} inline; {$ENDIF}
     function Acquire(const AHostName, AUserName, APassword, ADBName: UTF8String): TMongoPooledRecord; overload;
+    class procedure ParseHostUserPwd(const AConnectionString: UTF8String; var AHostName, AUserName, APassword, AServerName: UTF8String);
     procedure Release(APool: Pointer; AMongo: TMongo); overload;
     procedure Release(const AConnectionString: UTF8String; AMongo: TMongo); overload;
     procedure Release(const AHostName, AUserName, APassword: UTF8String; AMongo: TMongo); overload;
@@ -169,8 +169,8 @@ begin
       end;
 end;
 
-procedure TMongoPool.ParseHostUserPwd(const AConnectionString: UTF8String; var
-    AHostName, AUserName, APassword, AServerName: UTF8String);
+class procedure TMongoPool.ParseHostUserPwd(const AConnectionString:
+    UTF8String; var AHostName, AUserName, APassword, AServerName: UTF8String);
 var
   i: Integer;
 begin
