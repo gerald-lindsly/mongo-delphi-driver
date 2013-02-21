@@ -413,6 +413,11 @@ function Pos(const SubStr, Str: UTF8String): Integer;
 function IntToStr(i : integer) : UTF8String;
 {$ENDIF}
 
+function Start_Object: TObject;
+function End_Object: TObject;
+function Start_Array: TObject;
+function End_Array: TObject;
+
 implementation
 
 uses
@@ -646,6 +651,13 @@ type
     destructor Destroy; override;
     property Handle: Pointer read getHandle;
   end;
+
+var
+  AStart_Object : TObject;
+  AEnd_Object : TObject;
+  AStart_Array : TObject;
+  AEnd_Array : TObject;
+
 
 {$IFDEF DELPHIXE2}
 function Pos(const SubStr, Str: UTF8String): Integer;
@@ -1267,46 +1279,17 @@ var
     Result := TBsonType(integer(OperStack.Pop));
   end;
   function PeekIfNextElementIsArrayOrObject : Boolean;
-  var
-    APeekNext : UTF8String;
   begin
     Result := False;
     if (not OperStack.Empty) and (OperStack.Peek = bsonARRAY) then
       begin
         // Let's take a peek if next operator is a start of object or array before
         // we add the element as an attribute
-        if i + 1 <= High(def) then
-          begin
-            APeekNext := UTF8StringFromTVarRec(def[i + 1]);
-            Result := (APeekNext <> '') and (APeekNext[1] in ['{', '[']);
-          end;
+        Result := (i + 1 <= High(def)) and (def[i + 1].VType = vtObject) and ((def[i + 1].VObject = Start_Object) or (def[i + 1].VObject = Start_Array));
       end;
   end;
   function AppendString(const Val : Variant) : Boolean;
   begin
-    if length(Val) = 1 then // We assume Val is a string, so this call is safe
-      case UTF8String(Val)[1] of
-        '{' :
-          begin
-            BackupStack(bsonOBJECT);
-            Result := startObject(Fld);
-            exit;
-          end;
-        '[' :
-          begin
-            BackupStack(bsonARRAY);
-            Result := startArray(Fld);
-            CurArrayIndex := -1; // CurArrayIndex will be incremented when this function returns
-            exit;
-          end;
-        ']' :
-          begin
-            if RestoreStack <> bsonARRAY then
-              raise EMongo.Create(SWasNotExpectingCloseOfArrayOperator, E_WasNotExpectingCloseOfArrayOperator);
-            Result := finishObject;
-            exit;
-          end;
-      end;
     if PeekIfNextElementIsArrayOrObject then
       begin
         Fld := Val; // The value passed as parameter is really the name of an array of object
@@ -1324,6 +1307,24 @@ var
       vtCurrency   : Result := append(Fld, def[i].VCurrency^);
       vtVariant    : Result := appendVariant(Fld, def[i].VVariant^);
       vtInt64      : Result := append(Fld, def[i].VInt64^);
+      vtObject     : if def[i].VObject = Start_Object then
+        begin
+          BackupStack(bsonOBJECT);
+          Result := startObject(Fld);
+        end
+      else if def[i].VObject = Start_Array then
+        begin
+          BackupStack(bsonARRAY);
+          Result := startArray(Fld);
+          CurArrayIndex := -1; // CurArrayIndex will be incremented when this function returns
+        end
+      else if def[i].VObject = End_Array then
+        begin
+          if RestoreStack <> bsonARRAY then
+            raise EMongo.Create(SWasNotExpectingCloseOfArrayOperator, E_WasNotExpectingCloseOfArrayOperator);
+          Result := finishObject;
+        end
+      else raise EMongo.Create(SDatatypeNotSupportedToBuildBSON, E_DatatypeNotSupportedToBuildBSON);
       vtInterface  :
         if def[i].VInterface <> nil then
           if IInterface(def[i].VInterface).QueryInterface(IBsonOID, i_bsonobj) = S_OK then
@@ -1356,27 +1357,26 @@ begin
         break;
       if (OperStack.Empty) or (OperStack.Peek = bsonOBJECT) then
         begin
-          Fld := UTF8StringFromTVarRec(def[i]);
+          if (def[i].VType = vtObject) and (def[i].VObject = End_Object) then
+            begin
+              if RestoreStack <> bsonOBJECT then
+                raise EMongo.Create(SWasNotExpectingCloseOfObjectOper, E_WasNotExpectingCloseOfObjectOper);
+              Result := finishObject;
+              inc(i);
+              continue;
+            end
+          else Fld := UTF8StringFromTVarRec(def[i]);
           if Fld = '' then
             raise EMongo.Create(SExpectedDefElementShouldBeAString, E_ExpectedDefElementShouldBeAString);
           inc(i);
         end;
-      if Fld = '}' then
-        begin
-          if RestoreStack <> bsonOBJECT then
-            raise EMongo.Create(SWasNotExpectingCloseOfObjectOper, E_WasNotExpectingCloseOfObjectOper);
-          Result := finishObject;
-        end
-      else
-      begin
-        ProcessingArray := (not OperStack.Empty) and (OperStack.Peek = bsonARRAY);
-        if ProcessingArray then
-          Fld := IntToStr(CurArrayIndex);
-        Result := AppendElement;
-        if ProcessingArray then
-          inc(CurArrayIndex);
-        inc(i);
-      end;
+      ProcessingArray := (not OperStack.Empty) and (OperStack.Peek = bsonARRAY);
+      if ProcessingArray then
+        Fld := IntToStr(CurArrayIndex);
+      Result := AppendElement;
+      if ProcessingArray then
+        inc(CurArrayIndex);
+      inc(i);
     end;
 end;
 
@@ -2012,6 +2012,26 @@ begin
   end;
 end;
 
+function End_Object: TObject;
+begin
+  Result := AEnd_Object;
+end;
+
+function End_Array: TObject;
+begin
+  Result := AEnd_Array;
+end;
+
+function Start_Array: TObject;
+begin
+  Result := AStart_Array;
+end;
+
+function Start_Object: TObject;
+begin
+  Result := AStart_Object;
+end;
+
 { Utility functions to create Dynamic Arrays from Open Array parameters }
 
 function MkVarRecArray(const Arr : array of const): TVarRecArray;
@@ -2045,8 +2065,16 @@ procedure AppendToVarRecArray(const Arr : array of const; var TargetArray : TVar
 {$i MongoBsonArrayAppender.inc}
 
 initialization
+  AStart_Object := TObject.Create;
+  AEnd_Object := TObject.Create;
+  AStart_Array := TObject.Create;
+  AEnd_Array := TObject.Create;
 finalization
   absonEmpty := nil;
+  AStart_Object.Free;
+  AEnd_Object.Free;
+  AStart_Array.Free;
+  AEnd_Array.Free;
 end.
 
 
