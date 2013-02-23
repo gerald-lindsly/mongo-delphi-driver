@@ -89,7 +89,7 @@ type
 
 const
  { French Messages }
- MSG_ERROR_DASH_1 = 'Pas d''exécution';
+{ MSG_ERROR_DASH_1 = 'Pas d''exécution';
  MSG_ERROR_0 = 'Système dépassé en capacité mémoire, exécutable corrompu, ou réallocations invalides';
  MSG_ERROR_2 = 'Fichier non trouvé';
  MSG_ERROR_3 = 'Chemin non trouvé';
@@ -106,10 +106,10 @@ const
  MSG_ERROR_19 = 'Tentative de chargement d''un exécutable compressé. Le fichier doit être décompressé avant de pouvoir être chargé';
  MSG_ERROR_20 = 'Fichier Dynamic-link library (DLL) invalide. Une des DLLs requises pour exécuter cette application est corrompue';
  MSG_ERROR_21 = 'Application nécessitant des extensions 32-bit';
- MSG_ERROR_32_AND_MORE = 'Pas d''erreur';
+ MSG_ERROR_32_AND_MORE = 'Pas d''erreur'; }
 
  { English Messages }
- {MSG_ERROR_DASH_1 = 'No execution';
+ MSG_ERROR_DASH_1 = 'No execution';
  MSG_ERROR_0 = 'System was out of memory, executable file was corrupt, or relocations were invalid';
  MSG_ERROR_2 = 'File was not found';
  MSG_ERROR_3 = 'Path was not found';
@@ -126,7 +126,7 @@ const
  MSG_ERROR_19 = 'Attempt was made to load a compressed executable file. The file must be decompressed before it can be loaded';
  MSG_ERROR_20 = 'Dynamic-link library (DLL) file was invalid. One of the DLLs required to run this application was corrupt';
  MSG_ERROR_21 = 'Application requires 32-bit extensions';
- MSG_ERROR_32_AND_MORE = 'No error';}
+ MSG_ERROR_32_AND_MORE = 'No error';
 
 procedure Register;
 

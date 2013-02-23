@@ -25,14 +25,20 @@ uses
   TestMongoStream in 'TestMongoStream.pas',
   TestMongoPool in 'TestMongoPool.pas',
   APPEXEC in '..\APPEXEC.PAS',
-  CnvGenUtils in '..\CnvGenUtils.pas',
+  uWinProcHelper in '..\uWinProcHelper.pas',
   GridFS in '..\GridFS.pas',
   MongoAPI in '..\MongoAPI.pas',
   MongoBson in '..\MongoBson.pas',
   MongoDB in '..\MongoDB.pas',
   MongoPool in '..\MongoPool.pas',
   MongoStream in '..\MongoStream.pas',
-  Ufilemanagement in '..\Ufilemanagement.pas';
+  Ufilemanagement in '..\Ufilemanagement.pas',
+  uStack in '..\uStack.pas',
+  TestuStack in 'TestuStack.pas',
+  uPrimitiveAllocator in '..\uPrimitiveAllocator.pas',
+  TestuPrimitiveAllocator in 'TestuPrimitiveAllocator.pas',
+  TestuAllocators in 'TestuAllocators.pas',
+  uAllocators in '..\uAllocators.pas';
 
 {$R *.RES}
 
