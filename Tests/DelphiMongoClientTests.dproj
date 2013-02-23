@@ -57,12 +57,18 @@
     <DCCReference Include="..\MongoDB.pas" />
     <DCCReference Include="..\MongoPool.pas" />
     <DCCReference Include="..\MongoStream.pas" />
+    <DCCReference Include="..\uAllocators.pas" />
     <DCCReference Include="..\Ufilemanagement.pas" />
+    <DCCReference Include="..\uPrimitiveAllocator.pas" />
+    <DCCReference Include="..\uStack.pas" />
     <DCCReference Include="TestGridFS.pas" />
     <DCCReference Include="TestMongoBson.pas" />
     <DCCReference Include="TestMongoDB.pas" />
     <DCCReference Include="TestMongoPool.pas" />
     <DCCReference Include="TestMongoStream.pas" />
+    <DCCReference Include="TestuAllocators.pas" />
+    <DCCReference Include="TestuPrimitiveAllocator.pas" />
+    <DCCReference Include="TestuStack.pas" />
   </ItemGroup>
 </Project>
 <!-- EurekaLog First Line

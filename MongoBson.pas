@@ -28,7 +28,7 @@ unit MongoBson;
 interface
 
 uses
-  MongoAPI;
+  MongoAPI, uPrimitiveAllocator;
 
 const
   E_WasNotExpectingCloseOfObjectOper    = 90100;
@@ -56,6 +56,7 @@ const
   E_BSONExpectedValueFor                = 90120;
   E_BSONOpenSubobject                   = 90121;
   E_NilInterfacePointerNotSupported     = 90122;
+  E_BSONArrayDefinitionFinishedTooEarly = 90123;
 
 type
   IBsonIterator = interface;
@@ -332,6 +333,7 @@ function MkDoubleArray(const Arr : array of Double): TDoubleArray;
 function MkBoolArray(const Arr : array of Boolean): TBooleanArray;
 function MkStrArray(const Arr : array of UTF8String): TStringArray;
 function MkVarRecArray(const Arr : array of const): TVarRecArray;
+function MkBSONVarRecArrayFromVarArray(const Arr : array of Variant; Allocator : IPrimitiveAllocator) : TVarRecArray;
 
 procedure AppendToIntArray(const Arr : array of Integer; var TargetArray : TIntegerArray; FromIndex : Cardinal = 0);
 procedure AppendToDoubleArray(const Arr : array of Double; var TargetArray : TDoubleArray; FromIndex : Cardinal = 0);
@@ -404,19 +406,20 @@ function NewBsonIterator(ABson: IBson): IBsonIterator; overload;
 function NewBson(AHandle: Pointer): IBson;
 function NewBsonCopy(AHandle: Pointer): IBson;
 
-{ Convert a byte to a 2-digit hex string }
-function ByteToHex(InByte: Byte): UTF8String;
-function bsonEmpty: IBson;
-
 {$IFDEF DELPHIXE2}
 function Pos(const SubStr, Str: UTF8String): Integer;
 function IntToStr(i : integer) : UTF8String;
 {$ENDIF}
 
+{ Convert a byte to a 2-digit hex string }
+function ByteToHex(InByte: Byte): UTF8String;
+function bsonEmpty: IBson;
+
 function Start_Object: TObject;
 function End_Object: TObject;
 function Start_Array: TObject;
 function End_Array: TObject;
+function Null_Element : TObject;
 
 implementation
 
@@ -425,6 +428,8 @@ uses
 
 // START resource string wizard section
 resourcestring
+  SBSONArrayDefinitionFinishedTooEarly = 'BSON array definition finished too early';
+  SDatatypeNotSupportedCallingMkVarRecArrayVarArray = 'Datatype not supported calling MkVarRecArrayFromVarArray (D%d)';
   SNilInterfacePointerNotSupported = 'Nil interface pointer not supported (D%d)';
   SWasNotExpectingCloseOfArrayOperator = 'Was not expecting close of array operator (D%d)';
   SErrorCallingIteratorAtEnd = 'Error calling %s. Iterator at end (D%d)';
@@ -453,9 +458,6 @@ resourcestring
   SBINARY = 'BINARY (';
   SUNKNOWN = 'UNKNOWN';
   SNilBSON = 'nil BSON';
-  SBSONUnexpected = 'BSON(): unexpected "}" (D%d)';
-  SBSONExpectedValueFor = 'BSON(): expected value for %s (D%d)';
-  SBSONOpenSubobject = 'BSON: open subobject (D%d)';
 // END resource string wizard section
 
 const
@@ -657,7 +659,7 @@ var
   AEnd_Object : TObject;
   AStart_Array : TObject;
   AEnd_Array : TObject;
-
+  ANull_Element : TObject;
 
 {$IFDEF DELPHIXE2}
 function Pos(const SubStr, Str: UTF8String): Integer;
@@ -1324,6 +1326,8 @@ var
             raise EMongo.Create(SWasNotExpectingCloseOfArrayOperator, E_WasNotExpectingCloseOfArrayOperator);
           Result := finishObject;
         end
+      else if def[i].VObject = Null_Element then
+        Result := AppendNull(Fld)
       else raise EMongo.Create(SDatatypeNotSupportedToBuildBSON, E_DatatypeNotSupportedToBuildBSON);
       vtInterface  :
         if def[i].VInterface <> nil then
@@ -1370,6 +1374,8 @@ begin
             raise EMongo.Create(SExpectedDefElementShouldBeAString, E_ExpectedDefElementShouldBeAString);
           inc(i);
         end;
+      if i > High(def) then
+        raise EMongo.Create(SBSONArrayDefinitionFinishedTooEarly, E_BSONArrayDefinitionFinishedTooEarly);
       ProcessingArray := (not OperStack.Empty) and (OperStack.Peek = bsonARRAY);
       if ProcessingArray then
         Fld := IntToStr(CurArrayIndex);
@@ -1865,48 +1871,17 @@ end;
 
 function BSON(const x: array of Variant): IBson;
 var
-  Len: Integer;
-  i: Integer;
   bb: IBsonBuffer;
-  depth: Integer;
-  key: UTF8String;
-  Value: UTF8String;
-  Name: UTF8String;
+  VarRecArr : TVarRecArray;
 begin
+  VarRecArr := nil;
   bb := NewBsonBuffer;
-  Len := Length(x);
-  i := 0;
-  depth := 0;
-  while i < Len do
+  if length(x) > 0 then
   begin
-    key := UTF8String(VarToStr(x[i]));
-    if key = '}' then
-    begin
-      if depth = 0 then
-        raise Exception.Create(SBSONUnexpected);
-      bb.finishObject();
-      Dec(depth);
-    end
-    else
-    begin
-      Name := key;
-      Inc(i);
-      if i = Len then
-        raise Exception.Create(SBSONExpectedValueFor + key);
-      Value := UTF8String(VarToStr(x[i]));
-      if Value = '{' then
-      begin
-        bb.startObject(Name);
-        Inc(depth);
-      end
-      else
-        bb.AppendVariant(Name, x[i]);
-    end;
-    Inc(i);
+     VarRecArr := MkBSONVarRecArrayFromVarArray(x, NewPrimitiveAllocator);
+     bb.appendElementsAsArray(VarRecArr);
   end;
-  if depth > 0 then
-    raise Exception.Create(SBSONOpenSubobject);
-  Result := bb.finish();
+  Result := bb.finish;
 end;
 
 { Factory functions }
@@ -2032,6 +2007,11 @@ begin
   Result := AStart_Object;
 end;
 
+function Null_Element : TObject;
+begin
+  Result := ANull_Element;
+end;
+
 { Utility functions to create Dynamic Arrays from Open Array parameters }
 
 function MkVarRecArray(const Arr : array of const): TVarRecArray;
@@ -2064,13 +2044,108 @@ procedure AppendToStrArray(const Arr : array of UTF8String; var TargetArray : TS
 procedure AppendToVarRecArray(const Arr : array of const; var TargetArray : TVarRecArray; FromIndex : Cardinal = 0);
 {$i MongoBsonArrayAppender.inc}
 
+function MkBSONVarRecArrayFromVarArray(const Arr : array of Variant; Allocator : IPrimitiveAllocator) : TVarRecArray;
+var
+  i : integer;
+  RootResult : TVarRecArray absolute Result;
+  function CheckOperatorString(const s : AnsiString) : Boolean;
+  begin
+    if s <> '' then
+      if s[1] in ['{', '}', '[', ']'] then
+        begin
+          case s[1] of
+            '{' : RootResult[i].VObject := Start_Object;
+            '}' : RootResult[i].VObject := End_Object;
+            '[' : RootResult[i].VObject := Start_Array;
+            ']' : RootResult[i].VObject := End_Array;
+          end;
+          RootResult[i].VType := vtObject;
+          Result := True;
+        end
+      else Result := False
+    else Result := False;
+  end;
+begin
+  SetLength(Result, length(Arr));
+  for i := Low(Arr) to High(Arr) do
+    case VarType(Arr[i]) of
+      {$IFDEF DELPHI2007} varLongWord, varWord, varShortInt, {$ENDIF} varByte, varInteger, varSmallInt:
+        begin
+          Result[i].VType := vtInteger;
+          Result[i].VInteger := Arr[i];
+        end;
+      varSingle, varDouble {$IFNDEF DELPHI2009}, varCurrency {$ENDIF} :
+        begin
+          Result[i].VType := vtExtended;
+          Result[i].VExtended := Allocator.New(Extended(Arr[i]));
+        end;
+      {$IFDEF DELPHI2009}
+      varCurrency :
+        begin
+          Result[i].VType := vtCurrency;
+          Result[i].VCurrency := Allocator.New(Currency(Arr[i]));
+        end;
+      {$ENDIF}
+      varDate :
+        begin
+          Result[i].VType := vtExtended;
+          Result[i].VExtended := Allocator.New(TDateTime(Arr[i]));
+        end;
+      {$IFDEF DELPHI2007}
+      varOleStr :
+        begin
+          if CheckOperatorString(AnsiString(Arr[i])) then
+            continue;
+          Result[i].VType := vtWideString;
+          WideString(Result[i].VWideString) := Allocator.New(WideString(Arr[i]))^;
+        end;
+      {$ENDIF}  
+      varBoolean :
+        begin
+          Result[i].VType := vtBoolean;
+          Result[i].VBoolean := Arr[i];
+        end;
+      {$IFDEF DELPHI2009}
+      varInt64, varUInt64 :
+        begin
+          Result[i].VType := vtInt64;
+          Result[i].VInt64 := Allocator.New(Int64(Arr[i]));
+        end;
+      {$ENDIF}
+      varString :
+        begin
+          if CheckOperatorString(AnsiString(Arr[i])) then
+            continue;
+          Result[i].VType := vtAnsiString;
+          AnsiString(Result[i].VAnsiString) := Allocator.New(AnsiString(Arr[i]))^;
+        end;
+      {$IFDEF DELPHI2009}
+      varUString :
+        begin
+          if CheckOperatorString(AnsiString(Arr[i])) then
+            continue;
+          Result[i].VType := vtUnicodeString;
+          UnicodeString(Result[i].VUnicodeString) := Allocator.New(UnicodeString(Arr[i]))^;
+        end;
+      {$ENDIF}  
+      varNull :
+        begin
+          Result[i].VType := vtObject;
+          Result[i].VObject := Null_Element;
+        end
+      else raise EMongo.Create(SDatatypeNotSupportedCallingMkVarRecArrayVarArray, E_DatatypeNotSupported);
+   end;
+end;
+
 initialization
   AStart_Object := TObject.Create;
   AEnd_Object := TObject.Create;
   AStart_Array := TObject.Create;
   AEnd_Array := TObject.Create;
+  ANull_Element := TObject.Create;
 finalization
   absonEmpty := nil;
+  ANull_Element.Free;
   AStart_Object.Free;
   AEnd_Object.Free;
   AStart_Array.Free;

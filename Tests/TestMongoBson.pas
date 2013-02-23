@@ -14,6 +14,8 @@ interface
 uses
   SysUtils, TestFramework, MongoBson;
 
+{$i DelphiVersion_defines.inc}
+
 type
   // Test methods for class IBsonOID
   
@@ -165,9 +167,11 @@ type
     procedure SetUp; override;
     procedure TearDown; override;
   published
+    procedure TestComplexBson;
     procedure Testfind;
     procedure TestgetHandle;
     procedure Testiterator;
+    procedure TestMkVarRecArrayFromVarArray;
     procedure TestNewBsonCopy;
     procedure Testsize;
     procedure TestValue;
@@ -196,7 +200,7 @@ type
 implementation
 
 uses
-  Classes, Variants, MongoAPI, MongoDB;
+  Classes, Variants, MongoAPI, MongoDB, uPrimitiveAllocator;
 
 const
   DELTA_DATE = 0.00009999;
@@ -603,7 +607,7 @@ var
   {$IFDEF DELPHI2009}
   v_int64 : Int64;
   {$ENDIF}
-  {$IFNDEF DELPHI2007}
+  {$IFDEF DELPHI2007}
   v_longword : LongWord;
   {$ENDIF}
 begin
@@ -637,7 +641,7 @@ begin
   ReturnValue := FIBsonBuffer.AppendVariant(Name, Value);
   Check(ReturnValue, 'ReturnValue should be True inserting VARIANTFLD_INT');
 
-  {$IFNDEF DELPHI2007}
+  {$IFDEF DELPHI2007}
   Name := 'VARIANTFLD_LONGWORD';
   v_longword := 1000000000;
   Value := integer(v_longword);
@@ -1595,6 +1599,34 @@ begin
   inherited;
 end;
 
+procedure TestIBson.TestComplexBson;
+var
+  b : IBson;
+  it, it2 : IBsonIterator;
+begin
+  b := BSON(['a', 1, 'b', '123', 'subobj', '{', 'c', 3, 'd', '456', '}']);
+  Check(b <> nil, 'value returned from call to BSON should be <> nil');
+  it := b.iterator;
+  Check(it <> nil, 'Value returned from call to b.iterator should be <> nil');
+  Check(it.next, 'value returned from call to it.next should be True');
+  CheckEqualsString('a', it.key, 'First key should be equals to a');
+  CheckEquals(1, it.value, 'First element should be equals to 1');
+  Check(it.next, 'value returned from call to it.next should be True');
+  CheckEqualsString('b', it.key, 'Second attribute should be equals to b');
+  CheckEqualsString('123', it.value, 'Second attribute value should be equals to 123');
+  Check(it.next, 'value returned from call to it.next should be True');
+  it2 := it.subiterator;
+  Check(it2 <> nil, 'Value returned from call to it.iterator should be <> nil');
+  Check(it2.next, 'value returned from call to it.next should be True');
+  CheckEqualsString('c', it2.key, 'First subkey should be equals to c');
+  CheckEquals(3, it2.value, 'First sublement should be equals to 3');
+  Check(it2.next, 'value returned from call to it.next should be True');
+  CheckEqualsString('d', it2.key, 'Second subattribute should be equals to b');
+  CheckEqualsString('456', it2.value, 'Second subattribute value should be equals to 456');
+  Check(not it2.next, 'Call to it2.next should be false');
+  Check(not it.next, 'Call to it.next should be false');
+end;
+
 procedure TestIBson.Testfind;
 var
   ReturnValue: IBsonIterator;
@@ -1622,6 +1654,57 @@ begin
   Check(ReturnValue <> nil, 'Call to get Bson iterator should have returned value <> nil');
   ReturnValue.Next;
   CheckEquals(123, ReturnValue.Value, 'Initial value of iterator is 123');
+end;
+
+procedure TestIBson.TestMkVarRecArrayFromVarArray;
+const
+  ExtendedVal : Extended = 1.1;
+  CurrencyVal : Currency = 1.2;
+var
+  VarArr : array of variant;
+  Arr : TVarRecArray;
+  d : TDateTime;
+begin
+  SetLength(VarArr, 8);
+  VarArr[0] := 1;
+  {$IFDEF DELPHI2009}
+  VarArr[1] := UnicodeString('Hello');
+  {$ELSE}
+  VarArr[1] := Null;
+  {$ENDIF}
+  VarArr[2] := ExtendedVal;
+  VarArr[3] := CurrencyVal;
+  d := Now;
+  VarArr[4] := d;
+  VarArr[5] := True;
+  {$IFDEF DELPHI2009}
+  VarArr[6] := Int64(123);
+  {$ELSE}
+  VarArr[6] := Null;
+  {$ENDIF}
+  VarArr[7] := AnsiString('Alo');
+  Arr := MkBSONVarRecArrayFromVarArray(VarArr, NewPrimitiveAllocator);
+  CheckEquals(8, length(Arr), 'Length of Arr doesn''t match');
+  CheckEquals(vtInteger, Arr[0].VType, 'Type of first parameter doesn''t match');
+  CheckEquals(1, Arr[0].VInteger, 'First value of Arr doesn''t match');
+  {$IFDEF DELPHI2009}
+  CheckEquals(vtUnicodeString, Arr[1].VType, 'Type of second parameter doesn''t match');
+  CheckEqualsString('Hello', UnicodeString(Arr[1].VUnicodeString), 'Second value of arr doesn''t match');
+  {$ENDIF}
+  CheckEquals(vtExtended, Arr[2].VType, 'Type of third parameter doesn''t match');
+  CheckEqualsString(Format('%.2g', [1.1]), Format('%.2g', [Arr[2].VExtended^]), 'Third parameter doesn''t match');
+  CheckEquals({$IFDEF DELPHI2009} vtCurrency {$ELSE} vtExtended {$ENDIF}, Arr[3].VType, 'Type of fourth parameter doesn''t match');
+  CheckEqualsString(Format('%.2g', [1.2]), Format('%.2g', [{$IFDEF DELPHI2009} Arr[3].VCurrency^ {$ELSE} Arr[3].VExtended^ {$ENDIF}]), 'Fourth parameter doesn''t match');
+  CheckEquals(vtExtended, Arr[4].VType, 'Type of fifth array element doesn''t match');
+  CheckEqualsString(DateTimeToStr(d), DateTimeToStr(Arr[4].VExtended^), 'Firth element doesn''t match');
+  CheckEquals(vtBoolean, Arr[5].VType, 'Type of sixth parameter doesn''t match');
+  CheckEquals(True, Arr[5].VBoolean, 'Sixth value of Arr doesn''t match');
+  {$IFDEF DELPHI2009}
+  CheckEquals(vtInt64, Arr[6].VType, 'Type of seventh parameter doesn''t match');
+  CheckEquals(123, Arr[6].VInt64^, 'Seventh value of Arr doesn''t match');
+  {$ENDIF}
+  CheckEquals(vtAnsiString, Arr[7].VType, 'Type of eigth parameter doesn''t match');
+  CheckEqualsString('Alo', AnsiString(Arr[7].VAnsiString), 'Eigth value of arr doesn''t match');
 end;
 
 procedure TestIBson.TestNewBsonCopy;
