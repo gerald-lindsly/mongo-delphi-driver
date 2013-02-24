@@ -709,7 +709,9 @@ begin
   {$IFDEF DELPHI2009}
   CheckEquals(10000000000, Int64(b.Value('VARIANTFLD_INT64')), 'Value doesn''t match');
   {$ENDIF}
+  {$IFDEF DELPHI2007}
   CheckEquals(1000000000, LongWord(b.Value('VARIANTFLD_LONGWORD')), 'Value doesn''t match');
+  {$ENDIF}
   Check(b.Value('VARIANTFLD_BOOL'), 'Value doesn''t match for VARIANTFLD_BOOL');
   CheckEqualsString('HOLA', b.Value('VARIANTFLD_STR'), 'Value doesn''t match');
   {$IFDEF DELPHI2009}
