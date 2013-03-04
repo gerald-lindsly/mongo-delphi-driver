@@ -971,6 +971,7 @@ begin
   CheckHandle('findOne');
   res := bson_create;
   try
+    bson_init(res);
     autoCmdResetLastError(ns, true);
     if mongo_find_one(fhandle, PAnsiChar(ns), query.Handle, fields.Handle, res) = 0 then
       Result := NewBson(res)
@@ -1155,6 +1156,7 @@ begin
   CheckHandle('command');
   res := bson_create;
   try
+    bson_init(res);
     if mongo_run_command(fhandle, PAnsiChar(db), command.Handle, res) = 0 then
       Result := NewBsonCopy(res)
     else Result := nil;
@@ -1193,6 +1195,7 @@ begin
   CheckHandle('getLastErr');
   res := bson_create;
   try
+    bson_init(res);
     if mongo_cmd_get_last_error(fhandle, PAnsiChar(db), res) <> 0 then
       Result := NewBsonCopy(res)
     else
@@ -1208,13 +1211,21 @@ var
 begin
   CheckHandle('cmdGetLastError');
   h := bson_create;
-  if mongo_cmd_get_last_error(fHandle, PAnsiChar(db), h) = 0 then
-  begin
-    bson_dispose_and_destroy(h);
-    Result := nil;
-  end
-  else
-    Result := NewBson(h);
+  try
+    bson_init(h);
+    if mongo_cmd_get_last_error(fHandle, PAnsiChar(db), h) = 0 then
+    begin
+      bson_dispose_and_destroy(h);
+      h := nil;
+      Result := nil;
+    end
+    else
+      Result := NewBson(h);
+  except
+    if h <> nil then
+      bson_dispose_and_destroy(h);
+    raise;
+  end;
 end;
 
 procedure TMongo.cmdResetLastError(const db: UTF8String);
@@ -1280,6 +1291,7 @@ begin
   CheckHandle('getPrevErr');
   res := bson_create;
   try
+    bson_init(res);
     if mongo_cmd_get_prev_error(fhandle, PAnsiChar(db), res) <> 0 then
       Result := NewBsonCopy(res)
     else
@@ -1318,6 +1330,7 @@ begin
   CheckHandle('indexCreate');
   h := bson_create;
   try
+    bson_init(h);
     res := NewBson(h);
   except
     bson_dispose_and_destroy(h);
