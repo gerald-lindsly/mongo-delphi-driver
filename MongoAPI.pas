@@ -13,6 +13,7 @@ const
 type
   {$IFNDEF DELPHI2007}
   UTF8String = AnsiString;
+  NativeUInt = Cardinal;
   {$ENDIF}
   EMongoFatalError = class(Exception);
 
@@ -143,11 +144,11 @@ type
   Tbson_oid_to_string = procedure (oid: Pointer; s: PAnsiChar); cdecl;
   Tbson_oid_from_string = procedure (oid: Pointer; s: PAnsiChar); cdecl;
   Tbson_append_string = function (b: Pointer; Name: PAnsiChar; Value: PAnsiChar): Integer; cdecl;
-  Tbson_append_string_n = function (b: Pointer; Name: PAnsiChar; Value: PAnsiChar; Len : Cardinal): Integer; cdecl;
+  Tbson_append_string_n = function (b: Pointer; Name: PAnsiChar; Value: PAnsiChar; Len : NativeUInt): Integer; cdecl;
   Tbson_append_code = function (b: Pointer; Name: PAnsiChar; Value: PAnsiChar): Integer; cdecl;
-  Tbson_append_code_n = function (b: Pointer; Name: PAnsiChar; Value: PAnsiChar; Len : Cardinal): Integer; cdecl;
+  Tbson_append_code_n = function (b: Pointer; Name: PAnsiChar; Value: PAnsiChar; Len : NativeUInt): Integer; cdecl;
   Tbson_append_symbol = function (b: Pointer; Name: PAnsiChar; Value: PAnsiChar): Integer; cdecl;
-  Tbson_append_symbol_n = function (b: Pointer; Name: PAnsiChar; Value: PAnsiChar; Len : Cardinal): Integer; cdecl;
+  Tbson_append_symbol_n = function (b: Pointer; Name: PAnsiChar; Value: PAnsiChar; Len : NativeUInt): Integer; cdecl;
   Tbson_append_int = function (b: Pointer; Name: PAnsiChar; Value: Integer): Integer; cdecl;
   Tbson_append_long = function (b: Pointer; Name: PAnsiChar; Value: Int64): Integer; cdecl;
   Tbson_append_double = function (b: Pointer; Name: PAnsiChar; Value: Double): Integer; cdecl;
@@ -162,9 +163,9 @@ type
   Tbson_append_code_w_scope = function (b: Pointer; Name: PAnsiChar; code: PAnsiChar; scope: Pointer): Integer; cdecl;
   Tbson_append_regex = function (b: Pointer; Name: PAnsiChar; pattern: PAnsiChar; options: PAnsiChar): Integer; cdecl;
   Tbson_append_timestamp2 = function (b: Pointer; Name: PAnsiChar; Time: Integer; increment: Integer): Integer; cdecl;
-  Tbson_append_binary = function (b: Pointer; Name: PAnsiChar; Kind: Byte; Data: Pointer; Len: Cardinal): Integer; cdecl;
+  Tbson_append_binary = function (b: Pointer; Name: PAnsiChar; Kind: Byte; Data: Pointer; Len: NativeUInt): Integer; cdecl;
   Tbson_append_bson = function (b: Pointer; Name: PAnsiChar; Value: Pointer): Integer; cdecl;
-  Tbson_buffer_size = function (b: Pointer): Cardinal; cdecl;
+  Tbson_buffer_size = function (b: Pointer): NativeUInt; cdecl;
   Tbson_size = function (b: Pointer): Integer; cdecl;
   Tbson_iterator_create = function (): Pointer; cdecl;
   Tbson_iterator_dispose = procedure (i: Pointer); cdecl;
@@ -217,7 +218,7 @@ type
   Tgridfile_get_numchunks = function (gf: Pointer): Integer; cdecl;
   Tgridfile_get_descriptor = procedure (gf: Pointer; b: Pointer); cdecl;
   Tgridfile_get_chunk = procedure (gf: Pointer; i: Integer; b: Pointer); cdecl;
-  Tgridfile_get_chunks = function (gf: Pointer; i: Cardinal; Count: Cardinal): Pointer; cdecl;
+  Tgridfile_get_chunks = function (gf: Pointer; i: NativeUInt; Count: NativeUInt): Pointer; cdecl;
   Tgridfile_read = function (gf: Pointer; size: Int64; buf: Pointer): Int64; cdecl;
   Tgridfile_seek = function (gf: Pointer; offset: Int64): Int64; cdecl;
   Tgridfile_init = function (gfs, meta, gfile : pointer) : integer; cdecl;
@@ -478,11 +479,11 @@ var
   procedure bson_oid_to_string(oid: Pointer; s: PAnsiChar); cdecl; external MongoCDLL;
   procedure bson_oid_from_string(oid: Pointer; s: PAnsiChar); cdecl; external MongoCDLL;
   function bson_append_string(b: Pointer; Name: PAnsiChar; Value: PAnsiChar): Integer; cdecl; external MongoCDLL;
-  function bson_append_string_n(b: Pointer; Name: PAnsiChar; Value: PAnsiChar; Len : Cardinal): Integer; cdecl; external MongoCDLL;
+  function bson_append_string_n(b: Pointer; Name: PAnsiChar; Value: PAnsiChar; Len : NativeUInt): Integer; cdecl; external MongoCDLL;
   function bson_append_code(b: Pointer; Name: PAnsiChar; Value: PAnsiChar): Integer; cdecl; external MongoCDLL;
-  function bson_append_code_n(b: Pointer; Name: PAnsiChar; Value: PAnsiChar; Len : Cardinal): Integer; cdecl; external MongoCDLL;
+  function bson_append_code_n(b: Pointer; Name: PAnsiChar; Value: PAnsiChar; Len : NativeUInt): Integer; cdecl; external MongoCDLL;
   function bson_append_symbol(b: Pointer; Name: PAnsiChar; Value: PAnsiChar): Integer; cdecl; external MongoCDLL;
-  function bson_append_symbol_n (b: Pointer; Name: PAnsiChar; Value: PAnsiChar; Len : Cardinal): Integer; cdecl; external MongoCDLL;
+  function bson_append_symbol_n (b: Pointer; Name: PAnsiChar; Value: PAnsiChar; Len : NativeUInt): Integer; cdecl; external MongoCDLL;
   function bson_append_int(b: Pointer; Name: PAnsiChar; Value: Integer): Integer; cdecl; external MongoCDLL;
   function bson_append_long(b: Pointer; Name: PAnsiChar; Value: Int64): Integer; cdecl; external MongoCDLL;
   function bson_append_double(b: Pointer; Name: PAnsiChar; Value: Double): Integer; cdecl; external MongoCDLL;
@@ -497,9 +498,9 @@ var
   function bson_append_code_w_scope(b: Pointer; Name: PAnsiChar; code: PAnsiChar; scope: Pointer): Integer; cdecl; external MongoCDLL;
   function bson_append_regex(b: Pointer; Name: PAnsiChar; pattern: PAnsiChar; options: PAnsiChar): Integer; cdecl; external MongoCDLL;
   function bson_append_timestamp2(b: Pointer; Name: PAnsiChar; Time: Integer; increment: Integer): Integer; cdecl; external MongoCDLL;
-  function bson_append_binary(b: Pointer; Name: PAnsiChar; Kind: Byte; Data: Pointer; Len: Cardinal): Integer; cdecl; external MongoCDLL;
+  function bson_append_binary(b: Pointer; Name: PAnsiChar; Kind: Byte; Data: Pointer; Len: NativeUInt): Integer; cdecl; external MongoCDLL;
   function bson_append_bson(b: Pointer; Name: PAnsiChar; Value: Pointer): Integer; cdecl; external MongoCDLL;
-  function bson_buffer_size(b: Pointer): Cardinal; cdecl; external MongoCDLL;
+  function bson_buffer_size(b: Pointer): NativeUInt; cdecl; external MongoCDLL;
   function bson_size(b: Pointer): Integer; cdecl; external MongoCDLL;
   function bson_iterator_create(): Pointer; cdecl; external MongoCDLL;
   procedure bson_iterator_dispose(i: Pointer); cdecl; external MongoCDLL;
@@ -552,7 +553,7 @@ var
   function gridfile_get_numchunks(gf: Pointer): Integer; cdecl; external MongoCDLL;
   procedure gridfile_get_descriptor(gf: Pointer; b: Pointer); cdecl; external MongoCDLL;
   procedure gridfile_get_chunk(gf: Pointer; i: Integer; b: Pointer); cdecl; external MongoCDLL;
-  function gridfile_get_chunks(gf: Pointer; i: Cardinal; Count: Cardinal): Pointer; cdecl; external MongoCDLL;
+  function gridfile_get_chunks(gf: Pointer; i: NativeUInt; Count: NativeUInt): Pointer; cdecl; external MongoCDLL;
   function gridfile_read(gf: Pointer; size: Int64; buf: Pointer): Int64; cdecl; external MongoCDLL;
   function gridfile_seek(gf: Pointer; offset: Int64): Int64; cdecl; external MongoCDLL;
   function gridfile_init(gfs, meta, gfile : pointer) : integer; cdecl; external MongoCDLL;
