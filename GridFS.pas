@@ -442,6 +442,7 @@ begin
           begin
             meta := bson_create;
             try
+              bson_init(meta);
               gridfile_get_descriptor( AHandle, meta );
               gf := TGridfileWriter.Create(Self, gridfile_get_filename(AHandle), True, Meta, GRIDFILE_DEFAULT);
               gridfile_destroy(AHandle);
@@ -631,6 +632,7 @@ begin
   CheckHandle;
   b := bson_create;
   try
+    bson_init(b);
     gridfile_get_metadata(FHandle, b);
     if bson_size(b) <= 5 then
       Result := nil
@@ -654,6 +656,7 @@ begin
   CheckHandle;
   b := bson_create;
   try
+    bson_init(b);
     gridfile_get_descriptor(FHandle, b);
     Result := NewBsonCopy(b);
   finally
@@ -669,6 +672,7 @@ begin
   CheckHandle;
   h := bson_create;
   try
+    bson_init(h);
     b := NewBson(h);
   except
     bson_dispose_and_destroy(h);
