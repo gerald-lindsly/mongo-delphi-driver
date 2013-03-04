@@ -12,7 +12,7 @@ unit TestMongoPool;
 interface
 
 uses
-  TestFramework, MongoDB, MongoPool, TestMongoDB, Classes;
+  TestFramework, MongoDB, MongoPool, TestMongoDB, Classes, MongoAPI;
 
 type
   // Test methods for class TMongoPool
@@ -27,11 +27,16 @@ type
     procedure TestAcquireWithoutParams;
     procedure TestAcquireWithHostNameTwice;
     procedure TestAcquireWithHostNameAndPassword;
+    procedure TestAcquireWithHostNamePasswordAndDBName;
+    procedure TestAcquireWithHostAndDBName;
     procedure TestAcquireWithPoolPointer;
+    procedure TestFailConnectionOnAcquire;
     procedure TestMultiThreaded;
     procedure TestRelease;
     procedure TestReleaseWithConnStr;
     procedure TestReleaseWithHostNameUsrNameAndPassword;
+    procedure TestReleaseWithHostNameUsrNamePassAndDBName;
+    procedure TestReleaseWithHostNameDBName;
   end;
 
 implementation
@@ -42,13 +47,13 @@ uses
 type
   TMongoPoolThread = class(TThread)
   private
-    FErrorMessage: AnsiString;
+    FErrorMessage: UTF8String;
     FPool: TMongoPool;
-    procedure Error(const AMsg: AnsiString);
+    procedure Error(const AMsg: UTF8String);
   public
     constructor Create(APool: TMongoPool);
     procedure Execute; override;
-    property ErrorMessage: AnsiString read FErrorMessage write FErrorMessage;
+    property ErrorMessage: UTF8String read FErrorMessage write FErrorMessage;
   end;
 
 procedure TestTMongoPool.SetUp;
@@ -69,7 +74,7 @@ end;
 procedure TestTMongoPool.TestAcquireWithHostName;
 var
   ReturnValue: TMongoPooledRecord;
-  AHostName: AnsiString;
+  AHostName: UTF8String;
 begin
   AHostName := '127.0.0.1';
   ReturnValue := FMongoPool.Acquire(AHostName);
@@ -89,7 +94,7 @@ end;
 procedure TestTMongoPool.TestAcquireWithHostNameTwice;
 var
   ReturnValue: TMongoPooledRecord;
-  AHostName: AnsiString;
+  AHostName: UTF8String;
 begin
   AHostName := '127.0.0.1';
   ReturnValue := FMongoPool.Acquire(AHostName);
@@ -103,9 +108,9 @@ end;
 procedure TestTMongoPool.TestAcquireWithHostNameAndPassword;
 var
   ReturnValue: TMongoPooledRecord;
-  APassword: AnsiString;
-  AUserName: AnsiString;
-  AHostName: AnsiString;
+  APassword: UTF8String;
+  AUserName: UTF8String;
+  AHostName: UTF8String;
   AMongo : TMongo;
 begin
   AHostName := '127.0.0.1';
@@ -121,10 +126,56 @@ begin
   FMongoPool.Release(ReturnValue.Pool, AMongo);
 end;
 
+procedure TestTMongoPool.TestAcquireWithHostNamePasswordAndDBName;
+var
+  ReturnValue: TMongoPooledRecord;
+  ADBName : AnsiString;
+  APassword: AnsiString;
+  AUserName: AnsiString;
+  AHostName: AnsiString;
+  AMongo : TMongo;
+begin
+  AHostName := '127.0.0.1';
+  AUserName := 'testuser';
+  APassword := 'testpwd';
+  ADBName := 'testdb';
+  ReturnValue := FMongoPool.Acquire(AHostName);
+  AMongo := ReturnValue.Mongo;
+  Check(AMongo <> nil, 'Call to FMongoPool.Acquire should return value <> nil');
+  Check(AMongo.addUser(AUserName, APassword, ADBName), 'Call to addUser should return true');
+  ReturnValue := FMongoPool.Acquire(AHostName, AUserName, APassword, ADBName);
+  Check(ReturnValue.Mongo <> nil, 'Call to FMongoPool.Acquire should return value <> nil');
+  FMongoPool.Release(ReturnValue);
+  FMongoPool.Release(ReturnValue.Pool, AMongo);
+end;
+
+procedure TestTMongoPool.TestAcquireWithHostAndDBName;
+var
+  ReturnValue: TMongoPooledRecord;
+  ADBName : AnsiString;
+  APassword: AnsiString;
+  AUserName: AnsiString;
+  AHostName: AnsiString;
+  AMongo : TMongo;
+begin
+  AHostName := '127.0.0.1';
+  AUserName := '';
+  APassword := '';
+  ADBName := 'testdb2';
+  ReturnValue := FMongoPool.Acquire(AHostName);
+  AMongo := ReturnValue.Mongo;
+  Check(AMongo <> nil, 'Call to FMongoPool.Acquire should return value <> nil');
+  AMongo.addUser(AUserName, APassword, ADBName);
+  ReturnValue := FMongoPool.Acquire(AHostName, AUserName, APassword, ADBName);
+  Check(ReturnValue.Mongo <> nil, 'Call to FMongoPool.Acquire should return value <> nil');
+  FMongoPool.Release(ReturnValue);
+  FMongoPool.Release(ReturnValue.Pool, AMongo);
+end;
+
 procedure TestTMongoPool.TestAcquireWithPoolPointer;
 var
   ReturnValue: TMongoPooledRecord;
-  AHostName: AnsiString;
+  AHostName: UTF8String;
   AOtherMongo : TMongo;
 begin
   AHostName := '127.0.0.1';
@@ -134,6 +185,20 @@ begin
   Check(AOtherMongo <> nil, 'Call to FMongoPool.Acquire with pool pointer must return <> nil');
   FMongoPool.Release(ReturnValue);
   FMongoPool.Release(ReturnValue.Pool, AOtherMongo);
+end;
+
+procedure TestTMongoPool.TestFailConnectionOnAcquire;
+var
+  ReturnValue: TMongoPooledRecord;
+  AHostName: UTF8String;
+begin
+  AHostName := '127.0.0.1:9999';
+  try
+    ReturnValue := FMongoPool.Acquire(AHostName);
+    Fail('Attempt to connect to an unexisting server should return EMongo exception');
+  except
+    on E : EMongo do CheckEquals(E_ConnectionToMongoServerFailed, E.ErrorCode, 'Connection to Mongo Server should fail');
+  end;
 end;
 
 procedure TestTMongoPool.TestMultiThreaded;
@@ -166,7 +231,7 @@ end;
 
 procedure TestTMongoPool.TestRelease;
 var
-  AHostName : AnsiString;
+  AHostName : UTF8String;
   APoolRecord : TMongoPooledRecord;
 begin
   AHostName := '127.0.0.1';
@@ -177,7 +242,7 @@ end;
 
 procedure TestTMongoPool.TestReleaseWithConnStr;
 var
-  AHostName : AnsiString;
+  AHostName : UTF8String;
   APoolRecord : TMongoPooledRecord;
 begin
   AHostName := '127.0.0.1';
@@ -188,7 +253,7 @@ end;
 
 procedure TestTMongoPool.TestReleaseWithHostNameUsrNameAndPassword;
 var
-  AHostName : AnsiString;
+  AHostName : UTF8String;
   APoolRecord : TMongoPooledRecord;
   AMongo : TMongo;
 begin
@@ -203,13 +268,49 @@ begin
   FMongoPool.Release(AHostName, 'test', 'test', APoolRecord.Mongo);
 end;
 
+procedure TestTMongoPool.TestReleaseWithHostNameUsrNamePassAndDBName;
+var
+  AHostName : UTF8String;
+  APoolRecord : TMongoPooledRecord;
+  AMongo : TMongo;
+begin
+  AHostName := '127.0.0.1';
+  APoolRecord := FMongoPool.Acquire(AHostName);
+  AMongo := APoolRecord.Mongo;
+  Check(AMongo <> nil, 'Call to FMongoPool.Acquire should return value <> nil');
+  AMongo.addUser('test', 'test', 'test');
+
+  APoolRecord := FMongoPool.Acquire(AHostName, 'test', 'test', 'test');
+  Check(APoolRecord.Mongo <> nil, 'Call to FMongoPool.Acquire should return value <> nil');
+  FMongoPool.Release(AHostName, '', '', AMongo);
+  FMongoPool.Release(AHostName, 'test', 'test', 'test', APoolRecord.Mongo);
+end;
+
+procedure TestTMongoPool.TestReleaseWithHostNameDBName;
+var
+  AHostName : AnsiString;
+  APoolRecord : TMongoPooledRecord;
+  AMongo : TMongo;
+begin
+  AHostName := '127.0.0.1';
+  APoolRecord := FMongoPool.Acquire(AHostName);
+  AMongo := APoolRecord.Mongo;
+  Check(AMongo <> nil, 'Call to FMongoPool.Acquire should return value <> nil');
+  AMongo.addUser('', '', 'test');
+
+  APoolRecord := FMongoPool.Acquire(AHostName, '', '', 'test');
+  Check(APoolRecord.Mongo <> nil, 'Call to FMongoPool.Acquire should return value <> nil');
+  FMongoPool.Release(AHostName, '', '', AMongo);
+  FMongoPool.Release(AHostName, '', '', 'test', APoolRecord.Mongo);
+end;
+
 constructor TMongoPoolThread.Create(APool: TMongoPool);
 begin
   inherited Create(True);
   FPool := APool;
 end;
 
-procedure TMongoPoolThread.Error(const AMsg: AnsiString);
+procedure TMongoPoolThread.Error(const AMsg: UTF8String);
 begin
   FErrorMessage := AMsg;
   abort;
@@ -233,7 +334,7 @@ begin
       end;
   except
     on EAbort do {};
-    on E : Exception do FErrorMessage := AnsiString(E.Message);
+    on E : Exception do FErrorMessage := E.Message;
   end;
 end;
 

@@ -28,14 +28,14 @@ uses
 {$I MongoC_defines.inc}
 
 const
-  SERIALIZE_WITH_JOURNAL_BYTES_WRITTEN = 1024 * 1024 * 10; (* Serialize with Journal every 10 megs written by default *)
+  E_FileNotFound                     = 90300;
+  E_FGridFileIsNil                   = 90301;
+  E_FGridFSIsNil                     = 90302;
+  E_StreamNotCreatedForWriting       = 90303;
+  E_StatusMustBeOKInOrderToAllowStre = 90304;
+  E_DelphiMongoErrorFailedSignature  = 90305;
 
-resourcestring
-  SFGridFileIsNil = 'FGridFile is nil';
-  SFGridFSIsNil = 'FGridFS is nil';
-  SStreamNotCreatedForWriting = 'Stream not created for writing';
-  SStatusMustBeOKInOrderToAllowStre = 'Status must be OK in order to allow stream read operations';
-  SDelphiMongoErrorFailedSignature = 'Delphi Mongo error failed signature validation';
+  SERIALIZE_WITH_JOURNAL_BYTES_WRITTEN = 1024 * 1024 * 10; (* Serialize with Journal every 10 megs written by default *)
 
 type
   TMongoStreamMode = (msmWrite, msmCreate);
@@ -51,20 +51,20 @@ type
     FMongo: TMongo;
     FSerializedWithJournal: Boolean;
     FBytesWritten: Cardinal;
-    FDB : AnsiString;
+    FDB : UTF8String;
     FLastSerializeWithJournalResult: IBson;
     FSerializeWithJournalByteWritten: Cardinal;
-    procedure CheckGridFile; {$IFDEF DELPHI2007} inline; {$ENDIF}
-    procedure CheckGridFS; {$IFDEF DELPHI2007} inline; {$ENDIF}
+    procedure CheckGridFile;
+    procedure CheckGridFS;
     procedure CheckSerializeWithJournal; {$IFDEF DELPHI2007} inline; {$ENDIF}
-    procedure CheckWriteSupport; {$IFDEF DELPHI2007} inline; {$ENDIF}
-    procedure EnforceStatusOK; {$IFDEF DELPHI2007} inline; {$ENDIF}
+    procedure CheckWriteSupport;
+    procedure EnforceStatusOK;
     function GetCaseInsensitiveNames: Boolean; {$IFDEF DELPHI2007} inline; {$ENDIF}
     function GetID: IBsonOID; {$IFDEF DELPHI2007} inline; {$ENDIF}
     procedure SerializeWithJournal;
   protected
     MongoSignature: cardinal;
-    procedure CheckValid; {$IFDEF DELPHI2007} inline; {$ENDIF}
+    procedure CheckValid;
     function GetSize: Int64; override;
     {$IFDEF DELPHI2007}
     procedure SetSize(NewSize: longint); override;
@@ -73,9 +73,9 @@ type
     procedure SetSize(NewSize: {$IFDef Enterprise} Int64 {$Else} longint {$EndIf}); override;
     {$ENDIF}
   public
-    constructor Create(AMongo: TMongo; const ADB, AFileName: AnsiString; const
+    constructor Create(AMongo: TMongo; const ADB, AFileName: UTF8String; const
         AMode: TMongoStreamModeSet; ACompressed: Boolean); overload;
-    constructor Create(AMongo: TMongo; const ADB, APrefix, AFileName: AnsiString;
+    constructor Create(AMongo: TMongo; const ADB, APrefix, AFileName: UTF8String;
         const AMode: TMongoStreamModeSet; ACaseInsensitiveFileNames, ACompressed:
         Boolean); overload;
     destructor Destroy; override;
@@ -105,16 +105,21 @@ const
   WAIT_FOR_JOURNAL_OPTION = 'j';
 
 resourcestring
-  SFileNotFound = 'File %s not found';
+  SFileNotFound = 'File %s not found (D%d)';
+  SFGridFileIsNil = 'FGridFile is nil (D%d)';
+  SFGridFSIsNil = 'FGridFS is nil (D%d)';
+  SStreamNotCreatedForWriting = 'Stream not created for writing (D%d)';
+  SStatusMustBeOKInOrderToAllowStre = 'Status must be OK in order to allow stream read operations (D%d)';
+  SDelphiMongoErrorFailedSignature = 'Delphi Mongo error failed signature validation (D%d)';
 
 constructor TMongoStream.Create(AMongo: TMongo; const ADB, AFileName:
-    AnsiString; const AMode: TMongoStreamModeSet; ACompressed: Boolean);
+    UTF8String; const AMode: TMongoStreamModeSet; ACompressed: Boolean);
 begin
   Create(AMongo, ADB, SFs, AFileName, AMode, True, ACompressed);
 end;
 
 constructor TMongoStream.Create(AMongo: TMongo; const ADB, APrefix, AFileName:
-    AnsiString; const AMode: TMongoStreamModeSet; ACaseInsensitiveFileNames,
+    UTF8String; const AMode: TMongoStreamModeSet; ACaseInsensitiveFileNames,
     ACompressed: Boolean);
 var
   AFlags : Integer;
@@ -140,7 +145,7 @@ begin
     begin
       FGridFile := FGridFS.find(AFileName, msmWrite in AMode);
       if FGridFile = nil then
-        raise EMongo.CreateFmt(SFileNotFound, [AFileName]);
+        raise EMongo.Create(SFileNotFound, AFileName, E_FileNotFound);
       if msmWrite in AMode then
         FGridFileWriter := FGridFile as IGridfileWriter;
       if FGridFile.getStoredChunkCount <> FGridFile.getChunkCount then
@@ -166,14 +171,14 @@ procedure TMongoStream.CheckGridFile;
 begin
   CheckValid;
   if FGridFile = nil then
-    raise EMongo.Create(SFGridFileIsNil);
+    raise EMongo.Create(SFGridFileIsNil, E_FGridFileIsNil);
 end;
 
 procedure TMongoStream.CheckGridFS;
 begin
   CheckValid;
   if FGridFS = nil then
-    raise EMongo.Create(SFGridFSIsNil);
+    raise EMongo.Create(SFGridFSIsNil, E_FGridFSIsNil);
 end;
 
 procedure TMongoStream.CheckValid;
@@ -186,14 +191,14 @@ procedure TMongoStream.CheckWriteSupport;
 begin
   CheckValid;
   if FGridFileWriter = nil then
-    raise EMongo.Create(SStreamNotCreatedForWriting);
+    raise EMongo.Create(SStreamNotCreatedForWriting, E_StreamNotCreatedForWriting);
 end;
 
 procedure TMongoStream.EnforceStatusOK;
 begin
   CheckValid;
   if FStatus <> mssOK then
-    raise EMongo.Create(SStatusMustBeOKInOrderToAllowStre);
+    raise EMongo.Create(SStatusMustBeOKInOrderToAllowStre, E_StatusMustBeOKInOrderToAllowStre);
 end;
 
 function TMongoStream.GetCaseInsensitiveNames: Boolean;

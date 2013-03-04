@@ -11,6 +11,10 @@ const
   MongoCDLL = 'mongoc.dll';
 
 type
+  {$IFNDEF DELPHI2007}
+  UTF8String = AnsiString;
+  NativeUInt = Cardinal;
+  {$ENDIF}
   EMongoFatalError = class(Exception);
 
   { A value of TBsonType indicates the type of the data associated
@@ -65,7 +69,7 @@ type
 {$IFDEF OnDemandMongoCLoad}
 type
   // MongoDB declarations
-  Tmongo_sock_init = function : Integer; cdecl;
+  Tmongo_env_sock_init = function : integer; cdecl;
   Tmongo_create = function : Pointer; cdecl;
   Tmongo_dispose = procedure (c: Pointer); cdecl;
   Tmongo_client = function (c: Pointer; host: PAnsiChar; port: Integer): Integer; cdecl;
@@ -82,7 +86,7 @@ type
   Tmongo_disconnect = procedure (c: Pointer); cdecl;
   Tmongo_reconnect = function (c: Pointer): Integer; cdecl;
   Tmongo_cmd_ismaster = function (c: Pointer; b: Pointer): Longbool; cdecl;
-  Tmongo_get_socket = function (c: Pointer): Cardinal; cdecl;
+  Tmongo_get_socket = function (c: Pointer): Pointer; cdecl;
   Tmongo_get_host_count = function (c: Pointer): Integer; cdecl;
   Tmongo_get_host = function (c: Pointer; i: Integer): PAnsiChar; cdecl;
   Tmongo_insert = function (c: Pointer; ns: PAnsiChar; b: Pointer; wc: Pointer): Integer; cdecl;
@@ -111,10 +115,24 @@ type
   Tmongo_cmd_reset_error = procedure(c : Pointer; db : PAnsiChar); cdecl;
   Tmongo_get_server_err = function (c: Pointer): Integer; cdecl;
   Tmongo_get_server_err_string = function (c: Pointer): PAnsiChar; cdecl;
+  // WriteConcern API
+  Tmongo_write_concern_create = function : Pointer; cdecl;
+  Tmongo_write_concern_free = procedure (write_concern : Pointer); cdecl;
   Tmongo_write_concern_init = procedure(write_concern : pointer); cdecl;
   Tmongo_write_concern_finish = function(write_concern : pointer) : integer; cdecl;
   Tmongo_write_concern_destroy = procedure(write_concern : pointer); cdecl;
   Tmongo_set_write_concern = procedure(conn : pointer; write_concern : pointer); cdecl;
+  Tmongo_write_concern_get_w = function (write_concern : Pointer) : integer; cdecl;
+  Tmongo_write_concern_get_wtimeout = function(write_concern : Pointer) : integer; cdecl;
+  Tmongo_write_concern_get_j = function(write_concern : Pointer) : integer; cdecl;
+  Tmongo_write_concern_get_fsync = function(write_concern : Pointer) : integer; cdecl;
+  Tmongo_write_concern_get_mode = function(write_concern : Pointer) : PAnsiChar; cdecl;
+  Tmongo_write_concern_get_cmd = function(write_concern : Pointer) : Pointer; cdecl;
+  Tmongo_write_concern_set_w = procedure(write_concern : Pointer; w : integer); cdecl;
+  Tmongo_write_concern_set_wtimeout = procedure(write_concern : Pointer; wtimeout : integer); cdecl;
+  Tmongo_write_concern_set_j = procedure(write_concern : Pointer; j : integer); cdecl;
+  Tmongo_write_concern_set_fsync = procedure(write_concern : Pointer; fsync : integer); cdecl;
+  Tmongo_write_concern_set_mode = procedure(write_concern : Pointer; mode : PAnsiChar); cdecl;
   // MongoBSON declarations
   Tbson_free = procedure (b : pointer); cdecl;
   Tbson_init = procedure (b: Pointer); cdecl;
@@ -126,11 +144,11 @@ type
   Tbson_oid_to_string = procedure (oid: Pointer; s: PAnsiChar); cdecl;
   Tbson_oid_from_string = procedure (oid: Pointer; s: PAnsiChar); cdecl;
   Tbson_append_string = function (b: Pointer; Name: PAnsiChar; Value: PAnsiChar): Integer; cdecl;
-  Tbson_append_string_n = function (b: Pointer; Name: PAnsiChar; Value: PAnsiChar; Len : Cardinal): Integer; cdecl;
+  Tbson_append_string_n = function (b: Pointer; Name: PAnsiChar; Value: PAnsiChar; Len : NativeUInt): Integer; cdecl;
   Tbson_append_code = function (b: Pointer; Name: PAnsiChar; Value: PAnsiChar): Integer; cdecl;
-  Tbson_append_code_n = function (b: Pointer; Name: PAnsiChar; Value: PAnsiChar; Len : Cardinal): Integer; cdecl;
+  Tbson_append_code_n = function (b: Pointer; Name: PAnsiChar; Value: PAnsiChar; Len : NativeUInt): Integer; cdecl;
   Tbson_append_symbol = function (b: Pointer; Name: PAnsiChar; Value: PAnsiChar): Integer; cdecl;
-  Tbson_append_symbol_n = function (b: Pointer; Name: PAnsiChar; Value: PAnsiChar; Len : Cardinal): Integer; cdecl;
+  Tbson_append_symbol_n = function (b: Pointer; Name: PAnsiChar; Value: PAnsiChar; Len : NativeUInt): Integer; cdecl;
   Tbson_append_int = function (b: Pointer; Name: PAnsiChar; Value: Integer): Integer; cdecl;
   Tbson_append_long = function (b: Pointer; Name: PAnsiChar; Value: Int64): Integer; cdecl;
   Tbson_append_double = function (b: Pointer; Name: PAnsiChar; Value: Double): Integer; cdecl;
@@ -145,9 +163,9 @@ type
   Tbson_append_code_w_scope = function (b: Pointer; Name: PAnsiChar; code: PAnsiChar; scope: Pointer): Integer; cdecl;
   Tbson_append_regex = function (b: Pointer; Name: PAnsiChar; pattern: PAnsiChar; options: PAnsiChar): Integer; cdecl;
   Tbson_append_timestamp2 = function (b: Pointer; Name: PAnsiChar; Time: Integer; increment: Integer): Integer; cdecl;
-  Tbson_append_binary = function (b: Pointer; Name: PAnsiChar; Kind: Byte; Data: Pointer; Len: Cardinal): Integer; cdecl;
+  Tbson_append_binary = function (b: Pointer; Name: PAnsiChar; Kind: Byte; Data: Pointer; Len: NativeUInt): Integer; cdecl;
   Tbson_append_bson = function (b: Pointer; Name: PAnsiChar; Value: Pointer): Integer; cdecl;
-  Tbson_buffer_size = function (b: Pointer): Cardinal; cdecl;
+  Tbson_buffer_size = function (b: Pointer): NativeUInt; cdecl;
   Tbson_size = function (b: Pointer): Integer; cdecl;
   Tbson_iterator_create = function (): Pointer; cdecl;
   Tbson_iterator_dispose = procedure (i: Pointer); cdecl;
@@ -200,7 +218,7 @@ type
   Tgridfile_get_numchunks = function (gf: Pointer): Integer; cdecl;
   Tgridfile_get_descriptor = procedure (gf: Pointer; b: Pointer); cdecl;
   Tgridfile_get_chunk = procedure (gf: Pointer; i: Integer; b: Pointer); cdecl;
-  Tgridfile_get_chunks = function (gf: Pointer; i: Cardinal; Count: Cardinal): Pointer; cdecl;
+  Tgridfile_get_chunks = function (gf: Pointer; i: NativeUInt; Count: NativeUInt): Pointer; cdecl;
   Tgridfile_read = function (gf: Pointer; size: Int64; buf: Pointer): Int64; cdecl;
   Tgridfile_seek = function (gf: Pointer; offset: Int64): Int64; cdecl;
   Tgridfile_init = function (gfs, meta, gfile : pointer) : integer; cdecl;
@@ -217,7 +235,7 @@ type
 var
   HMongoDBDll : HMODULE;
   // MongoDB declarations
-  mongo_sock_init : Tmongo_sock_init;
+  mongo_env_sock_init : Tmongo_env_sock_init;
   mongo_create : Tmongo_create;
   mongo_dispose : Tmongo_dispose;
   mongo_client : Tmongo_client;
@@ -263,10 +281,24 @@ var
   mongo_cmd_reset_error : Tmongo_cmd_reset_error;
   mongo_get_server_err : Tmongo_get_server_err;
   mongo_get_server_err_string : Tmongo_get_server_err_string;
+  // WriteConcern API
+  mongo_write_concern_create : Tmongo_write_concern_create;
+  mongo_write_concern_free : Tmongo_write_concern_free;
   mongo_write_concern_init : Tmongo_write_concern_init;
   mongo_write_concern_finish : Tmongo_write_concern_finish;
   mongo_write_concern_destroy : Tmongo_write_concern_destroy;
   mongo_set_write_concern : Tmongo_set_write_concern;
+  mongo_write_concern_get_w : Tmongo_write_concern_get_w;
+  mongo_write_concern_get_wtimeout : Tmongo_write_concern_get_wtimeout;
+  mongo_write_concern_get_j : Tmongo_write_concern_get_j;
+  mongo_write_concern_get_fsync : Tmongo_write_concern_get_fsync;
+  mongo_write_concern_get_mode : Tmongo_write_concern_get_mode;
+  mongo_write_concern_get_cmd : Tmongo_write_concern_get_cmd;
+  mongo_write_concern_set_w : Tmongo_write_concern_set_w;
+  mongo_write_concern_set_wtimeout : Tmongo_write_concern_set_wtimeout;
+  mongo_write_concern_set_j : Tmongo_write_concern_set_j;
+  mongo_write_concern_set_fsync : Tmongo_write_concern_set_fsync;
+  mongo_write_concern_set_mode : Tmongo_write_concern_set_mode;
   // MongoBson declarations
   bson_free : Tbson_free;
   bson_init : Tbson_init;
@@ -372,7 +404,7 @@ var
 
 {$Else}
   // MongoDB declarations
-  function mongo_sock_init: Integer; cdecl; external MongoCDLL;
+  function mongo_env_sock_init : integer; cdecl; external MongoCDLL;
   function mongo_create: Pointer; cdecl; external MongoCDLL;
   procedure mongo_dispose(c: Pointer); cdecl; external MongoCDLL;
   function mongo_client(c: Pointer; host: PAnsiChar; port: Integer): Integer; cdecl; external MongoCDLL;
@@ -389,7 +421,7 @@ var
   procedure mongo_disconnect(c: Pointer); cdecl; external MongoCDLL;
   function mongo_reconnect(c: Pointer): Integer; cdecl; external MongoCDLL;
   function mongo_cmd_ismaster(c: Pointer; b: Pointer): Longbool; cdecl; external MongoCDLL;
-  function mongo_get_socket(c: Pointer): Cardinal; cdecl; external MongoCDLL;
+  function mongo_get_socket(c: Pointer): Pointer; cdecl; external MongoCDLL;
   function mongo_get_host_count(c: Pointer): Integer; cdecl; external MongoCDLL;
   function mongo_get_host(c: Pointer; i: Integer): PAnsiChar; cdecl; external MongoCDLL;
   function mongo_insert(c: Pointer; ns: PAnsiChar; b: Pointer; wc: Pointer): Integer; cdecl; external MongoCDLL;
@@ -418,10 +450,24 @@ var
   procedure mongo_cmd_reset_error(c : Pointer; db : PAnsiChar); cdecl; external MongoCDLL;
   function mongo_get_server_err(c: Pointer): Integer; cdecl; external MongoCDLL;
   function mongo_get_server_err_string(c: Pointer): PAnsiChar; cdecl; external MongoCDLL;
+  // WriteConcern API functions
+  function mongo_write_concern_create : Pointer; cdecl; external MongoCDLL;
+  procedure mongo_write_concern_free(write_concern : Pointer); cdecl; external MongoCDLL;
   procedure mongo_write_concern_init(write_concern : pointer); cdecl; external MongoCDLL;
   function mongo_write_concern_finish(write_concern : pointer) : integer; cdecl; external MongoCDLL;
   procedure mongo_write_concern_destroy(write_concern : pointer); cdecl; external MongoCDLL;
   procedure mongo_set_write_concern(conn : pointer; write_concern : pointer); cdecl; external MongoCDLL;
+  function mongo_write_concern_get_w(write_concern : Pointer) : integer; cdecl; external MongoCDLL;
+  function mongo_write_concern_get_wtimeout(write_concern : Pointer) : integer; cdecl; external MongoCDLL;
+  function mongo_write_concern_get_j(write_concern : Pointer) : integer; cdecl; external MongoCDLL;
+  function mongo_write_concern_get_fsync(write_concern : Pointer) : integer; cdecl; external MongoCDLL;
+  function mongo_write_concern_get_mode(write_concern : Pointer) : PAnsiChar; cdecl; external MongoCDLL;
+  function mongo_write_concern_get_cmd(write_concern : Pointer) : Pointer; cdecl; external MongoCDLL;
+  procedure mongo_write_concern_set_w(write_concern : Pointer; w : integer); cdecl; external MongoCDLL;
+  procedure mongo_write_concern_set_wtimeout(write_concern : Pointer; wtimeout : integer); cdecl; external MongoCDLL;
+  procedure mongo_write_concern_set_j(write_concern : Pointer; j : integer); cdecl; external MongoCDLL;
+  procedure mongo_write_concern_set_fsync(write_concern : Pointer; fsync : integer); cdecl; external MongoCDLL;
+  procedure mongo_write_concern_set_mode(write_concern : Pointer; mode : PAnsiChar); cdecl; external MongoCDLL;
   // MongoBson declarations
   procedure bson_free(b : pointer); cdecl; external MongoCDLL;
   procedure bson_init(b: Pointer); cdecl; external MongoCDLL;
@@ -433,11 +479,11 @@ var
   procedure bson_oid_to_string(oid: Pointer; s: PAnsiChar); cdecl; external MongoCDLL;
   procedure bson_oid_from_string(oid: Pointer; s: PAnsiChar); cdecl; external MongoCDLL;
   function bson_append_string(b: Pointer; Name: PAnsiChar; Value: PAnsiChar): Integer; cdecl; external MongoCDLL;
-  function bson_append_string_n(b: Pointer; Name: PAnsiChar; Value: PAnsiChar; Len : Cardinal): Integer; cdecl; external MongoCDLL;
+  function bson_append_string_n(b: Pointer; Name: PAnsiChar; Value: PAnsiChar; Len : NativeUInt): Integer; cdecl; external MongoCDLL;
   function bson_append_code(b: Pointer; Name: PAnsiChar; Value: PAnsiChar): Integer; cdecl; external MongoCDLL;
-  function bson_append_code_n(b: Pointer; Name: PAnsiChar; Value: PAnsiChar; Len : Cardinal): Integer; cdecl; external MongoCDLL;
+  function bson_append_code_n(b: Pointer; Name: PAnsiChar; Value: PAnsiChar; Len : NativeUInt): Integer; cdecl; external MongoCDLL;
   function bson_append_symbol(b: Pointer; Name: PAnsiChar; Value: PAnsiChar): Integer; cdecl; external MongoCDLL;
-  function bson_append_symbol_n (b: Pointer; Name: PAnsiChar; Value: PAnsiChar; Len : Cardinal): Integer; cdecl; external MongoCDLL;
+  function bson_append_symbol_n (b: Pointer; Name: PAnsiChar; Value: PAnsiChar; Len : NativeUInt): Integer; cdecl; external MongoCDLL;
   function bson_append_int(b: Pointer; Name: PAnsiChar; Value: Integer): Integer; cdecl; external MongoCDLL;
   function bson_append_long(b: Pointer; Name: PAnsiChar; Value: Int64): Integer; cdecl; external MongoCDLL;
   function bson_append_double(b: Pointer; Name: PAnsiChar; Value: Double): Integer; cdecl; external MongoCDLL;
@@ -452,9 +498,9 @@ var
   function bson_append_code_w_scope(b: Pointer; Name: PAnsiChar; code: PAnsiChar; scope: Pointer): Integer; cdecl; external MongoCDLL;
   function bson_append_regex(b: Pointer; Name: PAnsiChar; pattern: PAnsiChar; options: PAnsiChar): Integer; cdecl; external MongoCDLL;
   function bson_append_timestamp2(b: Pointer; Name: PAnsiChar; Time: Integer; increment: Integer): Integer; cdecl; external MongoCDLL;
-  function bson_append_binary(b: Pointer; Name: PAnsiChar; Kind: Byte; Data: Pointer; Len: Cardinal): Integer; cdecl; external MongoCDLL;
+  function bson_append_binary(b: Pointer; Name: PAnsiChar; Kind: Byte; Data: Pointer; Len: NativeUInt): Integer; cdecl; external MongoCDLL;
   function bson_append_bson(b: Pointer; Name: PAnsiChar; Value: Pointer): Integer; cdecl; external MongoCDLL;
-  function bson_buffer_size(b: Pointer): Cardinal; cdecl; external MongoCDLL;
+  function bson_buffer_size(b: Pointer): NativeUInt; cdecl; external MongoCDLL;
   function bson_size(b: Pointer): Integer; cdecl; external MongoCDLL;
   function bson_iterator_create(): Pointer; cdecl; external MongoCDLL;
   procedure bson_iterator_dispose(i: Pointer); cdecl; external MongoCDLL;
@@ -507,7 +553,7 @@ var
   function gridfile_get_numchunks(gf: Pointer): Integer; cdecl; external MongoCDLL;
   procedure gridfile_get_descriptor(gf: Pointer; b: Pointer); cdecl; external MongoCDLL;
   procedure gridfile_get_chunk(gf: Pointer; i: Integer; b: Pointer); cdecl; external MongoCDLL;
-  function gridfile_get_chunks(gf: Pointer; i: Cardinal; Count: Cardinal): Pointer; cdecl; external MongoCDLL;
+  function gridfile_get_chunks(gf: Pointer; i: NativeUInt; Count: NativeUInt): Pointer; cdecl; external MongoCDLL;
   function gridfile_read(gf: Pointer; size: Int64; buf: Pointer): Int64; cdecl; external MongoCDLL;
   function gridfile_seek(gf: Pointer; offset: Int64): Int64; cdecl; external MongoCDLL;
   function gridfile_init(gfs, meta, gfile : pointer) : integer; cdecl; external MongoCDLL;
@@ -522,6 +568,8 @@ var
   function initPrepostChunkProcessing(flags : integer) : integer; cdecl; external MongoCDLL;
 
 {$EndIf}
+
+procedure bson_dispose_and_destroy(bson : Pointer);
 
 implementation
 
@@ -538,14 +586,14 @@ end;
 
 procedure MongoAPIInit;
 begin
-  mongo_sock_init;
+  mongo_env_sock_init;
   initPrepostChunkProcessing(0);
   set_bson_err_handler(@DefaultMongoErrorHandler);
 end;
 
 {$IFDEF OnDemandMongoCLoad}
 procedure InitMongoDBLibrary;
-  function GetProcAddress(h : HMODULE; const FnName : AnsiString) : Pointer;
+  function GetProcAddress(h : HMODULE; const FnName : UTF8String) : Pointer;
   begin
     Result := Windows.GetProcAddress(h, PAnsiChar(FnName));
     if Result = nil then
@@ -558,158 +606,172 @@ begin
   if HMongoDBDll = 0 then
     raise Exception.Create(SFailedLoadingMongocDll);
   // MongoDB initializations
-  mongo_sock_init := GetProcAddress(HMongoDBDll, 'mongo_sock_init'); // do not localize
-  mongo_create := GetProcAddress(HMongoDBDll, 'mongo_create'); // do not localize
-  mongo_dispose := GetProcAddress(HMongoDBDll, 'mongo_dispose'); // do not localize
-  mongo_client := GetProcAddress(HMongoDBDll, 'mongo_client'); // do not localize
-  mongo_destroy := GetProcAddress(HMongoDBDll, 'mongo_destroy'); // do not localize
-  mongo_replica_set_init := GetProcAddress(HMongoDBDll, 'mongo_replica_set_init'); // do not localize
-  mongo_replica_set_add_seed := GetProcAddress(HMongoDBDll, 'mongo_replica_set_add_seed'); // do not localize
-  mongo_replica_set_client := GetProcAddress(HMongoDBDll, 'mongo_replica_set_client'); // do not localize
-  mongo_is_connected := GetProcAddress(HMongoDBDll, 'mongo_is_connected'); // do not localize
-  mongo_get_err := GetProcAddress(HMongoDBDll, 'mongo_get_err'); // do not localize
-  mongo_set_op_timeout := GetProcAddress(HMongoDBDll, 'mongo_set_op_timeout'); // do not localize
-  mongo_get_op_timeout := GetProcAddress(HMongoDBDll, 'mongo_get_op_timeout'); // do not localize
-  mongo_get_primary := GetProcAddress(HMongoDBDll, 'mongo_get_primary'); // do not localize
-  mongo_check_connection := GetProcAddress(HMongoDBDll, 'mongo_check_connection'); // do not localize
-  mongo_disconnect := GetProcAddress(HMongoDBDll, 'mongo_disconnect'); // do not localize
-  mongo_reconnect := GetProcAddress(HMongoDBDll, 'mongo_reconnect'); // do not localize
-  mongo_cmd_ismaster := GetProcAddress(HMongoDBDll, 'mongo_cmd_ismaster'); // do not localize
-  mongo_get_socket := GetProcAddress(HMongoDBDll, 'mongo_get_socket'); // do not localize
-  mongo_get_host_count := GetProcAddress(HMongoDBDll, 'mongo_get_host_count'); // do not localize
-  mongo_get_host := GetProcAddress(HMongoDBDll, 'mongo_get_host'); // do not localize
-  mongo_insert := GetProcAddress(HMongoDBDll, 'mongo_insert'); // do not localize
-  mongo_insert_batch := GetProcAddress(HMongoDBDll, 'mongo_insert_batch'); // do not localize
-  mongo_update := GetProcAddress(HMongoDBDll, 'mongo_update'); // do not localize
-  mongo_remove := GetProcAddress(HMongoDBDll, 'mongo_remove'); // do not localize
-  mongo_find_one := GetProcAddress(HMongoDBDll, 'mongo_find_one'); // do not localize
-  bson_create := GetProcAddress(HMongoDBDll, 'bson_create'); // do not localize
-  bson_dispose := GetProcAddress(HMongoDBDll, 'bson_dispose'); // do not localize
-  bson_copy := GetProcAddress(HMongoDBDll, 'bson_copy'); // do not localize
-  mongo_cursor_create := GetProcAddress(HMongoDBDll, 'mongo_cursor_create'); // do not localize
-  mongo_cursor_dispose := GetProcAddress(HMongoDBDll, 'mongo_cursor_dispose'); // do not localize
-  mongo_cursor_destroy := GetProcAddress(HMongoDBDll, 'mongo_cursor_destroy'); // do not localize
-  mongo_find := GetProcAddress(HMongoDBDll, 'mongo_find'); // do not localize
-  mongo_cursor_next := GetProcAddress(HMongoDBDll, 'mongo_cursor_next'); // do not localize
-  mongo_cursor_bson := GetProcAddress(HMongoDBDll, 'mongo_cursor_bson'); // do not localize
-  mongo_cmd_drop_collection := GetProcAddress(HMongoDBDll, 'mongo_cmd_drop_collection'); // do not localize
-  mongo_cmd_drop_db := GetProcAddress(HMongoDBDll, 'mongo_cmd_drop_db'); // do not localize
-  mongo_count := GetProcAddress(HMongoDBDll, 'mongo_count'); // do not localize
-  mongo_create_index := GetProcAddress(HMongoDBDll, 'mongo_create_index'); // do not localize
-  mongo_cmd_add_user := GetProcAddress(HMongoDBDll, 'mongo_cmd_add_user'); // do not localize
-  mongo_cmd_authenticate := GetProcAddress(HMongoDBDll, 'mongo_cmd_authenticate'); // do not localize
-  mongo_run_command := GetProcAddress(HMongoDBDll, 'mongo_run_command'); // do not localize
-  mongo_cmd_get_last_error := GetProcAddress(HMongoDBDll, 'mongo_cmd_get_last_error'); // do not localize
-  mongo_cmd_get_prev_error := GetProcAddress(HMongoDBDll, 'mongo_cmd_get_prev_error'); // do not localize
-  mongo_cmd_reset_error := GetProcAddress(HMongoDBDll, 'mongo_cmd_reset_error'); // do not localize
-  mongo_get_server_err := GetProcAddress(HMongoDBDll, 'mongo_get_server_err'); // do not localize
-  mongo_get_server_err_string := GetProcAddress(HMongoDBDll, 'mongo_get_server_err_string'); // do not localize
-  mongo_write_concern_init := GetProcAddress(HMongoDBDll, 'mongo_write_concern_init'); // do not localize
-  mongo_write_concern_finish := GetProcAddress(HMongoDBDll, 'mongo_write_concern_finish'); // do not localize
-  mongo_write_concern_destroy := GetProcAddress(HMongoDBDll, 'mongo_write_concern_destroy'); // do not localize
-  mongo_set_write_concern := GetProcAddress(HMongoDBDll, 'mongo_set_write_concern'); // do not localize
+  mongo_env_sock_init := GetProcAddress(HMongoDBDll, 'mongo_env_sock_init');
+  mongo_create := GetProcAddress(HMongoDBDll, 'mongo_create');
+  mongo_dispose := GetProcAddress(HMongoDBDll, 'mongo_dispose');
+  mongo_client := GetProcAddress(HMongoDBDll, 'mongo_client');
+  mongo_destroy := GetProcAddress(HMongoDBDll, 'mongo_destroy');
+  mongo_replica_set_init := GetProcAddress(HMongoDBDll, 'mongo_replica_set_init');
+  mongo_replica_set_add_seed := GetProcAddress(HMongoDBDll, 'mongo_replica_set_add_seed');
+  mongo_replica_set_client := GetProcAddress(HMongoDBDll, 'mongo_replica_set_client');
+  mongo_is_connected := GetProcAddress(HMongoDBDll, 'mongo_is_connected');
+  mongo_get_err := GetProcAddress(HMongoDBDll, 'mongo_get_err');
+  mongo_set_op_timeout := GetProcAddress(HMongoDBDll, 'mongo_set_op_timeout');
+  mongo_get_op_timeout := GetProcAddress(HMongoDBDll, 'mongo_get_op_timeout');
+  mongo_get_primary := GetProcAddress(HMongoDBDll, 'mongo_get_primary');
+  mongo_check_connection := GetProcAddress(HMongoDBDll, 'mongo_check_connection');
+  mongo_disconnect := GetProcAddress(HMongoDBDll, 'mongo_disconnect');
+  mongo_reconnect := GetProcAddress(HMongoDBDll, 'mongo_reconnect');
+  mongo_cmd_ismaster := GetProcAddress(HMongoDBDll, 'mongo_cmd_ismaster');
+  mongo_get_socket := GetProcAddress(HMongoDBDll, 'mongo_get_socket');
+  mongo_get_host_count := GetProcAddress(HMongoDBDll, 'mongo_get_host_count');
+  mongo_get_host := GetProcAddress(HMongoDBDll, 'mongo_get_host');
+  mongo_insert := GetProcAddress(HMongoDBDll, 'mongo_insert');
+  mongo_insert_batch := GetProcAddress(HMongoDBDll, 'mongo_insert_batch');
+  mongo_update := GetProcAddress(HMongoDBDll, 'mongo_update');
+  mongo_remove := GetProcAddress(HMongoDBDll, 'mongo_remove');
+  mongo_find_one := GetProcAddress(HMongoDBDll, 'mongo_find_one');
+  bson_create := GetProcAddress(HMongoDBDll, 'bson_create');
+  bson_dispose := GetProcAddress(HMongoDBDll, 'bson_dispose');
+  bson_copy := GetProcAddress(HMongoDBDll, 'bson_copy');
+  mongo_cursor_create := GetProcAddress(HMongoDBDll, 'mongo_cursor_create');
+  mongo_cursor_dispose := GetProcAddress(HMongoDBDll, 'mongo_cursor_dispose');
+  mongo_cursor_destroy := GetProcAddress(HMongoDBDll, 'mongo_cursor_destroy');
+  mongo_find := GetProcAddress(HMongoDBDll, 'mongo_find');
+  mongo_cursor_next := GetProcAddress(HMongoDBDll, 'mongo_cursor_next');
+  mongo_cursor_bson := GetProcAddress(HMongoDBDll, 'mongo_cursor_bson');
+  mongo_cmd_drop_collection := GetProcAddress(HMongoDBDll, 'mongo_cmd_drop_collection');
+  mongo_cmd_drop_db := GetProcAddress(HMongoDBDll, 'mongo_cmd_drop_db');
+  mongo_count := GetProcAddress(HMongoDBDll, 'mongo_count');
+  mongo_create_index := GetProcAddress(HMongoDBDll, 'mongo_create_index');
+  mongo_cmd_add_user := GetProcAddress(HMongoDBDll, 'mongo_cmd_add_user');
+  mongo_cmd_authenticate := GetProcAddress(HMongoDBDll, 'mongo_cmd_authenticate');
+  mongo_run_command := GetProcAddress(HMongoDBDll, 'mongo_run_command');
+  mongo_cmd_get_last_error := GetProcAddress(HMongoDBDll, 'mongo_cmd_get_last_error');
+  mongo_cmd_get_prev_error := GetProcAddress(HMongoDBDll, 'mongo_cmd_get_prev_error');
+  mongo_cmd_reset_error := GetProcAddress(HMongoDBDll, 'mongo_cmd_reset_error');
+  mongo_get_server_err := GetProcAddress(HMongoDBDll, 'mongo_get_server_err');
+  mongo_get_server_err_string := GetProcAddress(HMongoDBDll, 'mongo_get_server_err_string');
+  // WriteConcern API
+  mongo_write_concern_create := GetProcAddress(HMongoDBDll, 'mongo_write_concern_create');
+  mongo_write_concern_free := GetProcAddress(HMongoDBDll, 'mongo_write_concern_free');
+  mongo_write_concern_init := GetProcAddress(HMongoDBDll, 'mongo_write_concern_init');
+  mongo_write_concern_finish := GetProcAddress(HMongoDBDll, 'mongo_write_concern_finish');
+  mongo_write_concern_destroy := GetProcAddress(HMongoDBDll, 'mongo_write_concern_destroy');
+  mongo_set_write_concern := GetProcAddress(HMongoDBDll, 'mongo_set_write_concern');
+  mongo_write_concern_get_w := GetProcAddress(HMongoDBDll, 'mongo_write_concern_get_w');
+  mongo_write_concern_get_wtimeout := GetProcAddress(HMongoDBDll, 'mongo_write_concern_get_wtimeout');
+  mongo_write_concern_get_j := GetProcAddress(HMongoDBDll, 'mongo_write_concern_get_j');
+  mongo_write_concern_get_fsync := GetProcAddress(HMongoDBDll, 'mongo_write_concern_get_fsync');
+  mongo_write_concern_get_mode := GetProcAddress(HMongoDBDll, 'mongo_write_concern_get_mode');
+  mongo_write_concern_get_cmd := GetProcAddress(HMongoDBDll, 'mongo_write_concern_get_cmd');
+  mongo_write_concern_set_w := GetProcAddress(HMongoDBDll, 'mongo_write_concern_set_w');
+  mongo_write_concern_set_wtimeout := GetProcAddress(HMongoDBDll, 'mongo_write_concern_set_wtimeout');
+  mongo_write_concern_set_j := GetProcAddress(HMongoDBDll, 'mongo_write_concern_set_j');
+  mongo_write_concern_set_fsync := GetProcAddress(HMongoDBDll, 'mongo_write_concern_set_fsync');
+  mongo_write_concern_set_mode := GetProcAddress(HMongoDBDll, 'mongo_write_concern_set_mode');
   // MongoBson initializations
-  bson_free := GetProcAddress(HMongoDBDll, 'bson_free'); // do not localize
-  bson_create := GetProcAddress(HMongoDBDll, 'bson_create'); // do not localize
-  bson_init := GetProcAddress(HMongoDBDll, 'bson_init'); // do not localize
-  bson_destroy := GetProcAddress(HMongoDBDll, 'bson_destroy'); // do not localize
-  bson_dispose := GetProcAddress(HMongoDBDll, 'bson_dispose'); // do not localize
-  bson_copy := GetProcAddress(HMongoDBDll, 'bson_copy'); // do not localize
-  bson_finish := GetProcAddress(HMongoDBDll, 'bson_finish'); // do not localize
-  bson_oid_gen := GetProcAddress(HMongoDBDll, 'bson_oid_gen'); // do not localize
-  bson_set_oid_inc := GetProcAddress(HMongoDBDll, 'bson_set_oid_inc'); // do not localize
-  bson_set_oid_fuzz := GetProcAddress(HMongoDBDll, 'bson_set_oid_fuzz'); // do not localize
-  bson_oid_to_string := GetProcAddress(HMongoDBDll, 'bson_oid_to_string'); // do not localize
-  bson_oid_from_string := GetProcAddress(HMongoDBDll, 'bson_oid_from_string'); // do not localize
-  bson_append_string := GetProcAddress(HMongoDBDll, 'bson_append_string'); // do not localize
-  bson_append_string_n := GetProcAddress(HMongoDBDll, 'bson_append_string_n'); // do not localize
-  bson_append_code := GetProcAddress(HMongoDBDll, 'bson_append_code'); // do not localize
-  bson_append_code_n := GetProcAddress(HMongoDBDll, 'bson_append_code_n'); // do not localize
-  bson_append_symbol := GetProcAddress(HMongoDBDll, 'bson_append_symbol'); // do not localize
-  bson_append_symbol_n := GetProcAddress(HMongoDBDll, 'bson_append_symbol_n'); // do not localize
-  bson_append_int := GetProcAddress(HMongoDBDll, 'bson_append_int'); // do not localize
-  bson_append_long := GetProcAddress(HMongoDBDll, 'bson_append_long'); // do not localize
-  bson_append_double := GetProcAddress(HMongoDBDll, 'bson_append_double'); // do not localize
-  bson_append_date := GetProcAddress(HMongoDBDll, 'bson_append_date'); // do not localize
-  bson_append_bool := GetProcAddress(HMongoDBDll, 'bson_append_bool'); // do not localize
-  bson_append_null := GetProcAddress(HMongoDBDll, 'bson_append_null'); // do not localize
-  bson_append_undefined := GetProcAddress(HMongoDBDll, 'bson_append_undefined'); // do not localize
-  bson_append_start_object := GetProcAddress(HMongoDBDll, 'bson_append_start_object'); // do not localize
-  bson_append_start_array := GetProcAddress(HMongoDBDll, 'bson_append_start_array'); // do not localize
-  bson_append_finish_object := GetProcAddress(HMongoDBDll, 'bson_append_finish_object'); // do not localize
-  bson_append_oid := GetProcAddress(HMongoDBDll, 'bson_append_oid'); // do not localize
-  bson_append_code_w_scope := GetProcAddress(HMongoDBDll, 'bson_append_code_w_scope'); // do not localize
-  bson_append_regex := GetProcAddress(HMongoDBDll, 'bson_append_regex'); // do not localize
-  bson_append_timestamp2 := GetProcAddress(HMongoDBDll, 'bson_append_timestamp2'); // do not localize
-  bson_append_binary := GetProcAddress(HMongoDBDll, 'bson_append_binary'); // do not localize
-  bson_append_bson := GetProcAddress(HMongoDBDll, 'bson_append_bson'); // do not localize
-  bson_buffer_size := GetProcAddress(HMongoDBDll, 'bson_buffer_size'); // do not localize
-  bson_size := GetProcAddress(HMongoDBDll, 'bson_size'); // do not localize
-  bson_iterator_create := GetProcAddress(HMongoDBDll, 'bson_iterator_create'); // do not localize
-  bson_iterator_dispose := GetProcAddress(HMongoDBDll, 'bson_iterator_dispose'); // do not localize
-  bson_iterator_init := GetProcAddress(HMongoDBDll, 'bson_iterator_init'); // do not localize
-  bson_find := GetProcAddress(HMongoDBDll, 'bson_find'); // do not localize
-  bson_iterator_type := GetProcAddress(HMongoDBDll, 'bson_iterator_type'); // do not localize
-  bson_iterator_next := GetProcAddress(HMongoDBDll, 'bson_iterator_next'); // do not localize
-  bson_iterator_key := GetProcAddress(HMongoDBDll, 'bson_iterator_key'); // do not localize
-  bson_iterator_double := GetProcAddress(HMongoDBDll, 'bson_iterator_double'); // do not localize
-  bson_iterator_long := GetProcAddress(HMongoDBDll, 'bson_iterator_long'); // do not localize
-  bson_iterator_int := GetProcAddress(HMongoDBDll, 'bson_iterator_int'); // do not localize
-  bson_iterator_bool := GetProcAddress(HMongoDBDll, 'bson_iterator_bool'); // do not localize
-  bson_iterator_string := GetProcAddress(HMongoDBDll, 'bson_iterator_string'); // do not localize
-  bson_iterator_date:= GetProcAddress(HMongoDBDll, 'bson_iterator_date'); // do not localize
-  bson_iterator_subiterator := GetProcAddress(HMongoDBDll, 'bson_iterator_subiterator'); // do not localize
-  bson_iterator_oid := GetProcAddress(HMongoDBDll, 'bson_iterator_oid'); // do not localize
-  bson_iterator_code := GetProcAddress(HMongoDBDll, 'bson_iterator_code'); // do not localize
-  bson_iterator_code_scope := GetProcAddress(HMongoDBDll, 'bson_iterator_code_scope'); // do not localize
-  bson_iterator_regex := GetProcAddress(HMongoDBDll, 'bson_iterator_regex'); // do not localize
-  bson_iterator_regex_opts := GetProcAddress(HMongoDBDll, 'bson_iterator_regex_opts'); // do not localize
-  bson_iterator_timestamp_time := GetProcAddress(HMongoDBDll, 'bson_iterator_timestamp_time'); // do not localize
-  bson_iterator_timestamp_increment := GetProcAddress(HMongoDBDll, 'bson_iterator_timestamp_increment'); // do not localize
-  bson_iterator_bin_len := GetProcAddress(HMongoDBDll, 'bson_iterator_bin_len'); // do not localize
-  bson_iterator_bin_type := GetProcAddress(HMongoDBDll, 'bson_iterator_bin_type'); // do not localize
-  bson_iterator_bin_data := GetProcAddress(HMongoDBDll, 'bson_iterator_bin_data'); // do not localize
-  set_bson_err_handler := GetProcAddress(HMongoDBDll, 'set_bson_err_handler'); // do not localize
+  bson_free := GetProcAddress(HMongoDBDll, 'bson_free');
+  bson_create := GetProcAddress(HMongoDBDll, 'bson_create');
+  bson_init := GetProcAddress(HMongoDBDll, 'bson_init');
+  bson_destroy := GetProcAddress(HMongoDBDll, 'bson_destroy');
+  bson_dispose := GetProcAddress(HMongoDBDll, 'bson_dispose');
+  bson_copy := GetProcAddress(HMongoDBDll, 'bson_copy');
+  bson_finish := GetProcAddress(HMongoDBDll, 'bson_finish');
+  bson_oid_gen := GetProcAddress(HMongoDBDll, 'bson_oid_gen');
+  bson_set_oid_inc := GetProcAddress(HMongoDBDll, 'bson_set_oid_inc');
+  bson_set_oid_fuzz := GetProcAddress(HMongoDBDll, 'bson_set_oid_fuzz');
+  bson_oid_to_string := GetProcAddress(HMongoDBDll, 'bson_oid_to_string');
+  bson_oid_from_string := GetProcAddress(HMongoDBDll, 'bson_oid_from_string');
+  bson_append_string := GetProcAddress(HMongoDBDll, 'bson_append_string');
+  bson_append_string_n := GetProcAddress(HMongoDBDll, 'bson_append_string_n');
+  bson_append_code := GetProcAddress(HMongoDBDll, 'bson_append_code');
+  bson_append_code_n := GetProcAddress(HMongoDBDll, 'bson_append_code_n');
+  bson_append_symbol := GetProcAddress(HMongoDBDll, 'bson_append_symbol');
+  bson_append_symbol_n := GetProcAddress(HMongoDBDll, 'bson_append_symbol_n');
+  bson_append_int := GetProcAddress(HMongoDBDll, 'bson_append_int');
+  bson_append_long := GetProcAddress(HMongoDBDll, 'bson_append_long');
+  bson_append_double := GetProcAddress(HMongoDBDll, 'bson_append_double');
+  bson_append_date := GetProcAddress(HMongoDBDll, 'bson_append_date');
+  bson_append_bool := GetProcAddress(HMongoDBDll, 'bson_append_bool');
+  bson_append_null := GetProcAddress(HMongoDBDll, 'bson_append_null');
+  bson_append_undefined := GetProcAddress(HMongoDBDll, 'bson_append_undefined');
+  bson_append_start_object := GetProcAddress(HMongoDBDll, 'bson_append_start_object');
+  bson_append_start_array := GetProcAddress(HMongoDBDll, 'bson_append_start_array');
+  bson_append_finish_object := GetProcAddress(HMongoDBDll, 'bson_append_finish_object');
+  bson_append_oid := GetProcAddress(HMongoDBDll, 'bson_append_oid');
+  bson_append_code_w_scope := GetProcAddress(HMongoDBDll, 'bson_append_code_w_scope');
+  bson_append_regex := GetProcAddress(HMongoDBDll, 'bson_append_regex');
+  bson_append_timestamp2 := GetProcAddress(HMongoDBDll, 'bson_append_timestamp2');
+  bson_append_binary := GetProcAddress(HMongoDBDll, 'bson_append_binary');
+  bson_append_bson := GetProcAddress(HMongoDBDll, 'bson_append_bson');
+  bson_buffer_size := GetProcAddress(HMongoDBDll, 'bson_buffer_size');
+  bson_size := GetProcAddress(HMongoDBDll, 'bson_size');
+  bson_iterator_create := GetProcAddress(HMongoDBDll, 'bson_iterator_create');
+  bson_iterator_dispose := GetProcAddress(HMongoDBDll, 'bson_iterator_dispose');
+  bson_iterator_init := GetProcAddress(HMongoDBDll, 'bson_iterator_init');
+  bson_find := GetProcAddress(HMongoDBDll, 'bson_find');
+  bson_iterator_type := GetProcAddress(HMongoDBDll, 'bson_iterator_type');
+  bson_iterator_next := GetProcAddress(HMongoDBDll, 'bson_iterator_next');
+  bson_iterator_key := GetProcAddress(HMongoDBDll, 'bson_iterator_key');
+  bson_iterator_double := GetProcAddress(HMongoDBDll, 'bson_iterator_double');
+  bson_iterator_long := GetProcAddress(HMongoDBDll, 'bson_iterator_long');
+  bson_iterator_int := GetProcAddress(HMongoDBDll, 'bson_iterator_int');
+  bson_iterator_bool := GetProcAddress(HMongoDBDll, 'bson_iterator_bool');
+  bson_iterator_string := GetProcAddress(HMongoDBDll, 'bson_iterator_string');
+  bson_iterator_date:= GetProcAddress(HMongoDBDll, 'bson_iterator_date');
+  bson_iterator_subiterator := GetProcAddress(HMongoDBDll, 'bson_iterator_subiterator');
+  bson_iterator_oid := GetProcAddress(HMongoDBDll, 'bson_iterator_oid');
+  bson_iterator_code := GetProcAddress(HMongoDBDll, 'bson_iterator_code');
+  bson_iterator_code_scope := GetProcAddress(HMongoDBDll, 'bson_iterator_code_scope');
+  bson_iterator_regex := GetProcAddress(HMongoDBDll, 'bson_iterator_regex');
+  bson_iterator_regex_opts := GetProcAddress(HMongoDBDll, 'bson_iterator_regex_opts');
+  bson_iterator_timestamp_time := GetProcAddress(HMongoDBDll, 'bson_iterator_timestamp_time');
+  bson_iterator_timestamp_increment := GetProcAddress(HMongoDBDll, 'bson_iterator_timestamp_increment');
+  bson_iterator_bin_len := GetProcAddress(HMongoDBDll, 'bson_iterator_bin_len');
+  bson_iterator_bin_type := GetProcAddress(HMongoDBDll, 'bson_iterator_bin_type');
+  bson_iterator_bin_data := GetProcAddress(HMongoDBDll, 'bson_iterator_bin_data');
+  set_bson_err_handler := GetProcAddress(HMongoDBDll, 'set_bson_err_handler');
   // GridFS functions
-  gridfs_create := GetProcAddress(HMongoDBDll, 'gridfs_create'); // do not localize
-  gridfs_dispose := GetProcAddress(HMongoDBDll, 'gridfs_dispose'); // do not localize
-  gridfs_init := GetProcAddress(HMongoDBDll, 'gridfs_init'); // do not localize
-  gridfs_destroy := GetProcAddress(HMongoDBDll, 'gridfs_destroy'); // do not localize
-  gridfs_store_file := GetProcAddress(HMongoDBDll, 'gridfs_store_file'); // do not localize
-  gridfs_remove_filename := GetProcAddress(HMongoDBDll, 'gridfs_remove_filename'); // do not localize
-  gridfs_store_buffer := GetProcAddress(HMongoDBDll, 'gridfs_store_buffer'); // do not localize
-  gridfile_create := GetProcAddress(HMongoDBDll, 'gridfile_create'); // do not localize
-  gridfile_dispose := GetProcAddress(HMongoDBDll, 'gridfile_dispose'); // do not localize
-  gridfile_writer_init := GetProcAddress(HMongoDBDll, 'gridfile_writer_init'); // do not localize
-  gridfile_write_buffer := GetProcAddress(HMongoDBDll, 'gridfile_write_buffer'); // do not localize
-  gridfile_writer_done := GetProcAddress(HMongoDBDll, 'gridfile_writer_done'); // do not localize
-  gridfs_find_query := GetProcAddress(HMongoDBDll, 'gridfs_find_query'); // do not localize
-  gridfile_destroy := GetProcAddress(HMongoDBDll, 'gridfile_destroy'); // do not localize
-  gridfile_get_filename := GetProcAddress(HMongoDBDll, 'gridfile_get_filename'); // do not localize
-  gridfile_get_chunksize := GetProcAddress(HMongoDBDll, 'gridfile_get_chunksize'); // do not localize
-  gridfile_get_contentlength := GetProcAddress(HMongoDBDll, 'gridfile_get_contentlength'); // do not localize
-  gridfile_get_contenttype:= GetProcAddress(HMongoDBDll, 'gridfile_get_contenttype'); // do not localize
-  gridfile_get_uploaddate := GetProcAddress(HMongoDBDll, 'gridfile_get_uploaddate'); // do not localize
-  gridfile_get_md5 := GetProcAddress(HMongoDBDll, 'gridfile_get_md5'); // do not localize
-  gridfile_get_metadata := GetProcAddress(HMongoDBDll, 'gridfile_get_metadata'); // do not localize
-  gridfile_get_numchunks := GetProcAddress(HMongoDBDll, 'gridfile_get_numchunks'); // do not localize
-  gridfile_get_descriptor := GetProcAddress(HMongoDBDll, 'gridfile_get_descriptor'); // do not localize
-  gridfile_get_chunk:= GetProcAddress(HMongoDBDll, 'gridfile_get_chunk'); // do not localize
-  gridfile_get_chunks := GetProcAddress(HMongoDBDll, 'gridfile_get_chunks'); // do not localize
-  gridfile_read := GetProcAddress(HMongoDBDll, 'gridfile_read'); // do not localize
-  gridfile_seek := GetProcAddress(HMongoDBDll, 'gridfile_seek'); // do not localize
-  gridfile_init := GetProcAddress(HMongoDBDll, 'gridfile_init'); // do not localize
-  gridfile_get_id := GetProcAddress(HMongoDBDll, 'gridfile_get_id'); // do not localize
-  gridfile_truncate := GetProcAddress(HMongoDBDll, 'gridfile_truncate'); // do not localize
-  gridfile_expand := GetProcAddress(HMongoDBDll, 'gridfile_expand'); // do not localize
-  gridfile_set_size := GetProcAddress(HMongoDBDll, 'gridfile_set_size'); // do not localize
-  gridfs_get_caseInsensitive := GetProcAddress(HMongoDBDll, 'gridfs_get_caseInsensitive'); // do not localize
-  gridfs_set_caseInsensitive := GetProcAddress(HMongoDBDll, 'gridfs_set_caseInsensitive'); // do not localize
-  gridfile_set_flags := GetProcAddress(HMongoDBDll, 'gridfile_set_flags'); // do not localize
-  gridfile_get_flags := GetProcAddress(HMongoDBDll, 'gridfile_get_flags'); // do not localize
-  initPrepostChunkProcessing := GetProcAddress(HMongoDBDll, 'initPrepostChunkProcessing'); // do not localize
+  gridfs_create := GetProcAddress(HMongoDBDll, 'gridfs_create');
+  gridfs_dispose := GetProcAddress(HMongoDBDll, 'gridfs_dispose');
+  gridfs_init := GetProcAddress(HMongoDBDll, 'gridfs_init');
+  gridfs_destroy := GetProcAddress(HMongoDBDll, 'gridfs_destroy');
+  gridfs_store_file := GetProcAddress(HMongoDBDll, 'gridfs_store_file');
+  gridfs_remove_filename := GetProcAddress(HMongoDBDll, 'gridfs_remove_filename');
+  gridfs_store_buffer := GetProcAddress(HMongoDBDll, 'gridfs_store_buffer');
+  gridfile_create := GetProcAddress(HMongoDBDll, 'gridfile_create');
+  gridfile_dispose := GetProcAddress(HMongoDBDll, 'gridfile_dispose');
+  gridfile_writer_init := GetProcAddress(HMongoDBDll, 'gridfile_writer_init');
+  gridfile_write_buffer := GetProcAddress(HMongoDBDll, 'gridfile_write_buffer');
+  gridfile_writer_done := GetProcAddress(HMongoDBDll, 'gridfile_writer_done');
+  gridfs_find_query := GetProcAddress(HMongoDBDll, 'gridfs_find_query');
+  gridfile_destroy := GetProcAddress(HMongoDBDll, 'gridfile_destroy');
+  gridfile_get_filename := GetProcAddress(HMongoDBDll, 'gridfile_get_filename');
+  gridfile_get_chunksize := GetProcAddress(HMongoDBDll, 'gridfile_get_chunksize');
+  gridfile_get_contentlength := GetProcAddress(HMongoDBDll, 'gridfile_get_contentlength');
+  gridfile_get_contenttype:= GetProcAddress(HMongoDBDll, 'gridfile_get_contenttype');
+  gridfile_get_uploaddate := GetProcAddress(HMongoDBDll, 'gridfile_get_uploaddate');
+  gridfile_get_md5 := GetProcAddress(HMongoDBDll, 'gridfile_get_md5');
+  gridfile_get_metadata := GetProcAddress(HMongoDBDll, 'gridfile_get_metadata');
+  gridfile_get_numchunks := GetProcAddress(HMongoDBDll, 'gridfile_get_numchunks');
+  gridfile_get_descriptor := GetProcAddress(HMongoDBDll, 'gridfile_get_descriptor');
+  gridfile_get_chunk:= GetProcAddress(HMongoDBDll, 'gridfile_get_chunk');
+  gridfile_get_chunks := GetProcAddress(HMongoDBDll, 'gridfile_get_chunks');
+  gridfile_read := GetProcAddress(HMongoDBDll, 'gridfile_read');
+  gridfile_seek := GetProcAddress(HMongoDBDll, 'gridfile_seek');
+  gridfile_init := GetProcAddress(HMongoDBDll, 'gridfile_init');
+  gridfile_get_id := GetProcAddress(HMongoDBDll, 'gridfile_get_id');
+  gridfile_truncate := GetProcAddress(HMongoDBDll, 'gridfile_truncate');
+  gridfile_expand := GetProcAddress(HMongoDBDll, 'gridfile_expand');
+  gridfile_set_size := GetProcAddress(HMongoDBDll, 'gridfile_set_size');
+  gridfs_get_caseInsensitive := GetProcAddress(HMongoDBDll, 'gridfs_get_caseInsensitive');
+  gridfs_set_caseInsensitive := GetProcAddress(HMongoDBDll, 'gridfs_set_caseInsensitive');
+  gridfile_set_flags := GetProcAddress(HMongoDBDll, 'gridfile_set_flags');
+  gridfile_get_flags := GetProcAddress(HMongoDBDll, 'gridfile_get_flags');
+  initPrepostChunkProcessing := GetProcAddress(HMongoDBDll, 'initPrepostChunkProcessing');
 
-  Int64toDouble := GetProcAddress(HMongoDBDll, 'bson_int64_to_double'); // do not localize
+  Int64toDouble := GetProcAddress(HMongoDBDll, 'bson_int64_to_double');
   MongoAPIInit;
 end;
 
@@ -785,6 +847,12 @@ begin
     raise EMongoFatalError.Create(SDelphiMongoErrorFailedSignatureV);
 end;
 {$ENDIF}
+
+procedure bson_dispose_and_destroy(bson : Pointer);
+begin
+  bson_destroy(bson);
+  bson_dispose(bson);
+end;
 
 initialization
 {$IFNDEF OnDemandMongoCLoad}

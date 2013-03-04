@@ -1,13 +1,10 @@
 This is a Delphi package supporting access to MongoDB.
 
-After downloading this repo, download and build [mongo-c-driver](http://github.com/mongodb/mongo-c-driver) with scons.
-Use the --m32 option with SCons to generate a 32-bit dll.
-Copy the produced mongoc.dll to C:\10gen\mongo-delphi-driver\Win32\Debug or ...\Release as appropriate.
+After downloading this repo, download and build [mongo-c-driver](https://github.com/jsbattig/mongo-c-driver). You MUST use for
+proper operation the forked driver from the main mongo-c-driver. For your convinience, different binary versions of the driver
+are included on the forker repo under the bin subfolder.
 
-Load the project group, MongoDelphiDriver.groupproj, into RAD Studio.
+Copy the selected mongoc.dll to appropiate target binary folder of your choice.
 
-To run the examples, in the Project Manager, right-click on either Test.exe or 
-AddressBook.exe and Activate.  Hit F9 to build and run.
-
-The documentation for package is in the 3 unit files: MongoDB.pas, MongoBson.pas, and GridFS.pas
+You will find plenty of tests under folder .\Tests subfolder. They all use DUnit framework.
 

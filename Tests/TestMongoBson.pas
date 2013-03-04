@@ -14,6 +14,8 @@ interface
 uses
   SysUtils, TestFramework, MongoBson;
 
+{$i DelphiVersion_defines.inc}
+
 type
   // Test methods for class IBsonOID
   
@@ -85,6 +87,7 @@ type
   TestIBsonBuffer = class(TTestCase)
   private
     FIBsonBuffer: IBsonBuffer;
+    procedure CheckObjectWithAppendedElements(Obj: IBson);
   public
     procedure SetUp; override;
     procedure TearDown; override;
@@ -98,7 +101,6 @@ type
     procedure TestAppendTimeStamp;
     procedure TestAppendBsonBinary;
     procedure TestAppendIBson;
-    procedure TestAppendVariantOverloaded;
     procedure TestAppendVariant;
     procedure TestappendIntegerArray;
     procedure TestappendDoubleArray;
@@ -110,6 +112,11 @@ type
     procedure TestappendSymbol;
     procedure TestappendBinary;
     procedure TestappendCode_n;
+    procedure TestAppendElementsAsArrayOfConst;
+    procedure TestAppendElementsAsArraySubObjects;
+    procedure TestAppendElementsAsArrayArray;
+    procedure TestAppendElementsAsVarRecArray;
+    procedure TestAppendElementsAsArrayWithErrors;
     procedure TestAppendStr_n;
     procedure TestappendSymbol_n;
     procedure TeststartObject;
@@ -147,6 +154,7 @@ type
     procedure TestgetTimestamp;
     procedure Testkey;
     procedure TestKind;
+    procedure TestTryToReadPastEnd;
     procedure Testsubiterator;
     procedure TestValue;
   end;
@@ -159,25 +167,40 @@ type
     procedure SetUp; override;
     procedure TearDown; override;
   published
+    procedure TestComplexBson;
     procedure Testfind;
     procedure TestgetHandle;
     procedure Testiterator;
+    procedure TestMkVarRecArrayFromVarArray;
+    procedure TestNewBsonCopy;
     procedure Testsize;
     procedure TestValue;
   end;
 
   TestBsonAPI = class(TTestCase)
-  public
   published
     procedure Test_bson_set_oid_inc;
     procedure Test_bson_set_oid_fuzz;
+  end;
 
+  TestArrayBuildingFunctions = class(TTestCase)
+  published
+    procedure TestBuildIntArray;
+    procedure TestBuildDoubleArray;
+    procedure TestBuildBooleanArray;
+    procedure TestAppendToBooleanArray;
+    procedure TestAppendToDoubleArray;
+    procedure TestAppendToIntArray;
+    procedure TestBuildStrArray;
+    procedure TestAppendToStrArray;
+    procedure TestBuildVarRecArray;
+    procedure TestAppendToVarRecArray;
   end;
 
 implementation
 
 uses
-  Classes, Variants, MongoAPI;
+  Classes, Variants, MongoAPI, MongoDB, uPrimitiveAllocator;
 
 const
   DELTA_DATE = 0.00009999;
@@ -207,7 +230,7 @@ end;
 
 procedure TestIBsonOID.TestAsString;
 var
-  ReturnValue: AnsiString;
+  ReturnValue: UTF8String;
   Val64 : Int64;
 begin
   ReturnValue := FIBsonOID.AsString;
@@ -233,7 +256,7 @@ end;
 
 procedure TestIBsonCodeWScope.TestsetAndGetCode;
 var
-  ACode: AnsiString;
+  ACode: UTF8String;
 begin
   ACode := '123';
   FIBsonCodeWScope.setCode(ACode);
@@ -264,7 +287,7 @@ end;
 
 procedure TestIBsonRegex.TestgetAndsetPattern;
 var
-  APattern: AnsiString;
+  APattern: UTF8String;
 begin
   CheckEqualsString('123', FIBsonRegex.getPattern, 'getPattern should return 123');
   APattern := '098';
@@ -274,7 +297,7 @@ end;
 
 procedure TestIBsonRegex.TestgetAndsetOptions;
 var
-  AOptions: AnsiString;
+  AOptions: UTF8String;
 begin
   CheckEqualsString('456', FIBsonRegex.getOptions, 'getOptions call should return "456"');
   AOptions := '789';
@@ -371,6 +394,37 @@ begin
   CheckEquals(1, FIBsonBinary.getKind, 'Value of Kind should be one');
 end;
 
+procedure TestIBsonBuffer.CheckObjectWithAppendedElements(Obj: IBson);
+begin
+  CheckEquals(1, Obj.value('int_fld'), 'int_fld doesn''t match expected value');
+  CheckEquals(1, Obj.value('int_fld_wide'), 'int_fld_wide doesn''t match expected value');
+  CheckEquals(1, Obj.value('int_fld_string'), 'int_fld_string doesn''t match expected value');
+  CheckEquals(1, Obj.value('i'), 'i doesn''t match expected value');
+  CheckEquals(1, Obj.value('w'), 'w doesn''t match expected value');
+  CheckEquals(1, Obj.value('int_fld_pchar'), 'int_fld_pchar doesn''t match expected value');
+  {$IFDEF DELPHI2009}
+  CheckEquals(1, Obj.value('int_fld_pwidechar'), 'int_fld_pwidechar doesn''t match expected value');
+  CheckEquals(1, Obj.value('int_fld_unicodestring'), 'int_fld_unicodestring doesn''t match expected value');
+  {$ENDIF}
+  Check(Boolean(Obj.value('bool_fld')), 'bool_fld doesn''t match expected value');
+  CheckEqualsString('a', Obj.value('ansichar_fld'), 'ansichar_fld doesn''t match expected value');
+  CheckEqualsString(FloatToStr(1.1), FloatToStr(Obj.value('extended_fld')), 'extended_fld doesn''t match expected value');
+  CheckEqualsString('pansichar_val', Obj.value('pansichar_fld'), 'pansichar_fld doesn''t match expected value');
+  CheckEqualsString('v', Obj.value('widechar_fld'), 'widechar_fld doesn''t match expected value');
+  {$IFDEF DELPHI2009}
+  CheckEqualsString('pwidechar_val', Obj.value('pwidechar_fld'), 'pwidechar_fld doesn''t match expected value');
+  {$ENDIF}
+  CheckEqualsString('ansistring_val', Obj.value('ansistring_fld'), 'ansistring_fld doesn''t match expected value');
+  CheckEqualsString('string_val', Obj.value('string_fld'), 'string_fld doesn''t match expected value');
+  CheckEqualsString(FloatToStr(1.2), FloatToStr(Obj.value('currency_fld')), 'currency_fld doesn''t match expected value');
+  CheckEquals(1234, Obj.value('variant_fld'), 'variant_fld doesn''t match expected value');
+  CheckEqualsString('widestring_val', Obj.value('widestring_fld'), 'widestring_fld doesn''t match expected value');
+  {$IFDEF DELPHI2009}
+  CheckEquals(10000000000, Obj.value('int64_fld'), 'int64_fld doesn''t match expected value');
+  CheckEqualsString('unicode_val', Obj.value('unicode_fld'), 'unicode_fld doesn''t match expected value');
+  {$ENDIF}
+end;
+
 { TestIBsonBuffer }
 
 procedure TestIBsonBuffer.SetUp;
@@ -387,87 +441,87 @@ end;
 procedure TestIBsonBuffer.TestAppendStr;
 var
   ReturnValue: Boolean;
-  Value: PAnsiChar;
-  Name: PAnsiChar;
+  Value: UTF8String;
+  Name: UTF8String;
   b : IBson;
 begin
-  Name := PAnsiChar('STRFLD');
-  Value := PAnsiChar('STRVAL');
+  Name := 'STRFLD';
+  Value := 'STRVAL';
   ReturnValue := FIBsonBuffer.AppendStr(Name, Value);
   Check(ReturnValue, 'ReturnValue should be True');
   b := FIBsonBuffer.finish;
-  CheckEqualsString('STRVAL', b.Value(PAnsiChar('STRFLD')), 'field on BSon object doesn''t match expected value');
+  CheckEqualsString('STRVAL', b.Value('STRFLD'), 'field on BSon object doesn''t match expected value');
 end;
 
 procedure TestIBsonBuffer.TestAppendInteger;
 var
   ReturnValue: Boolean;
   Value: Integer;
-  Name: PAnsiChar;
+  Name: UTF8String;
   b : IBson;
 begin
-  Name := PAnsiChar('INTFLD');
+  Name := 'INTFLD';
   Value := 100;
   ReturnValue := FIBsonBuffer.Append(Name, Value);
   Check(ReturnValue, 'ReturnValue should be True');
   b := FIBsonBuffer.finish;
-  CheckEquals(100, b.Value(PAnsiChar('INTFLD')), 'field on BSon object doesn''t match expected value');
+  CheckEquals(100, b.Value('INTFLD'), 'field on BSon object doesn''t match expected value');
 end;
 
 procedure TestIBsonBuffer.TestAppendInt64;
 var
   ReturnValue: Boolean;
   Value: Int64;
-  Name: PAnsiChar;
+  Name: UTF8String;
   b : IBson;
 begin
-  Name := PAnsiChar('INT64FLD');
+  Name := 'INT64FLD';
   Value := Int64(MaxInt) * 10;
   ReturnValue := FIBsonBuffer.Append(Name, Value);
   Check(ReturnValue, 'ReturnValue should be True');
   b := FIBsonBuffer.finish;
-  CheckEquals(Int64(MaxInt) * 10, b.ValueAsInt64(PAnsiChar('INT64FLD')), 'field on BSon object doesn''t match expected value');
+  CheckEquals(Int64(MaxInt) * 10, b.ValueAsInt64('INT64FLD'), 'field on BSon object doesn''t match expected value');
 end;
 
 procedure TestIBsonBuffer.TestAppendDouble;
 var
   ReturnValue: Boolean;
   Value: Double;
-  Name: PAnsiChar;
+  Name: UTF8String;
   b : IBson;
 begin
-  Name := PAnsiChar('DBLFLD');
+  Name := 'DBLFLD';
   Value := 100.5;
   ReturnValue := FIBsonBuffer.Append(Name, Value);
   Check(ReturnValue, 'ReturnValue should be True');
   b := FIBsonBuffer.finish;
-  CheckEquals(100.5, b.Value(PAnsiChar('DBLFLD')), 'field on BSon object doesn''t match expected value');
+  CheckEquals(100.5, b.Value('DBLFLD'), 'field on BSon object doesn''t match expected value');
 end;
 
 procedure TestIBsonBuffer.TestappendDate;
 var
   ReturnValue: Boolean;
   Value: TDateTime;
-  Name: PAnsiChar;
+  Name: UTF8String;
   b : IBson;
 begin
-  Name := PAnsiChar('DATEFLD');
+  Name := 'DATEFLD';
   Value := Now;
   ReturnValue := FIBsonBuffer.appendDate(Name, Value);
   Check(ReturnValue, 'ReturnValue should be True');
   b := FIBsonBuffer.finish;
-  CheckEquals(Value, b.Value(PAnsiChar('DATEFLD')), DELTA_DATE, 'field on BSon object doesn''t match expected value');
+  CheckEquals(Value, b.Value('DATEFLD'), DELTA_DATE, 'field on BSon object doesn''t match expected value');
 end;
 
 procedure TestIBsonBuffer.TestAppendRegEx;
 var
   ReturnValue: Boolean;
   Value: IBsonRegex;
-  Name: PAnsiChar;
+  Name: UTF8String;
   b : IBson;
   i : IBsonIterator;
 begin
-  Name := PAnsiChar('REGEXFLD');
+  Name := 'REGEXFLD';
   Value := NewBsonRegex('123', '456');
   ReturnValue := FIBsonBuffer.Append(Name, Value);
   Check(ReturnValue, 'ReturnValue should be True');
@@ -482,11 +536,11 @@ procedure TestIBsonBuffer.TestAppendTimeStamp;
 var
   ReturnValue: Boolean;
   Value: IBsonTimestamp;
-  Name: PAnsiChar;
+  Name: UTF8String;
   b : IBson;
   i : IBsonIterator;
 begin
-  Name := PAnsiChar('TSFLD');
+  Name := 'TSFLD';
   Value := NewBsonTimestamp(Now, 1);
   ReturnValue := FIBsonBuffer.Append(Name, Value);
   Check(ReturnValue, 'ReturnValue should be True');
@@ -504,7 +558,7 @@ type
 var
   ReturnValue: Boolean;
   Value: IBsonBinary;
-  Name: PAnsiChar;
+  Name: UTF8String;
   b : IBson;
   i : IBsonIterator;
   Data : array [0..255] of Byte;
@@ -512,7 +566,7 @@ var
 begin
   for ii := 0 to sizeof(Data) - 1 do
     Data[ii] := ii;
-  Name := PAnsiChar('BSONBINFLD');
+  Name := 'BSONBINFLD';
   Value := NewBsonBinary(@Data, sizeof(Data));
   ReturnValue := FIBsonBuffer.Append(Name, Value);
   Check(ReturnValue, 'ReturnValue should be True');
@@ -527,11 +581,11 @@ procedure TestIBsonBuffer.TestAppendIBson;
 var
   ReturnValue: Boolean;
   Value: IBson;
-  Name: PAnsiChar;
+  Name: UTF8String;
   b : IBson;
   i : IBsonIterator;
 begin
-  Name := PAnsiChar('BSFLD');
+  Name := 'BSFLD';
   Value := BSON(['ID', 1]);
   ReturnValue := FIBsonBuffer.Append(Name, Value);
   Check(ReturnValue, 'ReturnValue should be True');
@@ -541,46 +595,140 @@ begin
   CheckEquals(1, i.subiterator.Value, 'Value doesn''t match');
 end;
 
-procedure TestIBsonBuffer.TestAppendVariantOverloaded;
-var
-  ReturnValue: Boolean;
-  Value: Variant;
-  Name: PAnsiChar;
-  b : IBson;
-begin
-  Name := PAnsiChar('VARIANTFLD');
-  Value := 123;
-  ReturnValue := FIBsonBuffer.AppendVariant(Name, Value);
-  Check(ReturnValue, 'ReturnValue should be True');
-  b := FIBsonBuffer.finish;
-  CheckEquals(Value, integer(b.Value(Name)), 'Value doesn''t match');
-end;
-
 procedure TestIBsonBuffer.TestAppendVariant;
 var
   ReturnValue: Boolean;
-  Value: Variant;
-  Name: PAnsiChar;
+  Value : Variant;
+  Name: UTF8String;
   b : IBson;
+  var_single : Single;
+  var_double : Double;
+  var_currency : Currency;
+  {$IFDEF DELPHI2009}
+  v_int64 : Int64;
+  {$ENDIF}
+  {$IFDEF DELPHI2007}
+  v_longword : LongWord;
+  {$ENDIF}
 begin
-  Name := PAnsiChar('VARIANTFLD');
-  Value := 123;
+  Name := 'VARIANTFLD_NULL';
+  Value := Null;
   ReturnValue := FIBsonBuffer.AppendVariant(Name, Value);
-  Check(ReturnValue, 'ReturnValue should be True');
+  Check(ReturnValue, 'ReturnValue should be True inserting VARIANTFLD_NULL');
+
+  Name := 'VARIANTFLD_BYTE';
+  Value := Byte(1);
+  ReturnValue := FIBsonBuffer.AppendVariant(Name, Value);
+  Check(ReturnValue, 'ReturnValue should be True inserting VARIANTFLD_BYTE');
+
+  Name := 'VARIANTFLD_WORD';
+  Value := Word(1234);
+  ReturnValue := FIBsonBuffer.AppendVariant(Name, Value);
+  Check(ReturnValue, 'ReturnValue should be True inserting VARIANTFLD_WORD');
+
+  Name := 'VARIANTFLD_SMALL';
+  Value := Smallint(12);
+  ReturnValue := FIBsonBuffer.AppendVariant(Name, Value);
+  Check(ReturnValue, 'ReturnValue should be True inserting VARIANTFLD_SMALL');
+
+  Name := 'VARIANTFLD_SHORT';
+  Value := Shortint(-12);
+  ReturnValue := FIBsonBuffer.AppendVariant(Name, Value);
+  Check(ReturnValue, 'ReturnValue should be True inserting VARIANTFLD_SHORT');
+
+  Name := 'VARIANTFLD_INT';
+  Value := integer(123);
+  ReturnValue := FIBsonBuffer.AppendVariant(Name, Value);
+  Check(ReturnValue, 'ReturnValue should be True inserting VARIANTFLD_INT');
+
+  {$IFDEF DELPHI2007}
+  Name := 'VARIANTFLD_LONGWORD';
+  v_longword := 1000000000;
+  Value := integer(v_longword);
+  ReturnValue := FIBsonBuffer.AppendVariant(Name, Value);
+  Check(ReturnValue, 'ReturnValue should be True inserting VARIANTFLD_LONGWORD');
+  {$ENDIF}
+
+  Name := 'VARIANTFLD_SINGLE';
+  var_single := 1000.1;
+  ReturnValue := FIBsonBuffer.AppendVariant(Name, var_single);
+  Check(ReturnValue, 'ReturnValue should be True inserting VARIANTFLD_SINGLE');
+
+  Name := 'VARIANTFLD_DOUBLE';
+  var_double := 1000.2;
+  ReturnValue := FIBsonBuffer.AppendVariant(Name, var_double);
+  Check(ReturnValue, 'ReturnValue should be True inserting VARIANTFLD_DOUBLE');
+
+  Name := 'VARIANTFLD_CURRENCY';
+  var_currency := 1000.3;
+  ReturnValue := FIBsonBuffer.AppendVariant(Name, var_currency);
+  Check(ReturnValue, 'ReturnValue should be True inserting VARIANTFLD_CURRENCY');
+
+  Name := 'VARIANTFLD_DATE';
+  Value := StrToDateTime('1/1/2013');
+  ReturnValue := FIBsonBuffer.AppendVariant(Name, Value);
+  Check(ReturnValue, 'ReturnValue should be True inserting VARIANTFLD_DATE');
+
+  {$IFDEF DELPHI2009}
+  Name := 'VARIANTFLD_INT64';
+  v_int64 := 10000000000;
+  Value := v_int64;
+  ReturnValue := FIBsonBuffer.AppendVariant(Name, Value);
+  Check(ReturnValue, 'ReturnValue should be True inserting VARIANTFLD_INT64');
+  {$ENDIF}
+
+  Name := 'VARIANTFLD_BOOL';
+  Value := True;
+  ReturnValue := FIBsonBuffer.AppendVariant(Name, Value);
+  Check(ReturnValue, 'ReturnValue should be True inserting VARIANTFLD_BOOL');
+
+  Name := 'VARIANTFLD_STR';
+  Value := 'HOLA';
+  ReturnValue := FIBsonBuffer.AppendVariant(Name, Value);
+  Check(ReturnValue, 'ReturnValue should be True inserting VARIANTFLD_STR');
+
+  {$IFDEF DELPHI2009}
+  Name := 'VARIANTFLD_USTR';
+  Value := UnicodeString('HOLA');
+  ReturnValue := FIBsonBuffer.AppendVariant(Name, Value);
+  Check(ReturnValue, 'ReturnValue should be True inserting VARIANTFLD_USTR');
+  {$ENDIF}
+
   b := FIBsonBuffer.finish;
-  CheckEquals(Value, integer(b.Value(Name)), 'Value doesn''t match');
+
+  Check(VarIsNull(b.Value('VARIANTFLD_NULL')), 'Expected null bson. Value doesn''t match');
+  CheckEquals(1, integer(b.Value('VARIANTFLD_BYTE')), 'Value doesn''t match');
+  CheckEquals(1234, integer(b.Value('VARIANTFLD_WORD')), 'Value doesn''t match');
+  CheckEquals(12, integer(b.Value('VARIANTFLD_SMALL')), 'Value doesn''t match');
+  CheckEquals(-12, integer(b.Value('VARIANTFLD_SHORT')), 'Value doesn''t match');
+  CheckEquals(123, integer(b.Value('VARIANTFLD_INT')), 'Value doesn''t match');
+  CheckEqualsString(Format('%8.1f', [1000.1]), Format('%8.1f', [Single(b.Value('VARIANTFLD_SINGLE'))]), 'Value doesn''t match');
+  CheckEqualsString(Format('%8.1f', [1000.2]), Format('%8.1f', [Double(b.Value('VARIANTFLD_DOUBLE'))]), 'Value doesn''t match');
+  CheckEqualsString(Format('%8.1f', [1000.3]), Format('%8.1f', [Currency(b.Value('VARIANTFLD_CURRENCY'))]), 'Value doesn''t match');
+  CheckEqualsString('1/1/2013', DateTimeToStr(b.Value('VARIANTFLD_DATE')), 'Value doesn''t match');
+  {$IFDEF DELPHI2009}
+  CheckEquals(10000000000, Int64(b.Value('VARIANTFLD_INT64')), 'Value doesn''t match');
+  {$ENDIF}
+  {$IFDEF DELPHI2007}
+  CheckEquals(1000000000, LongWord(b.Value('VARIANTFLD_LONGWORD')), 'Value doesn''t match');
+  {$ENDIF}
+  Check(b.Value('VARIANTFLD_BOOL'), 'Value doesn''t match for VARIANTFLD_BOOL');
+  CheckEqualsString('HOLA', b.Value('VARIANTFLD_STR'), 'Value doesn''t match');
+  {$IFDEF DELPHI2009}
+  CheckEqualsString('HOLA', b.Value('VARIANTFLD_USTR'), 'Value doesn''t match');
+  {$ENDIF}
 end;
 
 procedure TestIBsonBuffer.TestappendIntegerArray;
 var
   ReturnValue: Boolean;
   Value: TIntegerArray;
-  Name: PAnsiChar;
+  Name: UTF8String;
   i : integer;
   it : IBsonIterator;
   b : IBson;
 begin
-  Name := PAnsiChar('INTARRFLD');
+  Name := 'INTARRFLD';
   SetLength(Value, 10);
   for I := low(Value) to high(Value) do
     Value[i] := i;
@@ -598,12 +746,12 @@ procedure TestIBsonBuffer.TestappendDoubleArray;
 var
   ReturnValue: Boolean;
   Value: TDoubleArray;
-  Name: PAnsiChar;
+  Name: UTF8String;
   i : integer;
   it : IBsonIterator;
   b : IBson;
 begin
-  Name := PAnsiChar('DBLARRFLD');
+  Name := 'DBLARRFLD';
   SetLength(Value, 10);
   for I := low(Value) to high(Value) do
     Value[i] := i + 0.2;
@@ -621,13 +769,13 @@ procedure TestIBsonBuffer.TestappendBooleanArray;
 var
   ReturnValue: Boolean;
   Value: TBooleanArray;
-  Name: PAnsiChar;
+  Name: UTF8String;
   i : integer;
   it : IBsonIterator;
   b : IBson;
   BoolArrayResult : TBooleanArray;
 begin
-  Name := PAnsiChar('BOOLARRFLD');
+  Name := 'BOOLARRFLD';
   SetLength(Value, 10);
   for I := low(Value) to high(Value) do
     Value[i] := i mod 2 = 1;
@@ -646,12 +794,12 @@ procedure TestIBsonBuffer.TestappendStringArray;
 var
   ReturnValue: Boolean;
   Value: TStringArray;
-  Name: PAnsiChar;
+  Name: UTF8String;
   i : integer;
   it : IBsonIterator;
   b : IBson;
 begin
-  Name := PAnsiChar('BOOLARRFLD');
+  Name := 'BOOLARRFLD';
   SetLength(Value, 10);
   for I := low(Value) to high(Value) do
     Value[i] := IntToStr(i);
@@ -662,17 +810,17 @@ begin
   it.Next;
   CheckEquals(length(Value), length(it.getStringArray), 'Array sizes don''t match');
   for I := low(it.getStringArray) to high(it.getStringArray) do
-    CheckEqualsString(Value[i], it.getStringArray[i], 'Items on AnsiString array don''t match');
+    CheckEqualsString(Value[i], it.getStringArray[i], 'Items on UTF8String array don''t match');
 end;
 
 procedure TestIBsonBuffer.TestappendNull;
 var
   ReturnValue: Boolean;
-  Name: PAnsiChar;
+  Name: UTF8String;
   v : Variant;
   b : IBson;
 begin
-  Name := PAnsiChar('NULLFLD');
+  Name := 'NULLFLD';
   ReturnValue := FIBsonBuffer.appendNull(Name);
   Check(ReturnValue, 'ReturnValue should be True');
   b := FIBsonBuffer.finish;
@@ -683,11 +831,11 @@ end;
 procedure TestIBsonBuffer.TestappendUndefined;
 var
   ReturnValue: Boolean;
-  Name: PAnsiChar;
+  Name: UTF8String;
   v : Variant;
   b : IBson;
 begin
-  Name := PAnsiChar('EMPTYFLD');
+  Name := 'EMPTYFLD';
   ReturnValue := FIBsonBuffer.appendUndefined(Name);
   Check(ReturnValue, 'ReturnValue should be True');
   b := FIBsonBuffer.finish;
@@ -698,13 +846,13 @@ end;
 procedure TestIBsonBuffer.TestappendCode;
 var
   ReturnValue: Boolean;
-  Value: PAnsiChar;
-  Name: PAnsiChar;
+  Value: UTF8String;
+  Name: UTF8String;
   b : IBson;
   i : IBsonIterator;
 begin
-  Name := PAnsiChar('CODEFLD');
-  Value := PAnsiChar('123456');
+  Name := 'CODEFLD';
+  Value := '123456';
   ReturnValue := FIBsonBuffer.appendCode(Name, Value);
   Check(ReturnValue, 'ReturnValue should be True');
   b := FIBsonBuffer.finish;
@@ -715,12 +863,12 @@ end;
 procedure TestIBsonBuffer.TestappendSymbol;
 var
   ReturnValue: Boolean;
-  Value: PAnsiChar;
-  Name: PAnsiChar;
+  Value: UTF8String;
+  Name: UTF8String;
   b : IBson;
 begin
-  Name := PAnsiChar('CODEFLD');
-  Value := PAnsiChar('SymbolTest');
+  Name := 'CODEFLD';
+  Value := 'SymbolTest';
   ReturnValue := FIBsonBuffer.appendSymbol(Name, Value);
   Check(ReturnValue, 'ReturnValue should be True');
   b := FIBsonBuffer.finish;
@@ -738,12 +886,12 @@ var
   Length: Integer;
   Data: Pointer;
   Kind: Integer;
-  Name: PAnsiChar;
+  Name: UTF8String;
   b : IBson;
   i : integer;
   it : IBsonIterator;
 begin
-  Name := PAnsiChar('BINFLD');
+  Name := 'BINFLD';
   Length := sizeof(AData);
   Data := @AData;
   Kind := 0;
@@ -758,13 +906,13 @@ end;
 procedure TestIBsonBuffer.TestappendCode_n;
 var
   ReturnValue: Boolean;
-  Value: PAnsiChar;
-  Name: PAnsiChar;
+  Value: UTF8String;
+  Name: UTF8String;
   b : IBson;
   i : IBsonIterator;
 begin
-  Name := PAnsiChar('CODEFLD');
-  Value := PAnsiChar('123');
+  Name := 'CODEFLD';
+  Value := '123';
   ReturnValue := FIBsonBuffer.appendCode_n(Name, Value, 3);
   Check(ReturnValue, 'ReturnValue should be True');
   b := FIBsonBuffer.finish;
@@ -772,30 +920,348 @@ begin
   CheckEqualsString('123', i.getCodeWScope.getCode, 'Code should be equals to "123"');
 end;
 
+procedure TestIBsonBuffer.TestAppendElementsAsArrayOfConst;
+var
+  Obj : IBson;
+  variant_val : Variant;
+  val_extended : Extended;
+  val_currency : Currency;
+begin
+  variant_val := 1234;
+  val_extended := 1.1;
+  val_currency := 1.2;
+  Check(FIBsonBuffer.appendElementsAsArray(['int_fld', 1,
+                                            WideString('int_fld_wide'), 1,
+                                            ShortString('int_fld_string'), 1,
+                                            AnsiChar('i'), 1,
+                                            WideChar('w'), 1,
+                                            PAnsiChar('int_fld_pchar'), 1,
+                                            {$IFDEF DELPHI2009}
+                                            PWideChar('int_fld_pwidechar'), 1,
+                                            UnicodeString('int_fld_unicodestring'), 1,
+                                            {$ENDIF}
+                                            'bool_fld', True,
+                                            'ansichar_fld', AnsiChar('a'),
+                                            'extended_fld', val_extended,
+                                            'pansichar_fld', PAnsiChar('pansichar_val'),
+                                            'widechar_fld', WideChar('v'),
+                                            {$IFDEF DELPHI2009}
+                                            'pwidechar_fld', PWideChar('pwidechar_val'),
+                                            {$ENDIF}
+                                            'ansistring_fld', UTF8String('ansistring_val'),
+                                            'string_fld', ShortString('string_val'),
+                                            'currency_fld', val_currency,
+                                            'variant_fld', variant_val,
+                                            'widestring_fld', WideString('widestring_val'),
+                                            'int64_fld', Int64(10000000000)
+                                            {$IFDEF DELPHI2009}
+                                            , 'unicode_fld', UnicodeString('unicode_val') {$ENDIF}]), 'call to appendElementsAsArray should return true');
+  Obj := FIBsonBuffer.finish;
+  CheckObjectWithAppendedElements(Obj);
+end;
+
+procedure TestIBsonBuffer.TestAppendElementsAsArraySubObjects;
+var
+  Obj : IBson;
+  it : IBsonIterator;
+begin
+  Check(FIBsonBuffer.appendElementsAsArray(['int', 1, 'sub_obj',
+                                            Start_Object, 'str', 'string',
+                                                 'int_2', 2, End_Object]), 'Call t appendElementsAsArray failed');
+  Obj := FIBsonBuffer.finish;
+  CheckEquals(1, Obj.value('int'), 'Value of int doesn''t match');
+  it := Obj.find('sub_obj');
+  Check(it <> nil, 'iterator sub_obj should be <> nil');
+  it := it.subiterator;
+  Check(it.next, 'first call to it.next should return true');
+  Check(it <> nil, 'subiterator of sub_obj should be <> nil');
+  CheckEqualsString('str', it.key, 'first key value of subobject doesn''t match');
+  CheckEqualsString('string', it.value, 'value of key subobject attribute doesn''t match');
+  Check(it.next, 'call to it.next should return value <> nil');
+  CheckEqualsString('int_2', it.key, 'first key value of subobject doesn''t match');
+  CheckEquals(2, it.value, 'value of key subobject attribute doesn''t match');
+end;
+
+procedure TestIBsonBuffer.TestAppendElementsAsArrayArray;
+var
+  Obj : IBson;
+  it : IBsonIterator;
+  SubIt : IBsonIterator;
+begin
+  Check(FIBsonBuffer.appendElementsAsArray(['int', 1, 'sub_array',
+                                            Start_Array, 'element 1', 'element 2', 'subobject',
+                                                                             Start_Object,
+                                                                             's', 'Str', End_Object,
+                                             3, 4, 'final_obj', Start_Object, 'subarr', Start_Array, '10', '20', End_Array, End_Object, End_Array]), 'Call t appendElementsAsArray failed');
+  Obj := FIBsonBuffer.finish;
+  CheckEquals(1, Obj.value('int'), 'Value of int doesn''t match');
+  it := Obj.find('sub_array');
+  Check(it <> nil, 'iterator sub_obj should be <> nil');
+  it := it.subiterator;
+  Check(it.next, 'first call to it.next should return true');
+  Check(it <> nil, 'subiterator of sub_array should be <> nil');
+  CheckEqualsString('element 1', it.value, 'first value of array doesn''t match');
+  Check(it.next, 'call to it.next should return true');
+  CheckEqualsString('element 2', it.value, 'second value of array doesn''t match');
+  Check(it.next, 'call to it.next should return value <> nil');
+  SubIt := it.subiterator;
+  Check(SubIt <> nil, 'Sub iterator should be <> nil');
+  Check(SubIt.next, 'call to SubIt.next should return true');
+  CheckEqualsString('s', SubIt.key, 'key of first element of subobject should be s');
+  CheckEqualsString('Str', SubIt.value, 'value of first attribute of subobject should be Str');
+  Check(it.next, 'call to it.next should return true');
+  CheckEquals(3, it.value, 'third value of array doesn''t match');
+  Check(it.next, 'call to it.next should return true');
+  CheckEquals(4, it.value, 'fourth value of array doesn''t match');
+  Check(it.next, 'call to it.next should return true');
+  SubIt := it.subiterator;
+  Check(SubIt <> nil, 'call to subiterator should be <> nil');
+  Check(SubIt.next, 'first call to SubIt.next should be true');
+  CheckEqualsString('subarr', SubIt.key, 'first key of SubIt doesn''t match');
+  SubIt := SubIt.subiterator;
+  Check(SubIT <> nil, 'SubIterator of subiterator should be <> nil');
+  Check(SubIt.next, 'first call to subit.next should be true');
+  CheckEquals(10, SubIt.value, 'First value of last array should be 10');
+  Check(SubIt.next, 'second call of subit.next should for last array should be true');
+  CheckEquals(20, SubIt.value, 'Last element of subarray should be 20');
+  Check(not SubIt.next, 'Call to SubIt.next after last element should be false');
+end;
+
+procedure TestIBsonBuffer.TestAppendElementsAsVarRecArray;
+const
+  int_fld : UTF8String = 'int_fld';
+  int_fld_wide : WideString = 'int_fld_wide';
+  int_fld_string : ShortString = 'int_fld_string';
+  int_fld_char : AnsiChar = 'i';
+  int_fld_WideChar : WideChar = 'w';
+  int_fld_pchar : PAnsiChar = 'int_fld_pchar';
+  int_fld_PWideChar : PWideChar = 'int_fld_pwidechar';
+  {$IFDEF DELPHI2009}
+  int_fld_UnicodeString : UnicodeString = 'int_fld_unicodestring';
+  {$ENDIF}
+  bool_fld : UTF8String = 'bool_fld';
+  ansichar_fld : UTF8String = 'ansichar_fld';
+  extended_fld : UTF8String = 'extended_fld';
+  extended_value : Extended = 1.1;
+  pansichar_fld : UTF8String = 'pansichar_fld';
+  pansichar_val : PAnsiChar = 'pansichar_val';
+  widechar_fld : UTF8String = 'widechar_fld';
+  widechar_val : WideChar = 'v';
+  pwidechar_fld : UTF8String = 'pwidechar_fld';
+  pwidechar_val : PWideChar = 'pwidechar_val';
+  ansistring_fld : UTF8String = 'ansistring_fld';
+  ansistring_val : UTF8String = 'ansistring_val';
+  string_fld : UTF8String = 'string_fld';
+  string_val : ShortString = 'string_val';
+  currency_fld : UTF8String = 'currency_fld';
+  currency_val : currency = 1.2;
+  variant_fld : UTF8String = 'variant_fld';
+  widestring_fld : UTF8String = 'widestring_fld';
+  widestring_val : WideString = 'widestring_val';
+  int64_fld : UTF8String = 'int64_fld';
+  int64_val : Int64 = 10000000000;
+  unicode_fld : UTF8String = 'unicode_fld';
+  {$IFDEF DELPHI2009}
+  unicode_val : UnicodeString = 'unicode_val';
+  {$ENDIF}
+var
+  Def : TVarRecArray;
+  Obj : IBson;
+  variant_val : Variant;
+  procedure PrepareDifferentFieldTypeTests;
+  begin
+    // Field as UTF8String
+    Def[0].VType := vtAnsiString;
+    Def[0].VAnsiString := pointer(int_fld);
+    Def[1].VType := vtInteger;
+    Def[1].VInteger := 1;
+    // Field as WideString
+    Def[2].VType := vtWideString;
+    Def[2].VWideString := pointer(int_fld_wide);
+    Def[3].VType := vtInteger;
+    Def[3].VInteger := 1;
+    // Field as ShortString
+    Def[4].VType := vtString;
+    Def[4].VString := @int_fld_string;
+    Def[5].VType := vtInteger;
+    Def[5].VInteger := 1;
+    // Field as Char
+    Def[6].VType := vtChar;
+    Def[6].VChar := int_fld_char;
+    Def[7].VType := vtInteger;
+    Def[7].VInteger := 1;
+    // Field as WideChar
+    Def[8].VType := vtWideChar;
+    Def[8].VWideChar := int_fld_widechar;
+    Def[9].VType := vtInteger;
+    Def[9].VInteger := 1;
+    // Field as PAnsiChar
+    Def[10].VType := vtPChar;
+    Def[10].VPChar := int_fld_pchar;
+    Def[11].VType := vtInteger;
+    Def[11].VInteger := 1;
+    // Field as PWideChar
+    Def[12].VType := vtPWideChar;
+    Def[12].VPWideChar := int_fld_PWideChar;
+    Def[13].VType := vtInteger;
+    Def[13].VInteger := 1;
+    {$IFDEF DELPHI2009}
+    // Field as UnicodeString
+    Def[14].VType := vtUnicodeString;
+    Def[14].VUnicodeString := pointer(int_fld_UnicodeString);
+    Def[15].VType := vtInteger;
+    Def[15].VInteger := 1;
+    {$ELSE}
+    Def[14].VType := vtWideString;
+    Def[14].VWideString := pointer(int_fld_wide);
+    Def[15].VType := vtInteger;
+    Def[15].VInteger := 1;
+    {$ENDIF}
+  end;
+  procedure PrepareDifferentValueTypesTests;
+  begin
+    // Value as Boolean
+    Def[16].VType := vtAnsiString;
+    Def[16].VAnsiString := pointer(bool_fld);
+    Def[17].VType := vtBoolean;
+    Def[17].VBoolean := True;
+    // Value as AnsiChar
+    Def[18].VType := vtAnsiString;
+    Def[18].VAnsiString := pointer(ansichar_fld);
+    Def[19].VType := vtChar;
+    Def[19].VChar := 'a';
+    // Value as Extended
+    Def[20].VType := vtAnsiString;
+    Def[20].VAnsiString := pointer(extended_fld);
+    Def[21].VType := vtExtended;
+    Def[21].VExtended := @extended_value;
+    // Value as PChar
+    Def[22].VType := vtAnsiString;
+    Def[22].VAnsiString := pointer(pansichar_fld);
+    Def[23].VType := vtPChar;
+    Def[23].VPChar := pansichar_val;
+    // Value as WideChar
+    Def[24].VType := vtAnsiString;
+    Def[24].VAnsiString := pointer(widechar_fld);
+    Def[25].VType := vtWideChar;
+    Def[25].VWideChar := widechar_val;
+    // Value as PWideChar
+    Def[26].VType := vtAnsiString;
+    Def[26].VAnsiString := pointer(pwidechar_fld);
+    Def[27].VType := vtPWideChar;
+    Def[27].VPWideChar := pwidechar_val;
+    // Value as UTF8String
+    Def[28].VType := vtAnsiString;
+    Def[28].VAnsiString := pointer(ansistring_fld);
+    Def[29].VType := vtAnsiString;
+    Def[29].VAnsiString := pointer(ansistring_val);
+    // Value as shortstring
+    Def[30].VType := vtAnsiString;
+    Def[30].VAnsiString := pointer(string_fld);
+    Def[31].VType := vtString;
+    Def[31].VString := @string_val;
+    // Value as currency
+    Def[32].VType := vtAnsiString;
+    Def[32].VAnsiString := pointer(currency_fld);
+    Def[33].VType := vtCurrency;
+    Def[33].VCurrency := @currency_val;
+    // Value as variant
+    Def[34].VType := vtAnsiString;
+    Def[34].VAnsiString := pointer(variant_fld);
+    Def[35].VType := vtVariant;
+    Def[35].VVariant := @variant_val;
+    // Value as Widestring
+    Def[36].VType := vtAnsiString;
+    Def[36].VAnsiString := pointer(widestring_fld);
+    Def[37].VType := vtWideString;
+    Def[37].VWideString := pointer(widestring_val);
+    // Value as Int64
+    Def[38].VType := vtAnsiString;
+    Def[38].VAnsiString := pointer(int64_fld);
+    Def[39].VType := vtInt64;
+    Def[39].VInt64 := @int64_val;
+    {$IFDEF DELPHI2009}
+    // Value as UnicodeString
+    Def[40].VType := vtAnsiString;
+    Def[40].VAnsiString := pointer(unicode_fld);
+    Def[41].VType := vtUnicodeString;
+    Def[41].VInt64 := pointer(unicode_val);
+    {$ENDIF}
+  end;
+begin
+  variant_val := 1234;
+  SetLength(Def, {$IFDEF DELPHI2009} 42 {$ELSE} 40 {$ENDIF});
+  PrepareDifferentFieldTypeTests;
+  PrepareDifferentValueTypesTests;
+  Check(FIBsonBuffer.appendElementsAsArray(Def), 'call to appendElementsAsArray should return true');
+  Obj := FIBsonBuffer.finish;
+  CheckObjectWithAppendedElements(Obj);
+end;
+
+procedure TestIBsonBuffer.TestAppendElementsAsArrayWithErrors;
+const
+  fld : UTF8String = 'fld';
+  int_val : Integer = 0;
+var
+  Def : TVarRecArray;
+begin
+  SetLength(Def, 2);
+  Def[0].VType := vtInteger;
+  Def[0].VAnsiString := @int_val;
+  Def[1].VType := vtAnsiString;
+  Def[1].VAnsiString := @fld;
+  try
+    FIBsonBuffer.appendElementsAsArray(Def);
+    Fail('call to appendElementsAsArray should have raise exception');
+  except
+    on E : EMongo do CheckEquals(E_ExpectedDefElementShouldBeAString, E.ErrorCode, 'appendElementsAsArray should have raised exception. error: ' + E.Message);
+  end;
+
+  SetLength(Def, 2);
+  Def[0].VType := vtAnsiString;
+  Def[0].VAnsiString := @fld;
+  Def[1].VType := vtInterface;
+  Def[1].VInterface := nil;
+  try
+    FIBsonBuffer.appendElementsAsArray(Def);
+    Fail('call to appendElementsAsArray should have raise exception');
+  except
+    on E : EMongo do CheckEquals(E_NilInterfacePointerNotSupported, E.ErrorCode, 'appendElementsAsArray should have raised exception. error: ' + E.Message);
+  end;
+
+  SetLength(Def, 0);
+  try
+    FIBsonBuffer.appendElementsAsArray(Def);
+    Fail('call to appendElementsAsArray should have raise exception');
+  except
+    on E : EMongo do CheckEquals(E_DefMustContainAMinimumOfTwoElements, E.ErrorCode, 'appendElementsAsArray should have raised exception. error: ' + E.Message);
+  end;
+end;
+
 procedure TestIBsonBuffer.TestAppendStr_n;
 var
   ReturnValue: Boolean;
-  Value: PAnsiChar;
-  Name: PAnsiChar;
+  Value: UTF8String;
+  Name: UTF8String;
   b : IBson;
 begin
-  Name := PAnsiChar('STRFLD');
-  Value := PAnsiChar('STRVAL');
+  Name := 'STRFLD';
+  Value := 'STRVAL';
   ReturnValue := FIBsonBuffer.AppendStr_n(Name, Value, 3);
   Check(ReturnValue, 'ReturnValue should be True');
   b := FIBsonBuffer.finish;
-  CheckEqualsString('STR', b.Value(PAnsiChar('STRFLD')), 'field on BSon object doesn''t match expected value');
+  CheckEqualsString('STR', b.Value('STRFLD'), 'field on BSon object doesn''t match expected value');
 end;
 
 procedure TestIBsonBuffer.TestappendSymbol_n;
 var
   ReturnValue: Boolean;
-  Value: PAnsiChar;
-  Name: PAnsiChar;
+  Value: UTF8String;
+  Name: UTF8String;
   b : IBson;
 begin
-  Name := PAnsiChar('SYMFLD');
-  Value := PAnsiChar('SymbolTest');
+  Name := 'SYMFLD';
+  Value := 'SymbolTest';
   ReturnValue := FIBsonBuffer.appendSymbol_n(Name, Value, 3);
   Check(ReturnValue, 'ReturnValue should be True');
   b := FIBsonBuffer.finish;
@@ -805,15 +1271,15 @@ end;
 procedure TestIBsonBuffer.TeststartObject;
 var
   ReturnValue: Boolean;
-  Name: PAnsiChar;
+  Name: UTF8String;
   b : IBson;
   it : IBsonIterator;
 begin
-  Name := PAnsiChar('OBJ');
+  Name := 'OBJ';
   ReturnValue := FIBsonBuffer.startObject(Name);
   Check(ReturnValue, 'ReturnValue should be True');
-  Check(FIBsonBuffer.AppendStr(PAnsiChar('STRFLD'), PAnsiChar('STRVAL')), 'Call to AppendStr should return true');
-  Check(FIBsonBuffer.Append(PAnsiChar('INTFLD'), 1), 'Call to Append should return true');
+  Check(FIBsonBuffer.AppendStr('STRFLD', 'STRVAL'), 'Call to AppendStr should return true');
+  Check(FIBsonBuffer.Append('INTFLD', 1), 'Call to Append should return true');
   Check(FIBsonBuffer.finishObject, 'Call to FIBsonBuffer.finishObjects should return true');
   b := FIBsonBuffer.finish;
   it := b.iterator;
@@ -830,17 +1296,17 @@ end;
 procedure TestIBsonBuffer.TeststartArray;
 var
   ReturnValue: Boolean;
-  Name: PAnsiChar;
+  Name: UTF8String;
   b : IBson;
   it : IBsonIterator;
   Arr : TIntegerArray;
 begin
-  Name := PAnsiChar('ARR');
+  Name := 'ARR';
   ReturnValue := FIBsonBuffer.startArray(Name);
   Check(ReturnValue, 'ReturnValue should be True');
-    Check(FIBsonBuffer.Append(PAnsiChar(AnsiString('0')), 10), 'Call to Append should return True');
-    Check(FIBsonBuffer.Append(PAnsiChar(AnsiString('0')), 20), 'Call to Append should return True');
-    Check(FIBsonBuffer.Append(PAnsiChar(AnsiString('0')), 30), 'Call to Append should return True');
+    Check(FIBsonBuffer.Append('0', 10), 'Call to Append should return True');
+    Check(FIBsonBuffer.Append('0', 20), 'Call to Append should return True');
+    Check(FIBsonBuffer.Append('0', 30), 'Call to Append should return True');
   FIBsonBuffer.finishObject;
   b := FIBsonBuffer.finish;
   it := b.iterator;
@@ -859,7 +1325,7 @@ var
 begin
   InitialSize := FIBsonBuffer.size;
   CheckNotEquals(0, InitialSize, 'Initial value of Bson buffer should be different from zero');
-  FIBsonBuffer.AppendStr(PAnsiChar('STR'), PAnsiChar('VAL'));
+  FIBsonBuffer.AppendStr('STR', 'VAL');
   ReturnValue := FIBsonBuffer.size;
   Check(ReturnValue > InitialSize, 'After inserting an element on Bson buffer size should be larger than initial size');
 end;
@@ -879,35 +1345,35 @@ var
   i : integer;
 begin
   Buf := NewBsonBuffer;
-  Buf.AppendStr(PAnsiChar('STR'), PAnsiChar('STRVAL'));
-  Buf.Append(PAnsiChar('INT'), 1);
-  Buf.Append(PAnsiChar('INT64'), Int64(10));
-  Buf.appendBinary(PAnsiChar('BIN'), 0, @ABinData, sizeof(ABinData));
+  Buf.AppendStr('STR', 'STRVAL');
+  Buf.Append('INT', 1);
+  Buf.Append('INT64', Int64(10));
+  Buf.appendBinary('BIN', 0, @ABinData, sizeof(ABinData));
   SetLength(BoolArr, 2);
   BoolArr[0] := False;
   BoolArr[1] := True;
-  Buf.appendArray(PAnsiChar('BOOLARR'), BoolArr);
-  Buf.appendCode(PAnsiChar('CODE'), PAnsiChar('123456'));
+  Buf.appendArray('BOOLARR', BoolArr);
+  Buf.appendCode('CODE', '123456');
   SetLength(DblArr, 5);
   for I := low(DblArr) to high(DblArr) do
     DblArr[i] := i + 0.5;
-  Buf.appendArray(PAnsiChar('DBLARR'), DblArr);
+  Buf.appendArray('DBLARR', DblArr);
   SetLength(IntArr, 5);
   for i := low(IntArr) to high(IntArr) do
     IntArr[i] := i;
-  Buf.appendArray(PAnsiChar('INTARR'), IntArr);
+  Buf.appendArray('INTARR', IntArr);
   BsonOID := NewBsonOID;
-  Buf.Append(PAnsiChar('BSONOID'), BsonOID);
+  Buf.Append('BSONOID', BsonOID);
   BsonRegEx := NewBsonRegEx('123', '456');
-  Buf.Append(PAnsiChar('BSONREGEX'), BsonRegEx);
+  Buf.Append('BSONREGEX', BsonRegEx);
   SetLength(StrArr, 5);
   for I := low(StrArr) to high(StrArr) do
     StrArr[i] := IntToStr(i);
-  Buf.appendArray(PAnsiChar('STRARR'), StrArr);
+  Buf.appendArray('STRARR', StrArr);
   FTimeStamp := NewBsonTimestamp(Now, 0);
-  Buf.append(PAnsiChar('TS'), FTimeStamp);
+  Buf.append('TS', FTimeStamp);
   bb := BSON(['SUBINT', 123]);
-  Buf.Append(PAnsiChar('SUBOBJ'), bb);
+  Buf.Append('SUBOBJ', bb);
   b := Buf.finish;
   FIBsonIterator := b.iterator;
   FIBsonIterator.Next;
@@ -1036,7 +1502,7 @@ begin
     FIBsonIterator.Next;
   ReturnValue := FIBsonIterator.getStringArray;
   for i := low(StrArr) to high(StrArr) do
-    CheckEqualsString(StrArr[i], ReturnValue[i], 'AnsiString array element doesn''t match');
+    CheckEqualsString(StrArr[i], ReturnValue[i], 'UTF8String array element doesn''t match');
 end;
 
 procedure TestIBsonIterator.TestgetTimestamp;
@@ -1053,7 +1519,7 @@ end;
 
 procedure TestIBsonIterator.Testkey;
 var
-  ReturnValue: AnsiString;
+  ReturnValue: UTF8String;
   i : integer;
 begin
   ReturnValue := FIBsonIterator.key;
@@ -1076,6 +1542,29 @@ begin
   FIBsonIterator.Next;
   ReturnValue := FIBsonIterator.Kind;
   CheckEquals(integer(bsonLONG), integer(ReturnValue), 'Third element returned by iterator should be bsonLONG');
+end;
+
+procedure TestIBsonIterator.TestTryToReadPastEnd;
+var
+  ReturnValue: TBsonType;
+begin
+  ReturnValue := FIBsonIterator.Kind;
+  CheckEquals(integer(bsonSTRING), integer(ReturnValue), 'First element returned by iterator should be bsonSTRING');
+  FIBsonIterator.Next;
+  ReturnValue := FIBsonIterator.Kind;
+  CheckEquals(integer(bsonINT), integer(ReturnValue), 'Second element returned by iterator should be bsonINT');
+  FIBsonIterator.Next;
+  ReturnValue := FIBsonIterator.Kind;
+  CheckEquals(integer(bsonLONG), integer(ReturnValue), 'Third element returned by iterator should be bsonLONG');
+
+  while FIBsonIterator.Next do;
+  // Here we are not past end of the iterator, attempt to read Kind should return on Exception
+  try
+    FIBsonIterator.Kind;
+    Fail('Call to Kind when past end of iterator should result on error');
+  except
+    on E : EMongo do CheckEquals(E_ErrorCallingIteratorAtEnd, E.ErrorCode, 'Exception expected calling Kind when iterator is past end');
+  end;
 end;
 
 procedure TestIBsonIterator.Testsubiterator;
@@ -1112,12 +1601,40 @@ begin
   inherited;
 end;
 
+procedure TestIBson.TestComplexBson;
+var
+  b : IBson;
+  it, it2 : IBsonIterator;
+begin
+  b := BSON(['a', 1, 'b', '123', 'subobj', '{', 'c', 3, 'd', '456', '}']);
+  Check(b <> nil, 'value returned from call to BSON should be <> nil');
+  it := b.iterator;
+  Check(it <> nil, 'Value returned from call to b.iterator should be <> nil');
+  Check(it.next, 'value returned from call to it.next should be True');
+  CheckEqualsString('a', it.key, 'First key should be equals to a');
+  CheckEquals(1, it.value, 'First element should be equals to 1');
+  Check(it.next, 'value returned from call to it.next should be True');
+  CheckEqualsString('b', it.key, 'Second attribute should be equals to b');
+  CheckEqualsString('123', it.value, 'Second attribute value should be equals to 123');
+  Check(it.next, 'value returned from call to it.next should be True');
+  it2 := it.subiterator;
+  Check(it2 <> nil, 'Value returned from call to it.iterator should be <> nil');
+  Check(it2.next, 'value returned from call to it.next should be True');
+  CheckEqualsString('c', it2.key, 'First subkey should be equals to c');
+  CheckEquals(3, it2.value, 'First sublement should be equals to 3');
+  Check(it2.next, 'value returned from call to it.next should be True');
+  CheckEqualsString('d', it2.key, 'Second subattribute should be equals to b');
+  CheckEqualsString('456', it2.value, 'Second subattribute value should be equals to 456');
+  Check(not it2.next, 'Call to it2.next should be false');
+  Check(not it.next, 'Call to it.next should be false');
+end;
+
 procedure TestIBson.Testfind;
 var
   ReturnValue: IBsonIterator;
-  Name: PAnsiChar;
+  Name: UTF8String;
 begin
-  Name := PAnsiChar(AnsiString('S'));
+  Name := 'S';
   ReturnValue := FIBson.find(Name);
   Check(ReturnValue <> nil, 'Call to FIBson.Find should have returned an iterator');
   CheckEqualsString('STR', ReturnValue.Value, 'Iterator.Value should have returned STR');
@@ -1141,6 +1658,66 @@ begin
   CheckEquals(123, ReturnValue.Value, 'Initial value of iterator is 123');
 end;
 
+procedure TestIBson.TestMkVarRecArrayFromVarArray;
+const
+  ExtendedVal : Extended = 1.1;
+  CurrencyVal : Currency = 1.2;
+var
+  VarArr : array of variant;
+  Arr : TVarRecArray;
+  d : TDateTime;
+begin
+  SetLength(VarArr, 8);
+  VarArr[0] := 1;
+  {$IFDEF DELPHI2009}
+  VarArr[1] := UnicodeString('Hello');
+  {$ELSE}
+  VarArr[1] := Null;
+  {$ENDIF}
+  VarArr[2] := ExtendedVal;
+  VarArr[3] := CurrencyVal;
+  d := Now;
+  VarArr[4] := d;
+  VarArr[5] := True;
+  {$IFDEF DELPHI2009}
+  VarArr[6] := Int64(123);
+  {$ELSE}
+  VarArr[6] := Null;
+  {$ENDIF}
+  VarArr[7] := AnsiString('Alo');
+  Arr := MkBSONVarRecArrayFromVarArray(VarArr, NewPrimitiveAllocator);
+  CheckEquals(8, length(Arr), 'Length of Arr doesn''t match');
+  CheckEquals(vtInteger, Arr[0].VType, 'Type of first parameter doesn''t match');
+  CheckEquals(1, Arr[0].VInteger, 'First value of Arr doesn''t match');
+  {$IFDEF DELPHI2009}
+  CheckEquals(vtUnicodeString, Arr[1].VType, 'Type of second parameter doesn''t match');
+  CheckEqualsString('Hello', UnicodeString(Arr[1].VUnicodeString), 'Second value of arr doesn''t match');
+  {$ENDIF}
+  CheckEquals(vtExtended, Arr[2].VType, 'Type of third parameter doesn''t match');
+  CheckEqualsString(Format('%.2g', [1.1]), Format('%.2g', [Arr[2].VExtended^]), 'Third parameter doesn''t match');
+  CheckEquals({$IFDEF DELPHI2009} vtCurrency {$ELSE} vtExtended {$ENDIF}, Arr[3].VType, 'Type of fourth parameter doesn''t match');
+  CheckEqualsString(Format('%.2g', [1.2]), Format('%.2g', [{$IFDEF DELPHI2009} Arr[3].VCurrency^ {$ELSE} Arr[3].VExtended^ {$ENDIF}]), 'Fourth parameter doesn''t match');
+  CheckEquals(vtExtended, Arr[4].VType, 'Type of fifth array element doesn''t match');
+  CheckEqualsString(DateTimeToStr(d), DateTimeToStr(Arr[4].VExtended^), 'Firth element doesn''t match');
+  CheckEquals(vtBoolean, Arr[5].VType, 'Type of sixth parameter doesn''t match');
+  CheckEquals(True, Arr[5].VBoolean, 'Sixth value of Arr doesn''t match');
+  {$IFDEF DELPHI2009}
+  CheckEquals(vtInt64, Arr[6].VType, 'Type of seventh parameter doesn''t match');
+  CheckEquals(123, Arr[6].VInt64^, 'Seventh value of Arr doesn''t match');
+  {$ENDIF}
+  CheckEquals(vtAnsiString, Arr[7].VType, 'Type of eigth parameter doesn''t match');
+  CheckEqualsString('Alo', AnsiString(Arr[7].VAnsiString), 'Eigth value of arr doesn''t match');
+end;
+
+procedure TestIBson.TestNewBsonCopy;
+var
+  ACopy : IBson;
+begin
+  ACopy := NewBsonCopy(FIBson.Handle);
+  CheckEquals(123, ACopy.find('ID').value);
+  CheckEqualsString('STR', ACopy.find('S').value);
+end;
+
 procedure TestIBson.Testsize;
 var
   ReturnValue: Integer;
@@ -1152,9 +1729,9 @@ end;
 procedure TestIBson.TestValue;
 var
   ReturnValue: Variant;
-  Name: PAnsiChar;
+  Name: UTF8String;
 begin
-  Name := PAnsiChar('ID');
+  Name := 'ID';
   ReturnValue := FIBson.Value(Name);
   CheckEquals(123, ReturnValue, 'ReturnValue should be equals to 123');
 end;
@@ -1185,6 +1762,184 @@ begin
   Check(CustomOIDFuzz, 'CustomSetOIDIncCalled should be true after creating BsonOID');
 end;
 
+{ TestArrayBuildingFunctions }
+
+procedure TestArrayBuildingFunctions.TestBuildIntArray;
+var
+  Arr : TIntegerArray;
+begin
+  Arr := MkIntArray([0, 1, 2]);
+  CheckEquals(0, Arr[0], 'Arr[0] value doesn''t match');
+  CheckEquals(1, Arr[1], 'Arr[1] value doesn''t match');
+  CheckEquals(2, Arr[2], 'Arr[2] value doesn''t match');
+end;
+
+
+procedure TestArrayBuildingFunctions.TestBuildDoubleArray;
+var
+  Arr : TDoubleArray;
+begin
+  Arr := MkDoubleArray([0.1, 1.1, 2.1]);
+  CheckEqualsString(FloatToStr(0.1), FloatToStr(Arr[0]), 'Arr[0] value doesn''t match');
+  CheckEqualsString(FloatToStr(1.1), FloatToStr(Arr[1]), 'Arr[1] value doesn''t match');
+  CheckEqualsString(FloatToStr(2.1), FloatToStr(Arr[2]), 'Arr[2] value doesn''t match');
+end;
+
+procedure TestArrayBuildingFunctions.TestBuildBooleanArray;
+var
+  Arr : TBooleanArray;
+begin
+  Arr := MkBoolArray([True, False, True]);
+  Check(Arr[0], 'Arr[0] value doesn''t match');
+  Check(not Arr[1], 'Arr[1] value doesn''t match');
+  Check(Arr[2], 'Arr[2] value doesn''t match');
+end;
+
+procedure TestArrayBuildingFunctions.TestAppendToBooleanArray;
+var
+  Arr : TBooleanArray;
+  procedure CheckFirstElements;
+  begin
+    Check(Arr[0], 'Arr[0] value doesn''t match');
+    Check(not Arr[1], 'Arr[1] value doesn''t match');
+    Check(Arr[2], 'Arr[2] value doesn''t match');
+    Check(not Arr[3], 'Arr[3] value doesn''t match');
+    Check(not Arr[4], 'Arr[4] value doesn''t match');
+    Check(Arr[5], 'Arr[5] value doesn''t match');
+    Check(Arr[6], 'Arr[6] value doesn''t match');
+  end;
+begin
+  Arr := MkBoolArray([True, False, True]);
+  AppendToBoolArray([False, False, True, True], Arr);
+  CheckEquals(7, length(Arr), 'Length of modified array doesn''t match');
+  CheckFirstElements;
+  SetLength(Arr, 10);
+  AppendToBoolArray([True, True, False], Arr, 7);
+  CheckEquals(10, length(Arr), 'Length of modified array doesn''t match');
+  CheckFirstElements;
+  Check(Arr[7], 'Arr[7] value doesn''t match');
+  Check(Arr[8], 'Arr[8] value doesn''t match');
+  Check(not Arr[9], 'Arr[9] value doesn''t match');
+end;
+
+procedure TestArrayBuildingFunctions.TestAppendToDoubleArray;
+var
+  Arr : TDoubleArray;
+  procedure CheckFirstElements;
+  begin
+    CheckEqualsString(FloatToStr(0.1), FloatToStr(Arr[0]), 'Arr[0] value doesn''t match');
+    CheckEqualsString(FloatToStr(1.1), FloatToStr(Arr[1]), 'Arr[1] value doesn''t match');
+    CheckEqualsString(FloatToStr(2.1), FloatToStr(Arr[2]), 'Arr[2] value doesn''t match');
+    CheckEqualsString(FloatToStr(2.2), FloatToStr(Arr[3]), 'Arr[3] value doesn''t match');
+    CheckEqualsString(FloatToStr(2.3), FloatToStr(Arr[4]), 'Arr[4] value doesn''t match');
+  end;
+begin
+  Arr := MkDoubleArray([0.1, 1.1, 2.1]);
+  AppendToDoubleArray([2.2, 2.3], Arr);
+  CheckFirstElements;
+  SetLength(Arr, 7);
+  AppendToDoubleArray([2.4, 2.5], Arr, 5);
+  CheckEqualsString(FloatToStr(2.4), FloatToStr(Arr[5]), 'Arr[5] value doesn''t match');
+  CheckEqualsString(FloatToStr(2.5), FloatToStr(Arr[6]), 'Arr[6] value doesn''t match');
+end;
+
+procedure TestArrayBuildingFunctions.TestAppendToIntArray;
+var
+  Arr : TIntegerArray;
+  procedure CheckFirstElements;
+  begin
+    CheckEquals(0, Arr[0], 'Arr[0] value doesn''t match');
+    CheckEquals(1, Arr[1], 'Arr[1] value doesn''t match');
+    CheckEquals(2, Arr[2], 'Arr[2] value doesn''t match');
+    CheckEquals(5, Arr[3], 'Arr[3] value doesn''t match');
+    CheckEquals(6, Arr[4], 'Arr[4] value doesn''t match');
+  end;
+begin
+  Arr := MkIntArray([0, 1, 2]);
+  AppendToIntArray([5, 6], Arr);
+  CheckFirstElements;
+  SetLength(Arr, 7);
+  AppendToIntArray([7, 8], Arr, 5);
+  CheckFirstElements;
+  CheckEquals(7, Arr[5], 'Arr[5] value doesn''t match');
+  CheckEquals(8, Arr[6], 'Arr[6] value doesn''t match');
+end;
+
+procedure TestArrayBuildingFunctions.TestBuildStrArray;
+var
+  Arr : TStringArray;
+begin
+  Arr := MkStrArray(['Hello', 'How', 'Are']);
+  CheckEqualsString('Hello', Arr[0], 'Arr[0] value doesn''t match');
+  CheckEqualsString('How', Arr[1], 'Arr[1] value doesn''t match');
+  CheckEqualsString('Are', Arr[2], 'Arr[2] value doesn''t match');
+end;
+
+procedure TestArrayBuildingFunctions.TestAppendToStrArray;
+var
+  Arr : TStringArray;
+  procedure CheckFirstElements;
+  begin
+    CheckEqualsString('Hello', Arr[0], 'Arr[0] value doesn''t match');
+    CheckEqualsString('How', Arr[1], 'Arr[1] value doesn''t match');
+    CheckEqualsString('Are', Arr[2], 'Arr[2] value doesn''t match');
+    CheckEqualsString('Doing', Arr[3], 'Arr[3] value doesn''t match');
+    CheckEqualsString('Hope', Arr[4], 'Arr[4] value doesn''t match');
+    CheckEqualsString('Well', Arr[5], 'Arr[5] value doesn''t match');
+  end;
+begin
+  Arr := MkStrArray(['Hello', 'How', 'Are']);
+  AppendToStrArray(['Doing', 'Hope', 'Well'], Arr);
+  CheckFirstElements;
+  SetLength(Arr, 8);
+  AppendToStrArray(['T', 'Ze'], Arr, 6);
+  CheckFirstElements;
+  CheckEqualsString('T', Arr[6], 'Arr[6] value doesn''t match');
+  CheckEqualsString('Ze', Arr[7], 'Arr[7] value doesn''t match');
+end;
+
+procedure TestArrayBuildingFunctions.TestBuildVarRecArray;
+var
+  Arr : TVarRecArray;
+begin
+  Arr := MkVarRecArray([0, ShortString('Hi'), 2.1]);
+  CheckEquals(vtInteger, Arr[0].VType, 'Type of Arr[0] doesn''t match');
+  CheckEquals(0, Arr[0].VInteger, 'Arr[0] value doesn''t match');
+  CheckEquals(vtString, Arr[1].VType, 'Type of Arr[1] doesn''t match');
+  CheckEqualsString('Hi', Arr[1].VString^, 'Arr[1] value doesn''t match');
+  CheckEquals(vtExtended, Arr[2].VType, 'Type of Arr[2] doesn''t match');
+  CheckEqualsString(FloatToStr(2.1), FloatToStr(Arr[2].VExtended^), 'Arr[2] value doesn''t match');
+end;
+
+procedure TestArrayBuildingFunctions.TestAppendToVarRecArray;
+var
+  Arr : TVarRecArray;
+  procedure CheckFirstElements;
+  begin
+    CheckEquals(vtInteger, Arr[0].VType, 'Type of Arr[0] doesn''t match');
+    CheckEquals(0, Arr[0].VInteger, 'Arr[0] value doesn''t match');
+    CheckEquals(vtString, Arr[1].VType, 'Type of Arr[1] doesn''t match');
+    CheckEqualsString('Hi', Arr[1].VString^, 'Arr[1] value doesn''t match');
+    CheckEquals(vtExtended, Arr[2].VType, 'Type of Arr[2] doesn''t match');
+    CheckEqualsString(FloatToStr(2.1), FloatToStr(Arr[2].VExtended^), 'Arr[2] value doesn''t match');
+    CheckEquals(vtInteger, Arr[3].VType, 'Type of Arr[3] doesn''t match');
+    CheckEquals(4, Arr[3].VInteger, 'Arr[3] value doesn''t match');
+    CheckEquals(vtBoolean, Arr[4].VType, 'Type of Arr[4] doesn''t match');
+    Check(Arr[4].VBoolean, 'Arr[4] value doesn''t match');
+  end;
+begin
+  Arr := MkVarRecArray([0, ShortString('Hi'), 2.1]);
+  AppendToVarRecArray([4, True], Arr);
+  CheckFirstElements;
+  SetLength(Arr, 7);
+  AppendToVarRecArray([5, False], Arr, 5);
+  CheckFirstElements;
+  CheckEquals(vtInteger, Arr[5].VType, 'Type of Arr[5] doesn''t match');
+  CheckEquals(5, Arr[5].VInteger, 'Arr[5] value doesn''t match');
+  CheckEquals(vtBoolean, Arr[6].VType, 'Type of Arr[6] doesn''t match');
+  Check(not Arr[6].VBoolean, 'Arr[6] value doesn''t match');
+end;
+
 initialization
   // Register any test cases with the test runner
   RegisterTest(TestIBsonOID.Suite);
@@ -1196,6 +1951,7 @@ initialization
   RegisterTest(TestIBsonIterator.Suite);
   RegisterTest(TestBsonAPI.Suite);
   RegisterTest(TestIBson.Suite);
+  RegisterTest(TestArrayBuildingFunctions.Suite);
   {$IFDEF OnDemandMongoCLoad}
   InitMongoDBLibrary;
   {$ENDIF}

@@ -1,0 +1,17 @@
+/DelphiMongoClientTests.exe
+/*.exe
+/*.map
+/*.ini
+/MongoC.dll
+/*.local
+/*.drc
+/*.identcache
+/*.~dsk
+/*.dsk
+/MongoData/
+/MongoDataReplica_1/
+/MongoDataReplica_2/
+/MongoDataReplica_3/
+/*.rsm
+/DCU/
+/MongoData_2/
