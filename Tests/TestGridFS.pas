@@ -52,6 +52,7 @@ type
     procedure TestwriterCreateWithContentType;
     procedure Testfind;
     procedure TestfindUsingBsonQuery;
+    procedure TestMultipleGridFSReposAndRemoval;
   end;
   // Test methods for class TGridfile
   
@@ -141,10 +142,13 @@ end;
 procedure TestGridFSBase.TearDown;
 begin
   DeleteFile(StandardTestFileName);
-  FGridFS.removeFile(StandardTestFileName);
-  FGridFS.removeFile(StandardRemoteFileName);
-  FGridFS.Free;
-  FGridFS := nil;
+  if FGridFS <> nil then
+    begin
+      FGridFS.removeFile(StandardTestFileName);
+      FGridFS.removeFile(StandardRemoteFileName);
+      FGridFS.Free;
+      FGridFS := nil;
+    end;
   if MustDropDatabase then
     FMongo.dropDatabase(FSDB);
   inherited;
@@ -302,6 +306,64 @@ begin
   query := BSON(['filename', StandardTestFileName]);
   ReturnValue := FGridFS.find(query, False);
   Check(ReturnValue <> nil, 'Call to Find should return a non nil IGridFile object when file exists');
+end;
+
+procedure TestTGridFS.TestMultipleGridFSReposAndRemoval;
+const
+  AFileName : UTF8String = 'TheData.txt';
+  AFileName2 : UTF8String = 'TheData2.txt';
+  ASomeData : UTF8String = 'HELLO WORLD';
+var
+  AGridFS2 : TGridFS;
+  AFile : IGridfile;
+  j : integer;
+  procedure CountGridFSCollections;
+  var
+    i : integer;
+    ACollections : TStringArray;
+  begin
+    ACollections := FMongo.getDatabaseCollections(FSDB);
+    j := 0;
+    for I := Low(ACollections) to High(ACollections) do
+      if (ACollections[i] = FSDB + '.fs.files') or (ACollections[i] = FSDB + '.fs.chunks') or
+         (ACollections[i] = FSDB + '.fs2.files') or (ACollections[i] = FSDB + '.fs2.chunks') then
+        inc(j);
+  end;
+begin
+  AGridFS2 := TGridFS.Create(FMongo, FSDB, 'fs2');
+  try
+    { The code bellow looks strange. We have to re-create the gridFS AFTER removing the GridFS system
+      so the collections are re-created. This is a sanity check we do against the database before the
+      rest of the test runs }
+    AGridFS2.removeFS;
+    FGridFS.removeFS;
+    CountGridFSCollections;
+    CheckEquals(0, j, 'There should be no GridFS collections starting test that match prefix fs and fs2');
+    FreeAndNil(AGridFS2);
+    AGridFS2 := TGridFS.Create(FMongo, FSDB, 'fs2');
+    FreeAndNil(FGridFS);
+    FGridFS := TGridFS.Create(FMongo, FSDB);
+    AGridFS2.store(PAnsiChar(ASomeData), length(ASomeData), AFileName);
+    AFile := AGridFS2.find(AFileName, False);
+    Check(AFile <> nil, 'Call to find fsdb.fs2(TheData.txt) should be  <> nil');
+    AFile := FGridFS.find(AFileName, False);
+    Check(AFile = nil, 'Return from call to find fsdb.fs (TheData.txt) should be nil');
+    FGridFS.store(PAnsiChar(ASomeData), length(ASomeData), AFileName2);
+    try
+      AFile := FGridFS.find(AFileName2, False);
+      Check(AFile <> nil, 'Call to find fsdb.fs(TheData2.txt) should be  <> nil');
+    finally
+      FGridFS.removeFile(AFileName2);
+    end;
+    CountGridFSCollections;
+    CheckEquals(4, j, 'Four matching GridFS collections should exist between prefix fs and fs2');
+  finally
+    if AGridFS2 <> nil then
+      begin
+        AGridFS2.removeFile(AFileName);
+        AGridFS2.Free;
+      end;
+  end;
 end;
 
 procedure TestTGridfile.CheckChunkBson(ReturnValue: IBson);
