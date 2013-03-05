@@ -120,6 +120,7 @@ type
     { Destroy this GridFS object.  Releases external resources. }
     function createGridFile: IGridFile;
     destructor Destroy; override;
+    procedure removeFS;
     property AutoCheckLastError: Boolean read getAutoCheckLastError write setAutoCheckLastError;
     property CaseInsensitiveFileNames: Boolean read GetCaseInsensitiveFileNames
         write SetCaseInsensitiveFileNames;
@@ -478,6 +479,12 @@ function TGridFS.GetCaseInsensitiveFileNames: Boolean;
 begin
   CheckHandle;
   Result := gridfs_get_caseInsensitive(Handle);
+end;
+
+procedure TGridFS.removeFS;
+begin
+  conn.drop(fdb + '.' + FPrefix + '.files');
+  conn.drop(fdb + '.' + FPrefix + '.chunks');
 end;
 
 procedure TGridFS.SetCaseInsensitiveFileNames(const Value: Boolean);
