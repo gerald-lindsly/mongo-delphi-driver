@@ -15,6 +15,9 @@ program DelphiMongoClientTests_XE2;
 {$ENDIF}
 
 uses
+  {$IFDEF FASTMM}
+  FastMM4,
+  {$ENDIF}
   Forms,
   TestFramework,
   GUITestRunner,

@@ -847,38 +847,33 @@ begin
 end;
 
 function TMongo.getDatabaseCollections(const db: UTF8String): TStringArray;
+const
+  InitialArraySize = 1;
 var
   Cursor: IMongoCursor;
-  count, i: Integer;
+  count: Integer;
   ns, Name: UTF8String;
   b: IBson;
 begin
   {$IFDEF MONGO_MEMORY_PROTECTION} CheckValid; {$ENDIF}
+  SetLength(Result, InitialArraySize);
   count := 0;
   ns := db + SSystemNamespaces;
   Cursor := NewMongoCursor;
   if find(ns, Cursor) then
     while Cursor.Next do
-    begin
-      b := Cursor.Value;
-      Name := UTF8String(b.Value(SName));
-      if (Pos(SSystem, Name) = 0) and (Pos('$', Name) = 0) then
-        Inc(count);
-    end;
-  SetLength(Result, count);
-  i := 0;
-  Cursor := NewMongoCursor;
-  if find(ns, Cursor) then
-    while Cursor.Next do
-    begin
-      b := Cursor.Value;
-      Name := UTF8String(b.Value(SName));
-      if (Pos(SSystem, Name) = 0) and (Pos('$', Name) = 0) then
       begin
-        Result[i] := Name;
-        Inc(i);
+        b := Cursor.Value;
+        Name := UTF8String(b.Value(SName));
+        if (Pos(SSystem, Name) = 0) and (Pos('$', Name) = 0) then
+          begin
+            if Count >= length(Result) then
+              SetLength(Result, length(Result) * 2);
+            Result[count] := Name;
+            Inc(count);
+          end;
       end;
-    end;
+  SetLength(Result, count); // Adjust size back to real amount of elements on array
 end;
 
 function TMongo.Rename(const from_ns, to_ns: UTF8String): Boolean;

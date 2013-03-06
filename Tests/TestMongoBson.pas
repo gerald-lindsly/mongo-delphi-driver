@@ -173,6 +173,7 @@ type
     procedure Testiterator;
     procedure TestMkVarRecArrayFromVarArray;
     procedure TestNewBsonCopy;
+    procedure TestSimpleBSON;
     procedure Testsize;
     procedure TestValue;
   end;
@@ -1387,6 +1388,10 @@ begin
   BsonOID := nil;
   BsonRegEx := nil;
   FTimestamp := nil;
+  BoolArr := nil;
+  DblArr := nil;
+  IntArr := nil;
+  StrArr := nil;
   inherited;
 end;
 
@@ -1686,27 +1691,31 @@ begin
   {$ENDIF}
   VarArr[7] := AnsiString('Alo');
   Arr := MkBSONVarRecArrayFromVarArray(VarArr, NewPrimitiveAllocator);
-  CheckEquals(8, length(Arr), 'Length of Arr doesn''t match');
-  CheckEquals(vtInteger, Arr[0].VType, 'Type of first parameter doesn''t match');
-  CheckEquals(1, Arr[0].VInteger, 'First value of Arr doesn''t match');
-  {$IFDEF DELPHI2009}
-  CheckEquals(vtUnicodeString, Arr[1].VType, 'Type of second parameter doesn''t match');
-  CheckEqualsString('Hello', UnicodeString(Arr[1].VUnicodeString), 'Second value of arr doesn''t match');
-  {$ENDIF}
-  CheckEquals(vtExtended, Arr[2].VType, 'Type of third parameter doesn''t match');
-  CheckEqualsString(Format('%.2g', [1.1]), Format('%.2g', [Arr[2].VExtended^]), 'Third parameter doesn''t match');
-  CheckEquals({$IFDEF DELPHI2009} vtCurrency {$ELSE} vtExtended {$ENDIF}, Arr[3].VType, 'Type of fourth parameter doesn''t match');
-  CheckEqualsString(Format('%.2g', [1.2]), Format('%.2g', [{$IFDEF DELPHI2009} Arr[3].VCurrency^ {$ELSE} Arr[3].VExtended^ {$ENDIF}]), 'Fourth parameter doesn''t match');
-  CheckEquals(vtExtended, Arr[4].VType, 'Type of fifth array element doesn''t match');
-  CheckEqualsString(DateTimeToStr(d), DateTimeToStr(Arr[4].VExtended^), 'Firth element doesn''t match');
-  CheckEquals(vtBoolean, Arr[5].VType, 'Type of sixth parameter doesn''t match');
-  CheckEquals(True, Arr[5].VBoolean, 'Sixth value of Arr doesn''t match');
-  {$IFDEF DELPHI2009}
-  CheckEquals(vtInt64, Arr[6].VType, 'Type of seventh parameter doesn''t match');
-  CheckEquals(123, Arr[6].VInt64^, 'Seventh value of Arr doesn''t match');
-  {$ENDIF}
-  CheckEquals(vtAnsiString, Arr[7].VType, 'Type of eigth parameter doesn''t match');
-  CheckEqualsString('Alo', AnsiString(Arr[7].VAnsiString), 'Eigth value of arr doesn''t match');
+  try
+    CheckEquals(8, length(Arr), 'Length of Arr doesn''t match');
+    CheckEquals(vtInteger, Arr[0].VType, 'Type of first parameter doesn''t match');
+    CheckEquals(1, Arr[0].VInteger, 'First value of Arr doesn''t match');
+    {$IFDEF DELPHI2009}
+    CheckEquals(vtUnicodeString, Arr[1].VType, 'Type of second parameter doesn''t match');
+    CheckEqualsString('Hello', UnicodeString(Arr[1].VUnicodeString), 'Second value of arr doesn''t match');
+    {$ENDIF}
+    CheckEquals(vtExtended, Arr[2].VType, 'Type of third parameter doesn''t match');
+    CheckEqualsString(Format('%.2g', [1.1]), Format('%.2g', [Arr[2].VExtended^]), 'Third parameter doesn''t match');
+    CheckEquals({$IFDEF DELPHI2009} vtCurrency {$ELSE} vtExtended {$ENDIF}, Arr[3].VType, 'Type of fourth parameter doesn''t match');
+    CheckEqualsString(Format('%.2g', [1.2]), Format('%.2g', [{$IFDEF DELPHI2009} Arr[3].VCurrency^ {$ELSE} Arr[3].VExtended^ {$ENDIF}]), 'Fourth parameter doesn''t match');
+    CheckEquals(vtExtended, Arr[4].VType, 'Type of fifth array element doesn''t match');
+    CheckEqualsString(DateTimeToStr(d), DateTimeToStr(Arr[4].VExtended^), 'Firth element doesn''t match');
+    CheckEquals(vtBoolean, Arr[5].VType, 'Type of sixth parameter doesn''t match');
+    CheckEquals(True, Arr[5].VBoolean, 'Sixth value of Arr doesn''t match');
+    {$IFDEF DELPHI2009}
+    CheckEquals(vtInt64, Arr[6].VType, 'Type of seventh parameter doesn''t match');
+    CheckEquals(123, Arr[6].VInt64^, 'Seventh value of Arr doesn''t match');
+    {$ENDIF}
+    CheckEquals(vtAnsiString, Arr[7].VType, 'Type of eigth parameter doesn''t match');
+    CheckEqualsString('Alo', AnsiString(Arr[7].VAnsiString), 'Eigth value of arr doesn''t match');
+  finally
+    CleanVarRecArray(Arr);
+  end;
 end;
 
 procedure TestIBson.TestNewBsonCopy;
@@ -1716,6 +1725,14 @@ begin
   ACopy := NewBsonCopy(FIBson.Handle);
   CheckEquals(123, ACopy.find('ID').value);
   CheckEqualsString('STR', ACopy.find('S').value);
+end;
+
+procedure TestIBson.TestSimpleBSON;
+var
+  AObj : IBSON;
+begin
+  AObj := BSON(['a', 1]);
+  Check(AObj <> nil, 'BSON object should be <> nil');
 end;
 
 procedure TestIBson.Testsize;
