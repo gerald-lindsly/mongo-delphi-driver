@@ -72,6 +72,7 @@ var
   i : integer;
   LastResult : Boolean;
 begin
+  FailsOnMemoryLeak := False; // We know this test will generate a memory leak on purpose
   PtrList := TList.Create;
   try
     PtrList.Add(FFixedBlockHeap.Alloc);

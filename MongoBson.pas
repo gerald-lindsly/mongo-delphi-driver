@@ -333,7 +333,10 @@ function MkDoubleArray(const Arr : array of Double): TDoubleArray;
 function MkBoolArray(const Arr : array of Boolean): TBooleanArray;
 function MkStrArray(const Arr : array of UTF8String): TStringArray;
 function MkVarRecArray(const Arr : array of const): TVarRecArray;
+
+// IMPORTANT: When using MkBSONVarRecArrayFromVarArray developer MUST USE CleanVarRecArray to deallocate dynamically allocated string types
 function MkBSONVarRecArrayFromVarArray(const Arr : array of Variant; Allocator : IPrimitiveAllocator) : TVarRecArray;
+procedure CleanVarRecArray(const Arr: TVarRecArray);
 
 procedure AppendToIntArray(const Arr : array of Integer; var TargetArray : TIntegerArray; FromIndex : Cardinal = 0);
 procedure AppendToDoubleArray(const Arr : array of Double; var TargetArray : TDoubleArray; FromIndex : Cardinal = 0);
@@ -1880,7 +1883,11 @@ begin
   if length(x) > 0 then
   begin
      VarRecArr := MkBSONVarRecArrayFromVarArray(x, NewPrimitiveAllocator);
-     bb.appendElementsAsArray(VarRecArr);
+     try
+       bb.appendElementsAsArray(VarRecArr);
+     finally
+       CleanVarRecArray(VarRecArr);
+     end;
   end;
   Result := bb.finish;
 end;
@@ -2045,6 +2052,19 @@ procedure AppendToStrArray(const Arr : array of UTF8String; var TargetArray : TS
 
 procedure AppendToVarRecArray(const Arr : array of const; var TargetArray : TVarRecArray; FromIndex : Cardinal = 0);
 {$i MongoBsonArrayAppender.inc}
+
+
+procedure CleanVarRecArray(const Arr: TVarRecArray);
+var
+  i : integer;
+begin
+  for I := Low(Arr) to High(Arr) do
+    case Arr[i].VType of
+      vtUnicodeString : UnicodeString(Arr[i].VUnicodeString) := '';
+      vtAnsiString : AnsiString(Arr[i].VAnsiString) := '';
+      vtWideString : Widestring(Arr[i].VWideString) := '';
+    end;
+end;
 
 function MkBSONVarRecArrayFromVarArray(const Arr : array of Variant; Allocator : IPrimitiveAllocator) : TVarRecArray;
 var

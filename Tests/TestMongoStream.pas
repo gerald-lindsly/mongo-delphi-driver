@@ -704,22 +704,31 @@ begin
   FRecreateLoops := 0;
   FOpenReadonlyLoops := 0;
   FGridFS.removeFile(ConcurrentReCreateOpenReadOnlyFileName);
-  ThreadRecreateStream := TMongoStreamThread.Create(@TestTMongoStream.RecreateStream, LOOPS);
-  ThreadOpenReadonly := TMongoStreamThread.Create(@TestTMongoStream.OpenStreamReadOnly, LOOPS);
-  ThreadRecreateStream.Resume;
-  while FRecreateLoops <= 0 do Sleep(5);
-  ThreadOpenReadonly.Resume;
-  ThreadRecreateStream.WaitFor;
-  ThreadOpenReadonly.WaitFor;
-  AErrorMessages := '';
-  if ThreadRecreateStream.ErrorMessage <> '' then
-    AErrorMessages := AErrorMessages + ThreadRecreateStream.ErrorMessage + #13#10;
-  if ThreadOpenReadonly.ErrorMessage <> '' then
-    AErrorMessages := AErrorMessages + ThreadOpenReadonly.ErrorMessage + #13#10;
-  if AErrorMessages <> '' then
-    Fail(AErrorMessages + Format(' Recreate loops completed: %d. Open readonly loops completed: %d', [FRecreateLoops, FOpenReadonlyLoops]));
-  CheckEquals(LOOPS, FRecreateLoops);
-  CheckEquals(LOOPS, FOpenReadonlyLoops);
+  ThreadRecreateStream := nil;
+  ThreadOpenReadonly := nil;
+  try
+    ThreadRecreateStream := TMongoStreamThread.Create(@TestTMongoStream.RecreateStream, LOOPS);
+    ThreadOpenReadonly := TMongoStreamThread.Create(@TestTMongoStream.OpenStreamReadOnly, LOOPS);
+    ThreadRecreateStream.Resume;
+    while FRecreateLoops <= 0 do Sleep(5);
+    ThreadOpenReadonly.Resume;
+    ThreadRecreateStream.WaitFor;
+    ThreadOpenReadonly.WaitFor;
+    AErrorMessages := '';
+    if ThreadRecreateStream.ErrorMessage <> '' then
+      AErrorMessages := AErrorMessages + ThreadRecreateStream.ErrorMessage + #13#10;
+    if ThreadOpenReadonly.ErrorMessage <> '' then
+      AErrorMessages := AErrorMessages + ThreadOpenReadonly.ErrorMessage + #13#10;
+    if AErrorMessages <> '' then
+      Fail(AErrorMessages + Format(' Recreate loops completed: %d. Open readonly loops completed: %d', [FRecreateLoops, FOpenReadonlyLoops]));
+    CheckEquals(LOOPS, FRecreateLoops);
+    CheckEquals(LOOPS, FOpenReadonlyLoops);
+  finally
+    if ThreadRecreateStream <> nil then
+      ThreadRecreateStream.Free;
+    if ThreadOpenReadonly <> nil then
+      ThreadOpenReadonly.Free;
+  end;
 end;
 
 procedure TestTMongoStream.TestSetSizeMakeFileLarger;
