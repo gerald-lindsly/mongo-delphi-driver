@@ -225,6 +225,7 @@ begin
   CheckEqualsString(TheVal, Val^, 'Value returned by New(WideChar(''d'')) doesn''t match expected value');
 end;
 
+{$IFDEF DELPHI2009}
 procedure TestTPrimitiveAllocator.TestAllowUnicodeStringFromArrayOfConst;
 var
   p : PUnicodeString;
@@ -237,6 +238,7 @@ begin
   AllocString(['hola']);
   CheckEqualsString('hola', p^, 'Allocated string doesn''t match');
 end;
+{$ENDIF}
 
 initialization
   // Register any test cases with the test runner

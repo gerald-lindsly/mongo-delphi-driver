@@ -2060,7 +2060,9 @@ var
 begin
   for I := Low(Arr) to High(Arr) do
     case Arr[i].VType of
+      {$IFDEF DELPHI2009}
       vtUnicodeString : UnicodeString(Arr[i].VUnicodeString) := '';
+      {$ENDIF}
       vtAnsiString : AnsiString(Arr[i].VAnsiString) := '';
       vtWideString : Widestring(Arr[i].VWideString) := '';
     end;
