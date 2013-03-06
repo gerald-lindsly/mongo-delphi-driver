@@ -1661,6 +1661,7 @@ begin
 end;
 
 initialization
+  bsonEmpty; // Call bsonEmpty on initialization to avoid reporting of memory leak when enabled
   // Register any test cases with the test runner
   RegisterTest(TestTMongo.Suite);
   RegisterTest(TestTMongoReplset.Suite);

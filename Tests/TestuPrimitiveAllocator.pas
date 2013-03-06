@@ -43,6 +43,7 @@ type
     procedure TestAllocPWideChar;
     procedure TestAllocUnicodeString;
     procedure TestAllocCurrency;
+    procedure TestAllowUnicodeStringFromArrayOfConst;
     {$ENDIF}
   end;
 
@@ -223,6 +224,21 @@ begin
   Check(Val <> nil, 'Value returned by call to New(WideChar(''d'')) should return <> nil');
   CheckEqualsString(TheVal, Val^, 'Value returned by New(WideChar(''d'')) doesn''t match expected value');
 end;
+
+{$IFDEF DELPHI2009}
+procedure TestTPrimitiveAllocator.TestAllowUnicodeStringFromArrayOfConst;
+var
+  p : PUnicodeString;
+  procedure AllocString(const arr : array of const);
+  begin
+    p := FAllocator.New(UnicodeString(arr[0].VUnicodeString));
+  end;
+begin
+  p := nil;
+  AllocString(['hola']);
+  CheckEqualsString('hola', p^, 'Allocated string doesn''t match');
+end;
+{$ENDIF}
 
 initialization
   // Register any test cases with the test runner
