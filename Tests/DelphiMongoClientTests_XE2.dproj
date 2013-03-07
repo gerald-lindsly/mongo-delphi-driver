@@ -232,7 +232,7 @@ $(PreBuildEvent)]]></PreBuildEvent>
 			<Manifest_File>$(BDS)\bin\default_app.manifest</Manifest_File>
 		</PropertyGroup>
 		<PropertyGroup Condition="'$(Cfg_4_Win32)'!=''">
-			<DCC_Define>FASTMM;$(DCC_Define)</DCC_Define>
+			<DCC_Define>FASTMM;NeverSleepOnThreadContention;$(DCC_Define)</DCC_Define>
 			<VerInfo_IncludeVerInfo>true</VerInfo_IncludeVerInfo>
 			<Manifest_File>$(BDS)\bin\default_app.manifest</Manifest_File>
 		</PropertyGroup>
