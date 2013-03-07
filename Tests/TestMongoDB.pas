@@ -436,6 +436,7 @@ procedure TestTMongo.TearDown;
 begin
   FMongo.drop('test_db.test_thread');
   FMongo.dropDatabase('test_db');
+  FMongo.dropDatabase('test_database');
   inherited;
 end;
 
