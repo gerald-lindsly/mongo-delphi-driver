@@ -705,7 +705,7 @@ implementation
   destructor TMongoCursor.Destroy();
   begin
     mongo_cursor_destroy(handle);
-    mongo_cursor_dispose(handle);
+    // mongo_cursor_dispose(handle);
   end;
 
   function TMongo.find(ns : string; cursor : TMongoCursor) : Boolean;
