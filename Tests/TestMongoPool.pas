@@ -68,6 +68,9 @@ begin
   FMongoPool := nil;
   RemoveUser('test_user_thread', 'test_usr_pwd');
   RemoveUser('testuser', 'testpwd');
+  FMongo.dropDatabase('test');
+  FMongo.dropDatabase('testdb');
+  FMongo.dropDatabase('testdb2');
   inherited;
 end;
 
