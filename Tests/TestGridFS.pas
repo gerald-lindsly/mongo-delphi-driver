@@ -95,6 +95,9 @@ type
     procedure TestWrite;
     procedure TestExpand;
     procedure TestTruncate;
+    procedure TestWriteOneChunkAndSeekBack;
+    procedure TestWriteTwoChunksAndSeekBackWithinLastChunk;
+    procedure TestWriteTwoChunksAndSeekBackToPreviousChunk;
   end;
 
 implementation
@@ -587,6 +590,48 @@ begin
   f.Read(PAnsiChar(s), length(s));
   CheckEqualsString(system.Copy(FILEDATA2, 1, 5), s);
   CheckEquals(5, f.getLength);
+end;
+
+procedure TestTGridfileWriter.TestWriteOneChunkAndSeekBack;
+var
+  f : IGridFile;
+  s : UTF8String;
+begin
+  FGridfileWriter.Write(PAnsiChar(FILEDATA2), length(FILEDATA2));
+  FGridFileWriter.seek(length(FILEDATA2) div 2);
+  Check(FGridFileWriter.finish, 'Call to finish should return True');
+  f := FGridFS.find(StandardTestFileName, False);
+  SetLength(s, f.getLength);
+  f.Read(PAnsiChar(s), length(s));
+  CheckEqualsString(FILEDATA2, s, 'Data read doesn''t match');
+end;
+
+procedure TestTGridfileWriter.TestWriteTwoChunksAndSeekBackWithinLastChunk;
+var
+  f : IGridFile;
+  i, n : integer;
+begin
+  n := Trunc(1.5 * (FGridfileWriter.getChunkSize div length(FILEDATA2)));
+  for I := 1 to n do
+    FGridfileWriter.Write(PAnsiChar(FILEDATA2), length(FILEDATA2));
+  FGridFileWriter.seek(FGridfileWriter.getChunkSize + length(FILEDATA2));
+  Check(FGridFileWriter.finish, 'Call to finish should return True');
+  f := FGridFS.find(StandardTestFileName, False);
+  CheckEquals(length(FILEDATA2) * n, f.getLength, 'Expected length of stream doesn''t match');
+end;
+
+procedure TestTGridfileWriter.TestWriteTwoChunksAndSeekBackToPreviousChunk;
+var
+  f : IGridFile;
+  i, n : integer;
+begin
+  n := Trunc(1.5 * (FGridfileWriter.getChunkSize div length(FILEDATA2)));
+  for I := 1 to n do
+    FGridfileWriter.Write(PAnsiChar(FILEDATA2), length(FILEDATA2));
+  FGridFileWriter.seek(length(FILEDATA2));
+  Check(FGridFileWriter.finish, 'Call to finish should return True');
+  f := FGridFS.find(StandardTestFileName, False);
+  CheckEquals(length(FILEDATA2) * n, f.getLength, 'Expected length of stream doesn''t match');
 end;
 
 initialization
