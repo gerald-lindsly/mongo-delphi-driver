@@ -39,7 +39,7 @@ type
     procedure SetUp; override;
     procedure TearDown; override;
   published
-    procedure TestGetSizeIn32;
+    procedure TestGetSizeInt32;
     procedure TestSetSizeInt32;
     {$IFDEF DELPHI2007}
     procedure TestSetSizeInt64;
@@ -170,7 +170,7 @@ begin
   inherited;
 end;
 
-procedure TestTMongoStream.TestGetSizeIn32;
+procedure TestTMongoStream.TestGetSizeInt32;
 var
   ReturnValue: Int64;
 begin

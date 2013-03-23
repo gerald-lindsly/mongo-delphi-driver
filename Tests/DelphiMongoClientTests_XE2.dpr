@@ -58,5 +58,8 @@ begin
   GUITestRunner_.Suite := RegisteredTests;
     Application.Run;
   end;
+  {$IFDEF LogMemoryManagerStateToFile}
+  LogMemoryManagerStateToFile('MemState.txt');
+  {$ENDIF}
 end.
 

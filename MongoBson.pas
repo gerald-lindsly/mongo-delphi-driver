@@ -1666,8 +1666,7 @@ begin
   code := UTF8String(bson_iterator_code(i.getHandle));
   b := bson_create;
   try
-    bson_init(b);
-    bson_iterator_code_scope(i.getHandle, b);
+    bson_iterator_code_scope_init(i.getHandle, b);
     scope := NewBsonCopy(b);
   finally
     bson_dispose(b);
@@ -1987,7 +1986,6 @@ var
 begin
   b := bson_create;
   try
-    bson_init(b);
     bson_copy(b, AHandle);
     Result := NewBson(b);
   except
