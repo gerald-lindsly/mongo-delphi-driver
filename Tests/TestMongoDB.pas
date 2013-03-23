@@ -30,7 +30,6 @@ type
   end;
 
   TestMongoBase = class(TTestCase)
-  private
   protected
     FMongo: TMongo;
     function CreateMongo: TMongo; virtual;
@@ -38,6 +37,8 @@ type
     procedure SetUp; override;
     procedure TearDown; override;
   public
+    class procedure StartMongo;
+  published
   end;
 
   TestTMongo = class(TestMongoBase)
@@ -125,7 +126,7 @@ type
   TestIMongoCursor = class(TTestCase)
   private
     FIMongoCursor: IMongoCursor;
-    FMongo: TMongoReplset;
+    FMongo: TMongo;
     FMongoSecondary : TMongo;
   protected
     procedure DeleteSampleData;
@@ -346,6 +347,12 @@ end;
 procedure TestMongoBase.SetUp;
 begin
   inherited;
+  StartMongo;
+  FMongo := CreateMongo;
+end;
+
+class procedure TestMongoBase.StartMongo;
+begin
   if not MongoStarted then
     begin
       DeleteEntireDir(ExtractFilePath(ParamStr(0)) + '\MongoData');
@@ -353,7 +360,6 @@ begin
       StartMongoDB('--dbpath ' + ExtractFilePath(ParamStr(0)) + '\MongoData --smallfiles --noprealloc --journalCommitInterval 5');
       MongoStarted := True;
     end;
-  FMongo := CreateMongo;
 end;
 
 procedure TestMongoBase.TearDown;
@@ -1221,10 +1227,15 @@ begin
   FIMongoCursor := NewMongoCursor;
   StartReplSet;
   FMongo := TMongoReplset.Create('foo');
-  FMongo.addSeed('127.0.0.1:27018');
-  FMongo.addSeed('127.0.0.1:27019');
-  FMongo.addSeed('127.0.0.1:27020');
-  FMongo.Connect;
+  with FMongo as TMongoReplset do
+    begin
+      addSeed('127.0.0.1:27018');
+      addSeed('127.0.0.1:27019');
+      addSeed('127.0.0.1:27020');
+      Connect;
+    end;
+  {TestMongoBase.StartMongo;
+  FMongo := TMongo.Create;}
 end;
 
 procedure TestIMongoCursor.SetupData;

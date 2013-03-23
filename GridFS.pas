@@ -333,7 +333,6 @@ end;
 
 destructor TGridFS.Destroy;
 begin
-  {$IFDEF MONGO_MEMORY_PROTECTION} CheckValid; {$ENDIF}
   if Handle <> nil then
     begin
       gridfs_destroy(Handle);
@@ -345,7 +344,6 @@ end;
 
 procedure TGridFS.CheckHandle;
 begin
-  {$IFDEF MONGO_MEMORY_PROTECTION} CheckValid; {$ENDIF}
   if Handle = nil then
     raise EMongo.Create(SGridFSHandleIsNil, E_GridFSHandleIsNil);
 end;
@@ -365,14 +363,12 @@ end;
 function TGridFS.storeFile(const FileName, remoteName: UTF8String; Flags:
     Integer = GRIDFILE_DEFAULT): Boolean;
 begin
-  {$IFDEF MONGO_MEMORY_PROTECTION} CheckValid; {$ENDIF}
   Result := storeFile(FileName, remoteName, '', Flags);
 end;
 
 function TGridFS.storeFile(const FileName: UTF8String; Flags: Integer =
     GRIDFILE_DEFAULT): Boolean;
 begin
-  {$IFDEF MONGO_MEMORY_PROTECTION} CheckValid; {$ENDIF}
   Result := storeFile(FileName, FileName, '', Flags);
 end;
 
@@ -384,7 +380,6 @@ end;
 
 procedure TGridFS.setAutoCheckLastError(value: Boolean);
 begin
-  {$IFDEF MONGO_MEMORY_PROTECTION} CheckValid; {$ENDIF}
   conn.AutoCheckLastError := Value;
 end;
 
@@ -398,7 +393,6 @@ end;
 function TGridFS.store(p: Pointer; Length: Int64; const remoteName: UTF8String;
     Flags: Integer = GRIDFILE_DEFAULT): Boolean;
 begin
-  {$IFDEF MONGO_MEMORY_PROTECTION} CheckValid; {$ENDIF}
   Result := store(p, Length, remoteName, '', Flags);
 end;
 
@@ -412,7 +406,6 @@ end;
 function TGridFS.writerCreate(const remoteName: UTF8String; Flags: Integer =
     GRIDFILE_DEFAULT): IGridfileWriter;
 begin
-  {$IFDEF MONGO_MEMORY_PROTECTION} CheckValid; {$ENDIF}
   Result := writerCreate(remoteName, '', Flags);
 end;
 
@@ -443,7 +436,6 @@ begin
           begin
             meta := bson_create;
             try
-              bson_init(meta);
               gridfile_get_descriptor( AHandle, meta );
               gf := TGridfileWriter.Create(Self, gridfile_get_filename(AHandle), True, Meta, GRIDFILE_DEFAULT);
               gridfile_destroy(AHandle);
@@ -462,14 +454,12 @@ end;
 
 function TGridFS.getAutoCheckLastError: Boolean;
 begin
-  {$IFDEF MONGO_MEMORY_PROTECTION} CheckValid; {$ENDIF}
   Result := conn.AutoCheckLastError;
 end;
 
 function TGridFS.find(const remoteName: UTF8String; AWriteMode: Boolean):
     IGridfile;
 begin
-  {$IFDEF MONGO_MEMORY_PROTECTION} CheckValid; {$ENDIF}
   if CaseInsensitiveFileNames then
     Result := find(BSON([SFilename, UpperCase(remoteName)]), AWriteMode)
   else Result := find(BSON([SFilename, remoteName]), AWriteMode);
@@ -639,8 +629,7 @@ begin
   CheckHandle;
   b := bson_create;
   try
-    bson_init(b);
-    gridfile_get_metadata(FHandle, b);
+    gridfile_get_metadata(FHandle, b, True);
     if bson_size(b) <= 5 then
       Result := nil
     else
@@ -663,7 +652,6 @@ begin
   CheckHandle;
   b := bson_create;
   try
-    bson_init(b);
     gridfile_get_descriptor(FHandle, b);
     Result := NewBsonCopy(b);
   finally
@@ -679,7 +667,6 @@ begin
   CheckHandle;
   h := bson_create;
   try
-    bson_init(h);
     b := NewBson(h);
   except
     bson_dispose_and_destroy(h);

@@ -56,11 +56,6 @@ type
 
 type
   TMongoObject = class(TObject)
-  protected
-    MongoSignature : cardinal;
-    {$IFDEF MONGO_MEMORY_PROTECTION}
-    procedure CheckValid; {$IFDEF DELPHIXE2} inline; {$ENDIF}
-    {$ENDIF}
   public
     constructor Create;
     destructor Destroy; override;
@@ -69,6 +64,9 @@ type
 {$IFDEF OnDemandMongoCLoad}
 type
   // MongoDB declarations
+  Tset_mem_alloc_functions = procedure (custom_bson_malloc_func,
+                                        custom_bson_realloc_func,
+                                        custom_bson_free_func : Pointer); cdecl;
   Tmongo_env_sock_init = function : integer; cdecl;
   Tmongo_create = function : Pointer; cdecl;
   Tmongo_dispose = procedure (c: Pointer); cdecl;
@@ -117,7 +115,7 @@ type
   Tmongo_get_server_err_string = function (c: Pointer): PAnsiChar; cdecl;
   // WriteConcern API
   Tmongo_write_concern_create = function : Pointer; cdecl;
-  Tmongo_write_concern_free = procedure (write_concern : Pointer); cdecl;
+  Tmongo_write_concern_dispose = procedure (write_concern : Pointer); cdecl;
   Tmongo_write_concern_init = procedure(write_concern : pointer); cdecl;
   Tmongo_write_concern_finish = function(write_concern : pointer) : integer; cdecl;
   Tmongo_write_concern_destroy = procedure(write_concern : pointer); cdecl;
@@ -135,7 +133,7 @@ type
   Tmongo_write_concern_set_mode = procedure(write_concern : Pointer; mode : PAnsiChar); cdecl;
   // MongoBSON declarations
   Tbson_free = procedure (b : pointer); cdecl;
-  Tbson_init = procedure (b: Pointer); cdecl;
+  Tbson_init = function (b: Pointer) : integer; cdecl;
   Tbson_destroy = procedure (b: Pointer); cdecl;
   Tbson_finish = function (b: Pointer): Integer; cdecl;
   Tbson_oid_gen = procedure (oid: Pointer); cdecl;
@@ -183,7 +181,7 @@ type
   Tbson_iterator_subiterator = procedure (i: Pointer; sub: Pointer); cdecl;
   Tbson_iterator_oid = function (i: Pointer): Pointer; cdecl;
   Tbson_iterator_code = function (i: Pointer): PAnsiChar; cdecl;
-  Tbson_iterator_code_scope = procedure (i: Pointer; b: Pointer); cdecl;
+  Tbson_iterator_code_scope_init = procedure (i: Pointer; b: Pointer); cdecl;
   Tbson_iterator_regex = function (i: Pointer): PAnsiChar; cdecl;
   Tbson_iterator_regex_opts = function (i: Pointer): PAnsiChar; cdecl;
   Tbson_iterator_timestamp_time = function (i: Pointer): Integer; cdecl;
@@ -214,7 +212,7 @@ type
   Tgridfile_get_contenttype = function (gf: Pointer): PAnsiChar; cdecl;
   Tgridfile_get_uploaddate = function (gf: Pointer): Int64; cdecl;
   Tgridfile_get_md5 = function (gf: Pointer): PAnsiChar; cdecl;
-  Tgridfile_get_metadata = procedure (gf: Pointer; b: Pointer); cdecl;
+  Tgridfile_get_metadata = procedure (gf: Pointer; b: Pointer; copyData : LongBool); cdecl;
   Tgridfile_get_numchunks = function (gf: Pointer): Integer; cdecl;
   Tgridfile_get_descriptor = procedure (gf: Pointer; b: Pointer); cdecl;
   Tgridfile_get_chunk = procedure (gf: Pointer; i: Integer; b: Pointer); cdecl;
@@ -235,6 +233,7 @@ type
 var
   HMongoDBDll : HMODULE;
   // MongoDB declarations
+  set_mem_alloc_functions : Tset_mem_alloc_functions;
   mongo_env_sock_init : Tmongo_env_sock_init;
   mongo_create : Tmongo_create;
   mongo_dispose : Tmongo_dispose;
@@ -283,7 +282,7 @@ var
   mongo_get_server_err_string : Tmongo_get_server_err_string;
   // WriteConcern API
   mongo_write_concern_create : Tmongo_write_concern_create;
-  mongo_write_concern_free : Tmongo_write_concern_free;
+  mongo_write_concern_dispose : Tmongo_write_concern_dispose;
   mongo_write_concern_init : Tmongo_write_concern_init;
   mongo_write_concern_finish : Tmongo_write_concern_finish;
   mongo_write_concern_destroy : Tmongo_write_concern_destroy;
@@ -349,7 +348,7 @@ var
   bson_iterator_subiterator : Tbson_iterator_subiterator;
   bson_iterator_oid : Tbson_iterator_oid;
   bson_iterator_code : Tbson_iterator_code;
-  bson_iterator_code_scope : Tbson_iterator_code_scope;
+  bson_iterator_code_scope_init : Tbson_iterator_code_scope_init;
   bson_iterator_regex : Tbson_iterator_regex;
   bson_iterator_regex_opts : Tbson_iterator_regex_opts;
   bson_iterator_timestamp_time : Tbson_iterator_timestamp_time;
@@ -404,6 +403,9 @@ var
 
 {$Else}
   // MongoDB declarations
+  procedure set_mem_alloc_functions (custom_bson_malloc_func,
+                                     custom_bson_realloc_func,
+                                     custom_bson_free_func : Pointer); cdecl; external MongoCDLL;
   function mongo_env_sock_init : integer; cdecl; external MongoCDLL;
   function mongo_create: Pointer; cdecl; external MongoCDLL;
   procedure mongo_dispose(c: Pointer); cdecl; external MongoCDLL;
@@ -452,7 +454,7 @@ var
   function mongo_get_server_err_string(c: Pointer): PAnsiChar; cdecl; external MongoCDLL;
   // WriteConcern API functions
   function mongo_write_concern_create : Pointer; cdecl; external MongoCDLL;
-  procedure mongo_write_concern_free(write_concern : Pointer); cdecl; external MongoCDLL;
+  procedure mongo_write_concern_dispose(write_concern : Pointer); cdecl; external MongoCDLL;
   procedure mongo_write_concern_init(write_concern : pointer); cdecl; external MongoCDLL;
   function mongo_write_concern_finish(write_concern : pointer) : integer; cdecl; external MongoCDLL;
   procedure mongo_write_concern_destroy(write_concern : pointer); cdecl; external MongoCDLL;
@@ -470,7 +472,7 @@ var
   procedure mongo_write_concern_set_mode(write_concern : Pointer; mode : PAnsiChar); cdecl; external MongoCDLL;
   // MongoBson declarations
   procedure bson_free(b : pointer); cdecl; external MongoCDLL;
-  procedure bson_init(b: Pointer); cdecl; external MongoCDLL;
+  function bson_init(b: Pointer) : integer; cdecl; external MongoCDLL;
   procedure bson_destroy(b: Pointer); cdecl; external MongoCDLL;
   function bson_finish(b: Pointer): Integer; cdecl; external MongoCDLL;
   procedure bson_oid_gen(oid: Pointer); cdecl; external MongoCDLL;
@@ -518,7 +520,7 @@ var
   procedure bson_iterator_subiterator(i: Pointer; sub: Pointer); cdecl; external MongoCDLL;
   function bson_iterator_oid(i: Pointer): Pointer; cdecl; external MongoCDLL;
   function bson_iterator_code(i: Pointer): PAnsiChar; cdecl; external MongoCDLL;
-  procedure bson_iterator_code_scope(i: Pointer; b: Pointer); cdecl; external MongoCDLL;
+  procedure bson_iterator_code_scope_init(i: Pointer; b: Pointer); cdecl; external MongoCDLL;
   function bson_iterator_regex(i: Pointer): PAnsiChar; cdecl; external MongoCDLL;
   function bson_iterator_regex_opts(i: Pointer): PAnsiChar; cdecl; external MongoCDLL;
   function bson_iterator_timestamp_time(i: Pointer): Integer; cdecl; external MongoCDLL;
@@ -549,7 +551,7 @@ var
   function gridfile_get_contenttype(gf: Pointer): PAnsiChar; cdecl; external MongoCDLL;
   function gridfile_get_uploaddate(gf: Pointer): Int64; cdecl; external MongoCDLL;
   function gridfile_get_md5(gf: Pointer): PAnsiChar; cdecl; external MongoCDLL;
-  procedure gridfile_get_metadata(gf: Pointer; b: Pointer); cdecl; external MongoCDLL;
+  procedure gridfile_get_metadata(gf: Pointer; b: Pointer; copyData : LongBool); cdecl; external MongoCDLL;
   function gridfile_get_numchunks(gf: Pointer): Integer; cdecl; external MongoCDLL;
   procedure gridfile_get_descriptor(gf: Pointer; b: Pointer); cdecl; external MongoCDLL;
   procedure gridfile_get_chunk(gf: Pointer; i: Integer; b: Pointer); cdecl; external MongoCDLL;
@@ -584,8 +586,25 @@ begin
   raise EMongoFatalError.Create(string(Msg));
 end;
 
+function delphi_malloc(size : NativeUInt) : Pointer; cdecl;
+begin
+  GetMem(Result, Size);
+end;
+
+function delphi_realloc(p : Pointer; size : NativeUInt) : Pointer; cdecl;
+begin
+  Result := p;
+  ReallocMem(Result, size);
+end;
+
+procedure delphi_free(p : pointer); cdecl;
+begin
+  FreeMem(p);
+end;
+
 procedure MongoAPIInit;
 begin
+  set_mem_alloc_functions(@delphi_malloc, @delphi_realloc, @delphi_free);
   mongo_env_sock_init;
   initPrepostChunkProcessing(0);
   set_bson_err_handler(@DefaultMongoErrorHandler);
@@ -606,6 +625,7 @@ begin
   if HMongoDBDll = 0 then
     raise Exception.Create(SFailedLoadingMongocDll);
   // MongoDB initializations
+  set_mem_alloc_functions := GetProcAddress(HMongoDBDll, 'set_mem_alloc_functions');
   mongo_env_sock_init := GetProcAddress(HMongoDBDll, 'mongo_env_sock_init');
   mongo_create := GetProcAddress(HMongoDBDll, 'mongo_create');
   mongo_dispose := GetProcAddress(HMongoDBDll, 'mongo_dispose');
@@ -654,7 +674,7 @@ begin
   mongo_get_server_err_string := GetProcAddress(HMongoDBDll, 'mongo_get_server_err_string');
   // WriteConcern API
   mongo_write_concern_create := GetProcAddress(HMongoDBDll, 'mongo_write_concern_create');
-  mongo_write_concern_free := GetProcAddress(HMongoDBDll, 'mongo_write_concern_free');
+  mongo_write_concern_dispose := GetProcAddress(HMongoDBDll, 'mongo_write_concern_dispose');
   mongo_write_concern_init := GetProcAddress(HMongoDBDll, 'mongo_write_concern_init');
   mongo_write_concern_finish := GetProcAddress(HMongoDBDll, 'mongo_write_concern_finish');
   mongo_write_concern_destroy := GetProcAddress(HMongoDBDll, 'mongo_write_concern_destroy');
@@ -723,7 +743,7 @@ begin
   bson_iterator_subiterator := GetProcAddress(HMongoDBDll, 'bson_iterator_subiterator');
   bson_iterator_oid := GetProcAddress(HMongoDBDll, 'bson_iterator_oid');
   bson_iterator_code := GetProcAddress(HMongoDBDll, 'bson_iterator_code');
-  bson_iterator_code_scope := GetProcAddress(HMongoDBDll, 'bson_iterator_code_scope');
+  bson_iterator_code_scope_init := GetProcAddress(HMongoDBDll, 'bson_iterator_code_scope_init');
   bson_iterator_regex := GetProcAddress(HMongoDBDll, 'bson_iterator_regex');
   bson_iterator_regex_opts := GetProcAddress(HMongoDBDll, 'bson_iterator_regex_opts');
   bson_iterator_timestamp_time := GetProcAddress(HMongoDBDll, 'bson_iterator_timestamp_time');
@@ -822,31 +842,12 @@ end;
 constructor TMongoObject.Create;
 begin
   inherited;
-  {$IFDEF MONGO_MEMORY_PROTECTION}
-  MongoSignature := DELPHI_MONGO_SIGNATURE;
-  {$ENDIF}
 end;
 
 destructor TMongoObject.Destroy;
 begin
-  {$IFDEF MONGO_MEMORY_PROTECTION}
-  CheckValid;
-  {$ENDIF}
   inherited;
-  {$IFDEF MONGO_MEMORY_PROTECTION}
-  MongoSignature := 0;
-  {$ENDIF}
 end;
-
-{$IFDEF MONGO_MEMORY_PROTECTION}
-procedure TMongoObject.CheckValid;
-const // Don't use ResourceString, function that uses this won't be able to be inlined
-  SDelphiMongoErrorFailedSignatureV = 'Delphi Mongo error failed signature validation';
-begin
-  if (Self = nil) or (MongoSignature <> DELPHI_MONGO_SIGNATURE) then
-    raise EMongoFatalError.Create(SDelphiMongoErrorFailedSignatureV);
-end;
-{$ENDIF}
 
 procedure bson_dispose_and_destroy(bson : Pointer);
 begin

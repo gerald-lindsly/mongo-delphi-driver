@@ -669,7 +669,6 @@ end;
 
 destructor TMongo.Destroy;
 begin
-  {$IFDEF MONGO_MEMORY_PROTECTION} CheckValid; {$ENDIF}
   if fhandle <> nil then
   begin
     mongo_destroy(fhandle);
@@ -811,7 +810,6 @@ var
   Name: UTF8String;
   count, i: Integer;
 begin
-  {$IFDEF MONGO_MEMORY_PROTECTION} CheckValid; {$ENDIF}
   b := command(SAdmin, SListDatabases, true);
   if b = nil then
     Result := nil
@@ -855,7 +853,6 @@ var
   ns, Name: UTF8String;
   b: IBson;
 begin
-  {$IFDEF MONGO_MEMORY_PROTECTION} CheckValid; {$ENDIF}
   SetLength(Result, InitialArraySize);
   count := 0;
   ns := db + SSystemNamespaces;
@@ -878,7 +875,6 @@ end;
 
 function TMongo.Rename(const from_ns, to_ns: UTF8String): Boolean;
 begin
-  {$IFDEF MONGO_MEMORY_PROTECTION} CheckValid; {$ENDIF}
   autoCmdResetLastError(from_ns, true);
   Result := command(SAdmin, BSON([SRenameCollection, from_ns, STo, to_ns])) <> nil;
   autoCheckCmdLastError(from_ns, true);
@@ -889,7 +885,6 @@ var
   db: UTF8String;
   collection: UTF8String;
 begin
-  {$IFDEF MONGO_MEMORY_PROTECTION} CheckValid; {$ENDIF}
   parseNamespace(ns, db, collection);
   if db = '' then
     raise EMongo.Create(STMongoDropExpectedAInTheNamespac, E_TMongoDropExpectedAInTheNamespac);
@@ -947,7 +942,6 @@ end;
 
 function TMongo.update(const ns: UTF8String; criteria, objNew: IBson): Boolean;
 begin
-  {$IFDEF MONGO_MEMORY_PROTECTION} CheckValid; {$ENDIF}
   Result := update(ns, criteria, objNew, 0);
 end;
 
@@ -966,7 +960,6 @@ begin
   CheckHandle('findOne');
   res := bson_create;
   try
-    bson_init(res);
     autoCmdResetLastError(ns, true);
     if mongo_find_one(fhandle, PAnsiChar(ns), query.Handle, fields.Handle, res) = 0 then
       Result := NewBson(res)
@@ -986,7 +979,6 @@ end;
 
 function TMongo.findOne(const ns: UTF8String; query: IBson): IBson;
 begin
-  {$IFDEF MONGO_MEMORY_PROTECTION} CheckValid; {$ENDIF}
   Result := findOne(ns, query, NewBson(nil));
 end;
 
@@ -1042,7 +1034,6 @@ end;
 
 function TMongo.count(const ns: UTF8String): Double;
 begin
-  {$IFDEF MONGO_MEMORY_PROTECTION} CheckValid; {$ENDIF}
   autoCmdResetLastError(ns, true);
   Result := count(ns, NewBson(nil));
   autoCheckCmdLastError(ns, true);
@@ -1050,25 +1041,21 @@ end;
 
 function TMongo.indexCreate(const ns: UTF8String; key: IBson; options: Integer): IBson;
 begin
-  {$IFDEF MONGO_MEMORY_PROTECTION} CheckValid; {$ENDIF}
   Result := indexCreate(ns, key, '', options);
 end;
 
 function TMongo.indexCreate(const ns: UTF8String; key: IBson): IBson;
 begin
-  {$IFDEF MONGO_MEMORY_PROTECTION} CheckValid; {$ENDIF}
   Result := indexCreate(ns, key, 0);
 end;
 
 function TMongo.indexCreate(const ns, key: UTF8String; options: Integer): IBson;
 begin
-  {$IFDEF MONGO_MEMORY_PROTECTION} CheckValid; {$ENDIF}
   Result := indexCreate(ns, BSON([key, true]), options);
 end;
 
 function TMongo.indexCreate(const ns, key: UTF8String): IBson;
 begin
-  {$IFDEF MONGO_MEMORY_PROTECTION} CheckValid; {$ENDIF}
   Result := indexCreate(ns, key, 0);
 end;
 
@@ -1080,7 +1067,6 @@ end;
 
 function TMongo.addUser(const Name, password: UTF8String): Boolean;
 begin
-  {$IFDEF MONGO_MEMORY_PROTECTION} CheckValid; {$ENDIF}
   Result := addUser(Name, password, SAdmin);
 end;
 
@@ -1095,7 +1081,6 @@ end;
 
 function TMongo.authenticate(const Name, password: UTF8String): Boolean;
 begin
-  {$IFDEF MONGO_MEMORY_PROTECTION} CheckValid; {$ENDIF}
   Result := authenticate(Name, password, SAdmin);
 end;
 
@@ -1106,7 +1091,6 @@ var
   collection: UTF8String;
   it: IBsonIterator;
 begin
-  {$IFDEF MONGO_MEMORY_PROTECTION} CheckValid; {$ENDIF}
   if not FAutoCheckLastError then
     Exit;
   if ANeedsParsing then
@@ -1127,7 +1111,6 @@ var
   db: UTF8String;
   collection: UTF8String;
 begin
-  {$IFDEF MONGO_MEMORY_PROTECTION} CheckValid; {$ENDIF}
   if not FAutoCheckLastError then
     Exit;
   if ANeedsParsing then
@@ -1139,7 +1122,6 @@ end;
 
 procedure TMongo.CheckHandle(const FnName: String);
 begin
-  {$IFDEF MONGO_MEMORY_PROTECTION} CheckValid; {$ENDIF}
   if fhandle = nil then
     raise EMongo.Create(SMongoHandleIsNil, FnName, E_MongoHandleIsNil);
 end;
@@ -1151,7 +1133,6 @@ begin
   CheckHandle('command');
   res := bson_create;
   try
-    bson_init(res);
     if mongo_run_command(fhandle, PAnsiChar(db), command.Handle, res) = 0 then
       Result := NewBsonCopy(res)
     else Result := nil;
@@ -1166,7 +1147,6 @@ var
   buf: IBsonBuffer;
   db, collection: UTF8String;
 begin
-  {$IFDEF MONGO_MEMORY_PROTECTION} CheckValid; {$ENDIF}
   parseNamespace(ns, db, collection);
   if db = '' then
     raise EMongo.Create(SExpectedAInTheNamespace, E_ExpectedAInTheNamespace);
@@ -1179,7 +1159,6 @@ end;
 
 function TMongo.command(const db, cmdstr: UTF8String; const arg: Variant): IBson;
 begin
-  {$IFDEF MONGO_MEMORY_PROTECTION} CheckValid; {$ENDIF}
   Result := command(db, BSON([cmdstr, arg]));
 end;
 
@@ -1190,7 +1169,6 @@ begin
   CheckHandle('getLastErr');
   res := bson_create;
   try
-    bson_init(res);
     if mongo_cmd_get_last_error(fhandle, PAnsiChar(db), res) <> 0 then
       Result := NewBsonCopy(res)
     else
@@ -1207,7 +1185,6 @@ begin
   CheckHandle('cmdGetLastError');
   h := bson_create;
   try
-    bson_init(h);
     if mongo_cmd_get_last_error(fHandle, PAnsiChar(db), h) = 0 then
     begin
       bson_dispose_and_destroy(h);
@@ -1286,7 +1263,6 @@ begin
   CheckHandle('getPrevErr');
   res := bson_create;
   try
-    bson_init(res);
     if mongo_cmd_get_prev_error(fhandle, PAnsiChar(db), res) <> 0 then
       Result := NewBsonCopy(res)
     else
@@ -1298,7 +1274,6 @@ end;
 
 procedure TMongo.resetErr(const db: UTF8String);
 begin
-  {$IFDEF MONGO_MEMORY_PROTECTION} CheckValid; {$ENDIF}
   command(db, SReseterror, true);
 end;
 
@@ -1325,7 +1300,6 @@ begin
   CheckHandle('indexCreate');
   h := bson_create;
   try
-    bson_init(h);
     res := NewBson(h);
   except
     bson_dispose_and_destroy(h);
@@ -1360,7 +1334,6 @@ var
   hosturl: UTF8String;
   port: Integer;
 begin
-  {$IFDEF MONGO_MEMORY_PROTECTION} CheckValid; {$ENDIF}
   fhandle := mongo_create;
   parseHost(AHost, hosturl, port);
   mongo_client(fhandle, PAnsiChar(hosturl), port);
@@ -1372,7 +1345,6 @@ procedure TMongo.parseNamespace(const ns: UTF8String; var db: UTF8String; var Co
 var
   i: Integer;
 begin
-  {$IFDEF MONGO_MEMORY_PROTECTION} CheckValid; {$ENDIF}
   i := Pos('.', ns);
   if i > 0 then
   begin
@@ -1604,7 +1576,7 @@ destructor TWriteConcern.Destroy;
 begin
   {$IFDEF MONGO_MEMORY_PROTECTION} CheckValid; {$ENDIF}
   mongo_write_concern_destroy(FWriteConcern);
-  mongo_write_concern_free(FWriteConcern);
+  mongo_write_concern_dispose(FWriteConcern);
   inherited;
 end;
 
