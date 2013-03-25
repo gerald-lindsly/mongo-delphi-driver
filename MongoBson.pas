@@ -70,9 +70,6 @@ type
   PByte = ^Byte;
   {$ENDIF}
 
-  PBsonOIDValue = ^TBsonOIDValue;
-  TBsonOIDValue = array[0..11] of Byte;
-
   { A TBsonOID is used to store BSON Object IDs.
     See http://www.mongodb.org/display/DOCS/Object+IDs }
   IBsonOID = interface
@@ -714,20 +711,17 @@ function TBsonOID.asString: UTF8String;
 var
   buf: array[0..24] of AnsiChar;
 begin
-  {$IFDEF MONGO_MEMORY_PROTECTION} CheckValid; {$ENDIF}
   bson_oid_to_string(@Value, @buf);
   Result := UTF8String(buf);
 end;
 
 function TBsonOID.getValue: PBsonOIDValue;
 begin
-  {$IFDEF MONGO_MEMORY_PROTECTION} CheckValid; {$ENDIF}
   Result := @Value;
 end;
 
 procedure TBsonOID.setValue(const AValue: TBsonOIDValue);
 begin
-  {$IFDEF MONGO_MEMORY_PROTECTION} CheckValid; {$ENDIF}
   Value := AValue;
 end;
 
@@ -739,7 +733,7 @@ begin
   {$IFDEF OnDemandMongoCLoad}
   InitMongoDBLibrary;
   {$ENDIF}
-  Handle := bson_iterator_create;
+  Handle := bson_iterator_alloc;
 end;
 
 constructor TBsonIterator.Create(b: IBson);
@@ -748,16 +742,15 @@ begin
   {$IFDEF OnDemandMongoCLoad}
   InitMongoDBLibrary;
   {$ENDIF}
-  Handle := bson_iterator_create;
+  Handle := bson_iterator_alloc;
   bson_iterator_init(Handle, b.Handle);
 end;
 
 destructor TBsonIterator.Destroy;
 begin
-  {$IFDEF MONGO_MEMORY_PROTECTION} CheckValid; {$ENDIF}
   if Handle <> nil then
     begin
-      bson_iterator_dispose(Handle);
+      bson_iterator_dealloc(Handle);
       Handle := nil;
     end;
   inherited;
@@ -771,7 +764,6 @@ end;
 
 procedure TBsonIterator.checkValidHandle;
 begin
-  {$IFDEF MONGO_MEMORY_PROTECTION} CheckValid; {$ENDIF}
   if Handle = nil then
     raise EMongo.Create(SIteratorHandleIsNil, E_IteratorHandleIsNil);
 end;
@@ -941,7 +933,6 @@ end;
 
 function TBsonIterator.getHandle: Pointer;
 begin
-  {$IFDEF MONGO_MEMORY_PROTECTION} CheckValid; {$ENDIF}
   Result := Handle;
 end;
 
@@ -994,10 +985,9 @@ end;
 
 destructor TBsonBuffer.Destroy;
 begin
-  {$IFDEF MONGO_MEMORY_PROTECTION} CheckValid; {$ENDIF}
   if Handle <> nil then
     begin
-      bson_dispose_and_destroy(Handle);
+      bson_dealloc_and_destroy(Handle);
       Handle := nil;
     end;
   inherited Destroy;
@@ -1006,7 +996,6 @@ end;
 {$IFDEF DELPHI2009}
 function TBsonBuffer.append(const Name, Value: UTF8String): Boolean;
 begin
-  {$IFDEF MONGO_MEMORY_PROTECTION} CheckValid; {$ENDIF}
   Result := appendStr(Name, Value);
 end;
 {$EndIf}
@@ -1104,7 +1093,6 @@ end;
 function TBsonBuffer.append(const Name: UTF8String; const Value: Variant):
     Boolean;
 begin
-  {$IFDEF MONGO_MEMORY_PROTECTION} CheckValid; {$ENDIF}
   Result := appendVariant(Name, Value);
 end;
 {$ENDIF}
@@ -1119,7 +1107,6 @@ var
   {$ENDIF}
   {$ENDIF}
 begin
-  {$IFDEF MONGO_MEMORY_PROTECTION} CheckValid; {$ENDIF}
   case VarType(Value) of
     varNull:
       Result := appendNull(Name);
@@ -1184,25 +1171,21 @@ type
 
 function TBsonBuffer.appendIntCallback(i: Integer; const Arr): Boolean;
 begin
-  {$IFDEF MONGO_MEMORY_PROTECTION} CheckValid; {$ENDIF}
   Result := bson_append_int(Handle, PAnsiChar(IntToStr(i)), TIntegerArray(Arr)[i]) = 0;
 end;
 
 function TBsonBuffer.appendDoubleCallback(i: Integer; const Arr): Boolean;
 begin
-  {$IFDEF MONGO_MEMORY_PROTECTION} CheckValid; {$ENDIF}
   Result := bson_append_double(Handle, PAnsiChar(IntToStr(i)), TDoubleArray(Arr)[i]) = 0;
 end;
 
 function TBsonBuffer.appendBooleanCallback(i: Integer; const Arr): Boolean;
 begin
-  {$IFDEF MONGO_MEMORY_PROTECTION} CheckValid; {$ENDIF}
   Result := bson_append_bool(Handle, PAnsiChar(IntToStr(i)), TBooleanArray(Arr)[i]) = 0;
 end;
 
 function TBsonBuffer.appendStringCallback(i: Integer; const Arr): Boolean;
 begin
-  {$IFDEF MONGO_MEMORY_PROTECTION} CheckValid; {$ENDIF}
   Result := bson_append_string(Handle, PAnsiChar(IntToStr(i)), PAnsiChar(TStringArray(Arr)[i])) = 0;
 end;
 
@@ -1213,7 +1196,6 @@ var
   i : Integer;
   AppendElementMethod : TAppendElementCallback;
 begin
-  {$IFDEF MONGO_MEMORY_PROTECTION} CheckValid; {$ENDIF}
   success := (bson_append_start_array(Handle, PAnsiChar(Name)) = 0);
   i := 0;
   TMethod(AppendElementMethod).Data := Self;
@@ -1231,28 +1213,24 @@ end;
 function TBsonBuffer.appendArray(const Name: UTF8String; const Value:
     TIntegerArray): Boolean;
 begin
-  {$IFDEF MONGO_MEMORY_PROTECTION} CheckValid; {$ENDIF}
   Result := internalAppendArray(Name, Value, length(Value), @TBsonBuffer.appendIntCallback);
 end;
 
 function TBsonBuffer.appendArray(const Name: UTF8String; const Value:
     TDoubleArray): Boolean;
 begin
-  {$IFDEF MONGO_MEMORY_PROTECTION} CheckValid; {$ENDIF}
   Result := internalAppendArray(Name, Value, length(Value), @TBsonBuffer.appendDoubleCallback);
 end;
 
 function TBsonBuffer.appendArray(const Name: UTF8String; const Value:
     TBooleanArray): Boolean;
 begin
-  {$IFDEF MONGO_MEMORY_PROTECTION} CheckValid; {$ENDIF}
   Result := internalAppendArray(Name, Value, length(Value), @TBsonBuffer.appendBooleanCallback);
 end;
 
 function TBsonBuffer.appendArray(const Name: UTF8String; const Value:
     TStringArray): Boolean;
 begin
-  {$IFDEF MONGO_MEMORY_PROTECTION} CheckValid; {$ENDIF}
   Result := internalAppendArray(Name, Value, length(Value), @TBsonBuffer.appendStringCallback);
 end;
 
@@ -1420,7 +1398,6 @@ end;
 
 procedure TBsonBuffer.checkBsonBuffer;
 begin
-  {$IFDEF MONGO_MEMORY_PROTECTION} CheckValid; {$ENDIF}
   if Handle = nil then
     raise Exception.Create(SBsonBufferAlreadyFinished);
 end;
@@ -1492,10 +1469,9 @@ end;
 
 destructor TBson.Destroy();
 begin
-  {$IFDEF MONGO_MEMORY_PROTECTION} CheckValid; {$ENDIF}
   if FHandle <> nil then
     begin
-      bson_dispose_and_destroy(FHandle);
+      bson_dealloc_and_destroy(FHandle);
       FHandle := nil;
     end;
   inherited Destroy();
@@ -1612,14 +1588,12 @@ end;
 
 procedure TBson.checkHandle;
 begin
-  {$IFDEF MONGO_MEMORY_PROTECTION} CheckValid; {$ENDIF}
   if FHandle = nil then
     raise EMongo.Create(STBsonHandleIsNil, E_TBsonHandleIsNil);
 end;
 
 procedure TBson.display;
 begin
-  {$IFDEF MONGO_MEMORY_PROTECTION} CheckValid; {$ENDIF}
   if FHandle = nil then
     Writeln(SNilBSON)
   else
@@ -1628,7 +1602,6 @@ end;
 
 function TBson.getHandle: Pointer;
 begin
-  {$IFDEF MONGO_MEMORY_PROTECTION} CheckValid; {$ENDIF}
   Result := FHandle;
 end;
 
@@ -1669,31 +1642,27 @@ begin
     bson_iterator_code_scope_init(i.getHandle, b);
     scope := NewBsonCopy(b);
   finally
-    bson_dispose(b);
+    bson_dealloc(b);
   end;
 end;
 
 function TBsonCodeWScope.getCode: UTF8String;
 begin
-  {$IFDEF MONGO_MEMORY_PROTECTION} CheckValid; {$ENDIF}
   Result := Code;
 end;
 
 function TBsonCodeWScope.getScope: IBson;
 begin
-  {$IFDEF MONGO_MEMORY_PROTECTION} CheckValid; {$ENDIF}
   Result := Scope;
 end;
 
 procedure TBsonCodeWScope.setCode(const ACode: UTF8String);
 begin
-  {$IFDEF MONGO_MEMORY_PROTECTION} CheckValid; {$ENDIF}
   Code := ACode;
 end;
 
 procedure TBsonCodeWScope.setScope(AScope: IBson);
 begin
-  {$IFDEF MONGO_MEMORY_PROTECTION} CheckValid; {$ENDIF}
   Scope := AScope;
 end;
 
@@ -1721,25 +1690,21 @@ end;
 
 function TBsonRegex.getOptions: UTF8String;
 begin
-  {$IFDEF MONGO_MEMORY_PROTECTION} CheckValid; {$ENDIF}
   Result := Options;
 end;
 
 function TBsonRegex.getPattern: UTF8String;
 begin
-  {$IFDEF MONGO_MEMORY_PROTECTION} CheckValid; {$ENDIF}
   Result := Pattern;
 end;
 
 procedure TBsonRegex.setOptions(const AOptions: UTF8String);
 begin
-  {$IFDEF MONGO_MEMORY_PROTECTION} CheckValid; {$ENDIF}
   Options := AOptions;
 end;
 
 procedure TBsonRegex.setPattern(const APattern: UTF8String);
 begin
-  {$IFDEF MONGO_MEMORY_PROTECTION} CheckValid; {$ENDIF}
   Pattern := APattern;
 end;
 
@@ -1767,25 +1732,21 @@ end;
 
 function TBsonTimestamp.getIncrement: Integer;
 begin
-  {$IFDEF MONGO_MEMORY_PROTECTION} CheckValid; {$ENDIF}
   Result := Increment;
 end;
 
 function TBsonTimestamp.getTime: TDateTime;
 begin
-  {$IFDEF MONGO_MEMORY_PROTECTION} CheckValid; {$ENDIF}
   Result := Time;
 end;
 
 procedure TBsonTimestamp.setIncrement(AIncrement: Integer);
 begin
-  {$IFDEF MONGO_MEMORY_PROTECTION} CheckValid; {$ENDIF}
   Increment := AIncrement;
 end;
 
 procedure TBsonTimestamp.setTime(ATime: TDateTime);
 begin
-  {$IFDEF MONGO_MEMORY_PROTECTION} CheckValid; {$ENDIF}
   Time := ATime;
 end;
 
@@ -1820,7 +1781,6 @@ end;
 
 destructor TBsonBinary.Destroy;
 begin
-  {$IFDEF MONGO_MEMORY_PROTECTION} CheckValid; {$ENDIF}
   if Data <> nil then
     begin
       FreeMem(Data);
@@ -1832,25 +1792,21 @@ end;
 
 function TBsonBinary.getData: Pointer;
 begin
-  {$IFDEF MONGO_MEMORY_PROTECTION} CheckValid; {$ENDIF}
   Result := Data;
 end;
 
 function TBsonBinary.getKind: Integer;
 begin
-  {$IFDEF MONGO_MEMORY_PROTECTION} CheckValid; {$ENDIF}
   Result := Kind;
 end;
 
 function TBsonBinary.getLen: Integer;
 begin
-  {$IFDEF MONGO_MEMORY_PROTECTION} CheckValid; {$ENDIF}
   Result := Len;
 end;
 
 procedure TBsonBinary.setData(AData: Pointer; ALen: Integer);
 begin
-  {$IFDEF MONGO_MEMORY_PROTECTION} CheckValid; {$ENDIF}
   if ALen > Len then
     ReallocMem(Data, ALen);
   Move(AData^, Data^, ALen);
@@ -1859,7 +1815,6 @@ end;
 
 procedure TBsonBinary.setKind(AKind: Integer);
 begin
-  {$IFDEF MONGO_MEMORY_PROTECTION} CheckValid; {$ENDIF}
   Kind := AKind;
 end;
 
@@ -1989,7 +1944,7 @@ begin
     bson_copy(b, AHandle);
     Result := NewBson(b);
   except
-    bson_dispose(b);
+    bson_dealloc(b);
     raise;
   end;
 end;

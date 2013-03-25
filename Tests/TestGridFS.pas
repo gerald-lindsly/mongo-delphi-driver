@@ -554,7 +554,7 @@ var
   f : IGridFile;
   s : UTF8String;
 begin
-  FGridfileWriter.Write(PAnsiChar(FILEDATA2), length(FILEDATA2));
+  CheckEquals(length(FILEDATA2), FGridfileWriter.Write(PAnsiChar(FILEDATA2), length(FILEDATA2)), 'Data written doesn''t match expected value');
   Check(FGridFileWriter.finish, 'Call to finish should return True');
   f := FGridFS.find(StandardTestFileName, False);
   SetLength(s, f.getLength);
@@ -597,7 +597,7 @@ var
   f : IGridFile;
   s : UTF8String;
 begin
-  FGridfileWriter.Write(PAnsiChar(FILEDATA2), length(FILEDATA2));
+  CheckEquals(length(FILEDATA2), FGridfileWriter.Write(PAnsiChar(FILEDATA2), length(FILEDATA2)), 'Data written doesn''t match expected value');
   FGridFileWriter.seek(length(FILEDATA2) div 2);
   Check(FGridFileWriter.finish, 'Call to finish should return True');
   f := FGridFS.find(StandardTestFileName, False);
@@ -613,7 +613,7 @@ var
 begin
   n := Trunc(1.5 * (FGridfileWriter.getChunkSize div length(FILEDATA2)));
   for I := 1 to n do
-    FGridfileWriter.Write(PAnsiChar(FILEDATA2), length(FILEDATA2));
+    CheckEquals(length(FILEDATA2), FGridfileWriter.Write(PAnsiChar(FILEDATA2), length(FILEDATA2)), 'Data written doesn''t match expected value');
   FGridFileWriter.seek(FGridfileWriter.getChunkSize + length(FILEDATA2));
   Check(FGridFileWriter.finish, 'Call to finish should return True');
   f := FGridFS.find(StandardTestFileName, False);
@@ -627,7 +627,7 @@ var
 begin
   n := Trunc(1.5 * (FGridfileWriter.getChunkSize div length(FILEDATA2)));
   for I := 1 to n do
-    FGridfileWriter.Write(PAnsiChar(FILEDATA2), length(FILEDATA2));
+    CheckEquals(length(FILEDATA2), FGridfileWriter.Write(PAnsiChar(FILEDATA2), length(FILEDATA2)), 'Data written doesn''t match expected value');
   FGridFileWriter.seek(length(FILEDATA2));
   Check(FGridFileWriter.finish, 'Call to finish should return True');
   f := FGridFS.find(StandardTestFileName, False);

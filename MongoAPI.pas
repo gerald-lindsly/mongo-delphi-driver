@@ -14,7 +14,10 @@ type
   {$IFNDEF DELPHI2007}
   UTF8String = AnsiString;
   NativeUInt = Cardinal;
+  UInt64 = Int64;
   {$ENDIF}
+  PBsonOIDValue = ^TBsonOIDValue;
+  TBsonOIDValue = array[0..11] of Byte;
   EMongoFatalError = class(Exception);
 
   { A value of TBsonType indicates the type of the data associated
@@ -44,11 +47,6 @@ const
 
 type
   TMongoInterfacedObject = class(TInterfacedObject)
-  protected
-    MongoSignature : cardinal;
-    {$IFDEF MONGO_MEMORY_PROTECTION}
-    procedure CheckValid; {$IFDEF DELPHIXE2} inline; {$ENDIF}
-    {$ENDIF}
   public
     constructor Create;
     destructor Destroy; override;
@@ -68,8 +66,8 @@ type
                                         custom_bson_realloc_func,
                                         custom_bson_free_func : Pointer); cdecl;
   Tmongo_env_sock_init = function : integer; cdecl;
-  Tmongo_create = function : Pointer; cdecl;
-  Tmongo_dispose = procedure (c: Pointer); cdecl;
+  Tmongo_alloc = function : Pointer; cdecl;
+  Tmongo_dealloc = procedure (c: Pointer); cdecl;
   Tmongo_client = function (c: Pointer; host: PAnsiChar; port: Integer): Integer; cdecl;
   Tmongo_destroy = procedure(c: Pointer); cdecl;
   Tmongo_replica_set_init = procedure (c: Pointer; Name: PAnsiChar); cdecl;
@@ -92,11 +90,11 @@ type
   Tmongo_update = function (c: Pointer; ns: PAnsiChar; cond: Pointer; op: Pointer; flags: Integer; wc: Pointer): Integer; cdecl;
   Tmongo_remove = function (c: Pointer; ns: PAnsiChar; criteria: Pointer; wc: Pointer): Integer; cdecl;
   Tmongo_find_one = function (c: Pointer; ns: PAnsiChar; query: Pointer; fields: Pointer; Result: Pointer): Integer; cdecl;
-  Tbson_create = function : Pointer; cdecl;
-  Tbson_dispose = procedure (b: Pointer); cdecl;
+  Tbson_alloc = function : Pointer; cdecl;
+  Tbson_dealloc = procedure (b: Pointer); cdecl;
   Tbson_copy = procedure (dest: Pointer; src: Pointer); cdecl;
-  Tmongo_cursor_create = function : Pointer; cdecl;
-  Tmongo_cursor_dispose = procedure (Cursor: Pointer); cdecl;
+  Tmongo_cursor_alloc = function : Pointer; cdecl;
+  Tmongo_cursor_dealloc = procedure (Cursor: Pointer); cdecl;
   Tmongo_cursor_destroy = procedure (Cursor: Pointer); cdecl;
   Tmongo_find = function (c: Pointer; ns: PAnsiChar; query: Pointer; fields: Pointer; limit, skip, options: Integer): Pointer; cdecl;
   Tmongo_cursor_next = function (Cursor: Pointer): Integer; cdecl;
@@ -114,8 +112,8 @@ type
   Tmongo_get_server_err = function (c: Pointer): Integer; cdecl;
   Tmongo_get_server_err_string = function (c: Pointer): PAnsiChar; cdecl;
   // WriteConcern API
-  Tmongo_write_concern_create = function : Pointer; cdecl;
-  Tmongo_write_concern_dispose = procedure (write_concern : Pointer); cdecl;
+  Tmongo_write_concern_alloc = function : Pointer; cdecl;
+  Tmongo_write_concern_dealloc = procedure (write_concern : Pointer); cdecl;
   Tmongo_write_concern_init = procedure(write_concern : pointer); cdecl;
   Tmongo_write_concern_finish = function(write_concern : pointer) : integer; cdecl;
   Tmongo_write_concern_destroy = procedure(write_concern : pointer); cdecl;
@@ -134,6 +132,7 @@ type
   // MongoBSON declarations
   Tbson_free = procedure (b : pointer); cdecl;
   Tbson_init = function (b: Pointer) : integer; cdecl;
+  Tbson_init_empty = function (b : Pointer) : integer; cdecl;
   Tbson_destroy = procedure (b: Pointer); cdecl;
   Tbson_finish = function (b: Pointer): Integer; cdecl;
   Tbson_oid_gen = procedure (oid: Pointer); cdecl;
@@ -165,8 +164,8 @@ type
   Tbson_append_bson = function (b: Pointer; Name: PAnsiChar; Value: Pointer): Integer; cdecl;
   Tbson_buffer_size = function (b: Pointer): NativeUInt; cdecl;
   Tbson_size = function (b: Pointer): Integer; cdecl;
-  Tbson_iterator_create = function (): Pointer; cdecl;
-  Tbson_iterator_dispose = procedure (i: Pointer); cdecl;
+  Tbson_iterator_alloc = function (): Pointer; cdecl;
+  Tbson_iterator_dealloc = procedure (i: Pointer); cdecl;
   Tbson_iterator_init = procedure (i: Pointer; b: Pointer); cdecl;
   Tbson_find = function (i: Pointer; b: Pointer; Name: PAnsiChar): TBsonType; cdecl;
   Tbson_iterator_type = function (i: Pointer): TBsonType; cdecl;
@@ -192,23 +191,23 @@ type
   TInt64toDouble = function (i64: Int64): Double; cdecl;
   Tset_bson_err_handler = function(newErrorHandler : Pointer) : Pointer; cdecl;
   // GridFS declarations
-  Tgridfs_create = function : Pointer; cdecl;
-  Tgridfs_dispose = procedure (g: Pointer); cdecl;
+  Tgridfs_alloc = function : Pointer; cdecl;
+  Tgridfs_dealloc = procedure (g: Pointer); cdecl;
   Tgridfs_init = function (c: Pointer; db: PAnsiChar; prefix: PAnsiChar; g: Pointer): Integer; cdecl;
   Tgridfs_destroy = procedure (g: Pointer); cdecl;
   Tgridfs_store_file = function (g: Pointer; FileName: PAnsiChar; remoteName: PAnsiChar; contentType: PAnsiChar; Flags : Integer): Integer; cdecl;
   Tgridfs_remove_filename = procedure (g: Pointer; remoteName: PAnsiChar); cdecl;
-  Tgridfs_store_buffer = function (g: Pointer; p: Pointer; size: Int64; remoteName: PAnsiChar; contentType: PAnsiChar; Flags : Integer): Integer; cdecl;
+  Tgridfs_store_buffer = function (g: Pointer; p: Pointer; size: UInt64; remoteName: PAnsiChar; contentType: PAnsiChar; Flags : Integer): Integer; cdecl;
   Tgridfile_create = function : Pointer; cdecl;
-  Tgridfile_dispose = procedure (gf: Pointer); cdecl;
+  Tgridfile_dealloc = procedure (gf: Pointer); cdecl;
   Tgridfile_writer_init = procedure (gf: Pointer; gfs: Pointer; remoteName: PAnsiChar; contentType: PAnsiChar; Flags : Integer); cdecl;
-  Tgridfile_write_buffer = procedure (gf: Pointer; Data: Pointer; Length: Int64); cdecl;
+  Tgridfile_write_buffer = function (gf: Pointer; Data: Pointer; Length: UInt64) : UInt64; cdecl;
   Tgridfile_writer_done = function (gf: Pointer): Integer; cdecl;
   Tgridfs_find_query = function (g: Pointer; query: Pointer; gf: Pointer): Integer; cdecl;
   Tgridfile_destroy = procedure (gf: Pointer); cdecl;
   Tgridfile_get_filename = function (gf: Pointer): PAnsiChar; cdecl;
   Tgridfile_get_chunksize = function (gf: Pointer): Integer; cdecl;
-  Tgridfile_get_contentlength = function (gf: Pointer): Int64; cdecl;
+  Tgridfile_get_contentlength = function (gf: Pointer): UInt64; cdecl;
   Tgridfile_get_contenttype = function (gf: Pointer): PAnsiChar; cdecl;
   Tgridfile_get_uploaddate = function (gf: Pointer): Int64; cdecl;
   Tgridfile_get_md5 = function (gf: Pointer): PAnsiChar; cdecl;
@@ -217,13 +216,13 @@ type
   Tgridfile_get_descriptor = procedure (gf: Pointer; b: Pointer); cdecl;
   Tgridfile_get_chunk = procedure (gf: Pointer; i: Integer; b: Pointer); cdecl;
   Tgridfile_get_chunks = function (gf: Pointer; i: NativeUInt; Count: NativeUInt): Pointer; cdecl;
-  Tgridfile_read = function (gf: Pointer; size: Int64; buf: Pointer): Int64; cdecl;
-  Tgridfile_seek = function (gf: Pointer; offset: Int64): Int64; cdecl;
+  Tgridfile_read = function (gf: Pointer; size: UInt64; buf: Pointer): UInt64; cdecl;
+  Tgridfile_seek = function (gf: Pointer; offset: UInt64): UInt64; cdecl;
   Tgridfile_init = function (gfs, meta, gfile : pointer) : integer; cdecl;
-  Tgridfile_get_id = function (gfile : pointer) : pointer; cdecl;
-  Tgridfile_truncate = function (gfile : Pointer; newSize : int64) : Int64; cdecl;
-  Tgridfile_expand = function (gfile : Pointer; bytesToExpand : int64) : Int64; cdecl;
-  Tgridfile_set_size = function(gfile : Pointer; newSize : Int64) : Int64; cdecl;
+  Tgridfile_get_id = function (gfile : pointer) : TBsonOIDValue; cdecl;
+  Tgridfile_truncate = function (gfile : Pointer; newSize : UInt64) : UInt64; cdecl;
+  Tgridfile_expand = function (gfile : Pointer; bytesToExpand : UInt64) : UInt64; cdecl;
+  Tgridfile_set_size = function(gfile : Pointer; newSize : UInt64) : UInt64; cdecl;
   Tgridfs_get_caseInsensitive = function (gf : Pointer) : LongBool; cdecl;
   Tgridfs_set_caseInsensitive = procedure (gf : Pointer; newValue : LongBool); cdecl;
   Tgridfile_set_flags = procedure(gf : Pointer; Flags : Integer); cdecl;
@@ -235,8 +234,8 @@ var
   // MongoDB declarations
   set_mem_alloc_functions : Tset_mem_alloc_functions;
   mongo_env_sock_init : Tmongo_env_sock_init;
-  mongo_create : Tmongo_create;
-  mongo_dispose : Tmongo_dispose;
+  mongo_alloc : Tmongo_alloc;
+  mongo_dealloc : Tmongo_dealloc;
   mongo_client : Tmongo_client;
   mongo_destroy : Tmongo_destroy;
   mongo_replica_set_init : Tmongo_replica_set_init;
@@ -259,11 +258,11 @@ var
   mongo_update : Tmongo_update;
   mongo_remove : Tmongo_remove;
   mongo_find_one : Tmongo_find_one;
-  bson_create : Tbson_create;
-  bson_dispose : Tbson_dispose;
+  bson_alloc : Tbson_alloc;
+  bson_dealloc : Tbson_dealloc;
   bson_copy : Tbson_copy;
-  mongo_cursor_create : Tmongo_cursor_create;
-  mongo_cursor_dispose : Tmongo_cursor_dispose;
+  mongo_cursor_alloc : Tmongo_cursor_alloc;
+  mongo_cursor_dealloc : Tmongo_cursor_dealloc;
   mongo_cursor_destroy : Tmongo_cursor_destroy;
   mongo_find : Tmongo_find;
   mongo_cursor_next : Tmongo_cursor_next;
@@ -281,8 +280,8 @@ var
   mongo_get_server_err : Tmongo_get_server_err;
   mongo_get_server_err_string : Tmongo_get_server_err_string;
   // WriteConcern API
-  mongo_write_concern_create : Tmongo_write_concern_create;
-  mongo_write_concern_dispose : Tmongo_write_concern_dispose;
+  mongo_write_concern_alloc : Tmongo_write_concern_alloc;
+  mongo_write_concern_dealloc : Tmongo_write_concern_dealloc;
   mongo_write_concern_init : Tmongo_write_concern_init;
   mongo_write_concern_finish : Tmongo_write_concern_finish;
   mongo_write_concern_destroy : Tmongo_write_concern_destroy;
@@ -301,6 +300,7 @@ var
   // MongoBson declarations
   bson_free : Tbson_free;
   bson_init : Tbson_init;
+  bson_init_empty : Tbson_init_empty;
   bson_destroy : Tbson_destroy;
   bson_finish : Tbson_finish;
   bson_oid_gen : Tbson_oid_gen;
@@ -332,8 +332,8 @@ var
   bson_append_bson : Tbson_append_bson;
   bson_buffer_size : Tbson_buffer_size;
   bson_size : Tbson_size;
-  bson_iterator_create : Tbson_iterator_create;
-  bson_iterator_dispose : Tbson_iterator_dispose;
+  bson_iterator_alloc : Tbson_iterator_alloc;
+  bson_iterator_dealloc : Tbson_iterator_dealloc;
   bson_iterator_init : Tbson_iterator_init;
   bson_find : Tbson_find;
   bson_iterator_type : Tbson_iterator_type;
@@ -358,15 +358,15 @@ var
   bson_iterator_bin_data : Tbson_iterator_bin_data;
   set_bson_err_handler : Tset_bson_err_handler;
   // GridFS declarations
-  gridfs_create : Tgridfs_create;
-  gridfs_dispose : Tgridfs_dispose;
+  gridfs_alloc : Tgridfs_alloc;
+  gridfs_dealloc : Tgridfs_dealloc;
   gridfs_init : Tgridfs_init;
   gridfs_destroy : Tgridfs_destroy;
   gridfs_store_file : Tgridfs_store_file;
   gridfs_remove_filename : Tgridfs_remove_filename;
   gridfs_store_buffer : Tgridfs_store_buffer;
   gridfile_create : Tgridfile_create;
-  gridfile_dispose : Tgridfile_dispose;
+  gridfile_dealloc : Tgridfile_dealloc;
   gridfile_writer_init : Tgridfile_writer_init;
   gridfile_write_buffer : Tgridfile_write_buffer;
   gridfile_writer_done : Tgridfile_writer_done;
@@ -407,8 +407,8 @@ var
                                      custom_bson_realloc_func,
                                      custom_bson_free_func : Pointer); cdecl; external MongoCDLL;
   function mongo_env_sock_init : integer; cdecl; external MongoCDLL;
-  function mongo_create: Pointer; cdecl; external MongoCDLL;
-  procedure mongo_dispose(c: Pointer); cdecl; external MongoCDLL;
+  function mongo_alloc: Pointer; cdecl; external MongoCDLL;
+  procedure mongo_dealloc(c: Pointer); cdecl; external MongoCDLL;
   function mongo_client(c: Pointer; host: PAnsiChar; port: Integer): Integer; cdecl; external MongoCDLL;
   procedure mongo_destroy(c: Pointer); cdecl; external MongoCDLL;
   procedure mongo_replica_set_init(c: Pointer; Name: PAnsiChar); cdecl; external MongoCDLL;
@@ -431,11 +431,11 @@ var
   function mongo_update(c: Pointer; ns: PAnsiChar; cond: Pointer; op: Pointer; flags: Integer; wc: Pointer): Integer; cdecl; external MongoCDLL;
   function mongo_remove(c: Pointer; ns: PAnsiChar; criteria: Pointer; wc: Pointer): Integer; cdecl; external MongoCDLL;
   function mongo_find_one(c: Pointer; ns: PAnsiChar; query: Pointer; fields: Pointer; Result: Pointer): Integer; cdecl; external MongoCDLL;
-  function bson_create: Pointer; cdecl; external MongoCDLL;
-  procedure bson_dispose(b: Pointer); cdecl; external MongoCDLL;
+  function bson_alloc: Pointer; cdecl; external MongoCDLL;
+  procedure bson_dealloc(b: Pointer); cdecl; external MongoCDLL;
   procedure bson_copy(dest: Pointer; src: Pointer); cdecl; external MongoCDLL;
-  function mongo_cursor_create: Pointer; cdecl; external MongoCDLL;
-  procedure mongo_cursor_dispose(Cursor: Pointer); cdecl; external MongoCDLL;
+  function mongo_cursor_alloc: Pointer; cdecl; external MongoCDLL;
+  procedure mongo_cursor_dealloc(Cursor: Pointer); cdecl; external MongoCDLL;
   procedure mongo_cursor_destroy(Cursor: Pointer); cdecl; external MongoCDLL;
   function mongo_find(c: Pointer; ns: PAnsiChar; query: Pointer; fields: Pointer; limit, skip, options: Integer): Pointer; cdecl; external MongoCDLL;
   function mongo_cursor_next(Cursor: Pointer): Integer; cdecl; external MongoCDLL;
@@ -453,8 +453,8 @@ var
   function mongo_get_server_err(c: Pointer): Integer; cdecl; external MongoCDLL;
   function mongo_get_server_err_string(c: Pointer): PAnsiChar; cdecl; external MongoCDLL;
   // WriteConcern API functions
-  function mongo_write_concern_create : Pointer; cdecl; external MongoCDLL;
-  procedure mongo_write_concern_dispose(write_concern : Pointer); cdecl; external MongoCDLL;
+  function mongo_write_concern_alloc : Pointer; cdecl; external MongoCDLL;
+  procedure mongo_write_concern_dealloc(write_concern : Pointer); cdecl; external MongoCDLL;
   procedure mongo_write_concern_init(write_concern : pointer); cdecl; external MongoCDLL;
   function mongo_write_concern_finish(write_concern : pointer) : integer; cdecl; external MongoCDLL;
   procedure mongo_write_concern_destroy(write_concern : pointer); cdecl; external MongoCDLL;
@@ -473,6 +473,7 @@ var
   // MongoBson declarations
   procedure bson_free(b : pointer); cdecl; external MongoCDLL;
   function bson_init(b: Pointer) : integer; cdecl; external MongoCDLL;
+  function bson_init_empty(b : Pointer) : integer; cdecl; external MongoCDLL;
   procedure bson_destroy(b: Pointer); cdecl; external MongoCDLL;
   function bson_finish(b: Pointer): Integer; cdecl; external MongoCDLL;
   procedure bson_oid_gen(oid: Pointer); cdecl; external MongoCDLL;
@@ -504,8 +505,8 @@ var
   function bson_append_bson(b: Pointer; Name: PAnsiChar; Value: Pointer): Integer; cdecl; external MongoCDLL;
   function bson_buffer_size(b: Pointer): NativeUInt; cdecl; external MongoCDLL;
   function bson_size(b: Pointer): Integer; cdecl; external MongoCDLL;
-  function bson_iterator_create(): Pointer; cdecl; external MongoCDLL;
-  procedure bson_iterator_dispose(i: Pointer); cdecl; external MongoCDLL;
+  function bson_iterator_alloc(): Pointer; cdecl; external MongoCDLL;
+  procedure bson_iterator_dealloc(i: Pointer); cdecl; external MongoCDLL;
   procedure bson_iterator_init(i: Pointer; b: Pointer); cdecl; external MongoCDLL;
   function bson_find(i: Pointer; b: Pointer; Name: PAnsiChar): TBsonType; cdecl; external MongoCDLL;
   function bson_iterator_type(i: Pointer): TBsonType; cdecl; external MongoCDLL;
@@ -531,23 +532,23 @@ var
   function Int64toDouble(i64: Int64): Double; cdecl; external MongoCDLL Name 'bson_int64_to_double';
   function set_bson_err_handler(newErrorHandler : Pointer) : Pointer; cdecl; external MongoCDLL;
   // GridFS declarations
-  function gridfs_create: Pointer; cdecl; external MongoCDLL;
-  procedure gridfs_dispose(g: Pointer); cdecl; external MongoCDLL;
+  function gridfs_alloc: Pointer; cdecl; external MongoCDLL;
+  procedure gridfs_dealloc(g: Pointer); cdecl; external MongoCDLL;
   function gridfs_init(c: Pointer; db: PAnsiChar; prefix: PAnsiChar; g: Pointer): Integer; cdecl; external MongoCDLL;
   procedure gridfs_destroy(g: Pointer); cdecl; external MongoCDLL;
   function gridfs_store_file(g: Pointer; FileName: PAnsiChar; remoteName: PAnsiChar; contentType: PAnsiChar; Flags : Integer): Integer; cdecl; external MongoCDLL;
   procedure gridfs_remove_filename(g: Pointer; remoteName: PAnsiChar); cdecl; external MongoCDLL;
-  function gridfs_store_buffer(g: Pointer; p: Pointer; size: Int64; remoteName: PAnsiChar; contentType: PAnsiChar; Flags : Integer): Integer; cdecl; external MongoCDLL;
+  function gridfs_store_buffer(g: Pointer; p: Pointer; size: UInt64; remoteName: PAnsiChar; contentType: PAnsiChar; Flags : Integer): Integer; cdecl; external MongoCDLL;
   function gridfile_create: Pointer; cdecl; external MongoCDLL;
-  procedure gridfile_dispose(gf: Pointer); cdecl; external MongoCDLL;
+  procedure gridfile_dealloc(gf: Pointer); cdecl; external MongoCDLL;
   procedure gridfile_writer_init(gf: Pointer; gfs: Pointer; remoteName: PAnsiChar; contentType: PAnsiChar; Flags : Integer); cdecl; external MongoCDLL;
-  procedure gridfile_write_buffer(gf: Pointer; Data: Pointer; Length: Int64); cdecl; external MongoCDLL;
+  function gridfile_write_buffer(gf: Pointer; Data: Pointer; Length: UInt64) : UInt64; cdecl; external MongoCDLL;
   function gridfile_writer_done(gf: Pointer): Integer; cdecl; external MongoCDLL;
   function gridfs_find_query(g: Pointer; query: Pointer; gf: Pointer): Integer; cdecl; external MongoCDLL;
   procedure gridfile_destroy(gf: Pointer); cdecl; external MongoCDLL;
   function gridfile_get_filename(gf: Pointer): PAnsiChar; cdecl; external MongoCDLL;
   function gridfile_get_chunksize(gf: Pointer): Integer; cdecl; external MongoCDLL;
-  function gridfile_get_contentlength(gf: Pointer): Int64; cdecl; external MongoCDLL;
+  function gridfile_get_contentlength(gf: Pointer): UInt64; cdecl; external MongoCDLL;
   function gridfile_get_contenttype(gf: Pointer): PAnsiChar; cdecl; external MongoCDLL;
   function gridfile_get_uploaddate(gf: Pointer): Int64; cdecl; external MongoCDLL;
   function gridfile_get_md5(gf: Pointer): PAnsiChar; cdecl; external MongoCDLL;
@@ -556,13 +557,13 @@ var
   procedure gridfile_get_descriptor(gf: Pointer; b: Pointer); cdecl; external MongoCDLL;
   procedure gridfile_get_chunk(gf: Pointer; i: Integer; b: Pointer); cdecl; external MongoCDLL;
   function gridfile_get_chunks(gf: Pointer; i: NativeUInt; Count: NativeUInt): Pointer; cdecl; external MongoCDLL;
-  function gridfile_read(gf: Pointer; size: Int64; buf: Pointer): Int64; cdecl; external MongoCDLL;
-  function gridfile_seek(gf: Pointer; offset: Int64): Int64; cdecl; external MongoCDLL;
+  function gridfile_read(gf: Pointer; size: UInt64; buf: Pointer): UInt64; cdecl; external MongoCDLL;
+  function gridfile_seek(gf: Pointer; offset: UInt64): UInt64; cdecl; external MongoCDLL;
   function gridfile_init(gfs, meta, gfile : pointer) : integer; cdecl; external MongoCDLL;
-  function gridfile_get_id(gfile : pointer) : pointer; cdecl; external MongoCDLL;
-  function gridfile_truncate(gfile : Pointer; newSize : int64) : Int64; cdecl; external MongoCDLL;
-  function gridfile_expand(gfile : Pointer; bytesToExpand : int64) : Int64; cdecl; external MongoCDLL;
-  function gridfile_set_size(gfile : Pointer; newSize : Int64) : Int64; cdecl; external MongoCDLL;
+  function gridfile_get_id(gfile : pointer) : TBsonOIDValue; cdecl; external MongoCDLL;
+  function gridfile_truncate(gfile : Pointer; newSize : UInt64) : UInt64; cdecl; external MongoCDLL;
+  function gridfile_expand(gfile : Pointer; bytesToExpand : UInt64) : UInt64; cdecl; external MongoCDLL;
+  function gridfile_set_size(gfile : Pointer; newSize : UInt64) : UInt64; cdecl; external MongoCDLL;
   function gridfs_get_caseInsensitive (gf : Pointer) : LongBool; cdecl; external MongoCDLL;
   procedure gridfs_set_caseInsensitive(gf : Pointer; newValue : LongBool); cdecl; external MongoCDLL;
   procedure gridfile_set_flags(gf : Pointer; Flags : Integer); cdecl; external MongoCDLL;
@@ -571,7 +572,9 @@ var
 
 {$EndIf}
 
-procedure bson_dispose_and_destroy(bson : Pointer);
+function mongo_write_concern_create: Pointer;
+procedure bson_dealloc_and_destroy(bson : Pointer);
+function bson_create: pointer;
 
 implementation
 
@@ -627,8 +630,8 @@ begin
   // MongoDB initializations
   set_mem_alloc_functions := GetProcAddress(HMongoDBDll, 'set_mem_alloc_functions');
   mongo_env_sock_init := GetProcAddress(HMongoDBDll, 'mongo_env_sock_init');
-  mongo_create := GetProcAddress(HMongoDBDll, 'mongo_create');
-  mongo_dispose := GetProcAddress(HMongoDBDll, 'mongo_dispose');
+  mongo_alloc := GetProcAddress(HMongoDBDll, 'mongo_alloc');
+  mongo_dealloc := GetProcAddress(HMongoDBDll, 'mongo_dealloc');
   mongo_client := GetProcAddress(HMongoDBDll, 'mongo_client');
   mongo_destroy := GetProcAddress(HMongoDBDll, 'mongo_destroy');
   mongo_replica_set_init := GetProcAddress(HMongoDBDll, 'mongo_replica_set_init');
@@ -651,11 +654,11 @@ begin
   mongo_update := GetProcAddress(HMongoDBDll, 'mongo_update');
   mongo_remove := GetProcAddress(HMongoDBDll, 'mongo_remove');
   mongo_find_one := GetProcAddress(HMongoDBDll, 'mongo_find_one');
-  bson_create := GetProcAddress(HMongoDBDll, 'bson_create');
-  bson_dispose := GetProcAddress(HMongoDBDll, 'bson_dispose');
+  bson_alloc := GetProcAddress(HMongoDBDll, 'bson_alloc');
+  bson_dealloc := GetProcAddress(HMongoDBDll, 'bson_dealloc');
   bson_copy := GetProcAddress(HMongoDBDll, 'bson_copy');
-  mongo_cursor_create := GetProcAddress(HMongoDBDll, 'mongo_cursor_create');
-  mongo_cursor_dispose := GetProcAddress(HMongoDBDll, 'mongo_cursor_dispose');
+  mongo_cursor_alloc := GetProcAddress(HMongoDBDll, 'mongo_cursor_alloc');
+  mongo_cursor_dealloc := GetProcAddress(HMongoDBDll, 'mongo_cursor_dealloc');
   mongo_cursor_destroy := GetProcAddress(HMongoDBDll, 'mongo_cursor_destroy');
   mongo_find := GetProcAddress(HMongoDBDll, 'mongo_find');
   mongo_cursor_next := GetProcAddress(HMongoDBDll, 'mongo_cursor_next');
@@ -673,8 +676,8 @@ begin
   mongo_get_server_err := GetProcAddress(HMongoDBDll, 'mongo_get_server_err');
   mongo_get_server_err_string := GetProcAddress(HMongoDBDll, 'mongo_get_server_err_string');
   // WriteConcern API
-  mongo_write_concern_create := GetProcAddress(HMongoDBDll, 'mongo_write_concern_create');
-  mongo_write_concern_dispose := GetProcAddress(HMongoDBDll, 'mongo_write_concern_dispose');
+  mongo_write_concern_alloc := GetProcAddress(HMongoDBDll, 'mongo_write_concern_alloc');
+  mongo_write_concern_dealloc := GetProcAddress(HMongoDBDll, 'mongo_write_concern_dealloc');
   mongo_write_concern_init := GetProcAddress(HMongoDBDll, 'mongo_write_concern_init');
   mongo_write_concern_finish := GetProcAddress(HMongoDBDll, 'mongo_write_concern_finish');
   mongo_write_concern_destroy := GetProcAddress(HMongoDBDll, 'mongo_write_concern_destroy');
@@ -692,10 +695,11 @@ begin
   mongo_write_concern_set_mode := GetProcAddress(HMongoDBDll, 'mongo_write_concern_set_mode');
   // MongoBson initializations
   bson_free := GetProcAddress(HMongoDBDll, 'bson_free');
-  bson_create := GetProcAddress(HMongoDBDll, 'bson_create');
+  bson_alloc := GetProcAddress(HMongoDBDll, 'bson_alloc');
   bson_init := GetProcAddress(HMongoDBDll, 'bson_init');
+  bson_init_empty := GetProcAddress(HMongoDBDll, 'bson_init_empty');
   bson_destroy := GetProcAddress(HMongoDBDll, 'bson_destroy');
-  bson_dispose := GetProcAddress(HMongoDBDll, 'bson_dispose');
+  bson_dealloc := GetProcAddress(HMongoDBDll, 'bson_dealloc');
   bson_copy := GetProcAddress(HMongoDBDll, 'bson_copy');
   bson_finish := GetProcAddress(HMongoDBDll, 'bson_finish');
   bson_oid_gen := GetProcAddress(HMongoDBDll, 'bson_oid_gen');
@@ -727,8 +731,8 @@ begin
   bson_append_bson := GetProcAddress(HMongoDBDll, 'bson_append_bson');
   bson_buffer_size := GetProcAddress(HMongoDBDll, 'bson_buffer_size');
   bson_size := GetProcAddress(HMongoDBDll, 'bson_size');
-  bson_iterator_create := GetProcAddress(HMongoDBDll, 'bson_iterator_create');
-  bson_iterator_dispose := GetProcAddress(HMongoDBDll, 'bson_iterator_dispose');
+  bson_iterator_alloc := GetProcAddress(HMongoDBDll, 'bson_iterator_alloc');
+  bson_iterator_dealloc := GetProcAddress(HMongoDBDll, 'bson_iterator_dealloc');
   bson_iterator_init := GetProcAddress(HMongoDBDll, 'bson_iterator_init');
   bson_find := GetProcAddress(HMongoDBDll, 'bson_find');
   bson_iterator_type := GetProcAddress(HMongoDBDll, 'bson_iterator_type');
@@ -753,15 +757,15 @@ begin
   bson_iterator_bin_data := GetProcAddress(HMongoDBDll, 'bson_iterator_bin_data');
   set_bson_err_handler := GetProcAddress(HMongoDBDll, 'set_bson_err_handler');
   // GridFS functions
-  gridfs_create := GetProcAddress(HMongoDBDll, 'gridfs_create');
-  gridfs_dispose := GetProcAddress(HMongoDBDll, 'gridfs_dispose');
+  gridfs_alloc := GetProcAddress(HMongoDBDll, 'gridfs_alloc');
+  gridfs_dealloc := GetProcAddress(HMongoDBDll, 'gridfs_dealloc');
   gridfs_init := GetProcAddress(HMongoDBDll, 'gridfs_init');
   gridfs_destroy := GetProcAddress(HMongoDBDll, 'gridfs_destroy');
   gridfs_store_file := GetProcAddress(HMongoDBDll, 'gridfs_store_file');
   gridfs_remove_filename := GetProcAddress(HMongoDBDll, 'gridfs_remove_filename');
   gridfs_store_buffer := GetProcAddress(HMongoDBDll, 'gridfs_store_buffer');
   gridfile_create := GetProcAddress(HMongoDBDll, 'gridfile_create');
-  gridfile_dispose := GetProcAddress(HMongoDBDll, 'gridfile_dispose');
+  gridfile_dealloc := GetProcAddress(HMongoDBDll, 'gridfile_dealloc');
   gridfile_writer_init := GetProcAddress(HMongoDBDll, 'gridfile_writer_init');
   gridfile_write_buffer := GetProcAddress(HMongoDBDll, 'gridfile_write_buffer');
   gridfile_writer_done := GetProcAddress(HMongoDBDll, 'gridfile_writer_done');
@@ -811,31 +815,12 @@ end;
 constructor TMongoInterfacedObject.Create;
 begin
   inherited;
-  {$IFDEF MONGO_MEMORY_PROTECTION}
-  MongoSignature := DELPHI_MONGO_SIGNATURE;
-  {$ENDIF}
 end;
 
 destructor TMongoInterfacedObject.Destroy;
 begin
-  {$IFDEF MONGO_MEMORY_PROTECTION}
-  CheckValid;
-  {$ENDIF}
   inherited;
-  {$IFDEF MONGO_MEMORY_PROTECTION}
-  MongoSignature := 0;
-  {$ENDIF}
 end;
-
-{$IFDEF MONGO_MEMORY_PROTECTION}
-procedure TMongoInterfacedObject.CheckValid;
-const // Don't use ResourceString, function that uses this won't be able to be inlined
-  SDelphiMongoErrorFailedSignatureV = 'Delphi Mongo error failed signature validation';
-begin
-  if (Self = nil) or (MongoSignature <> DELPHI_MONGO_SIGNATURE) then
-    raise EMongoFatalError.Create(SDelphiMongoErrorFailedSignatureV);
-end;
-{$ENDIF}
 
 { TMongoObject }
 
@@ -849,10 +834,23 @@ begin
   inherited;
 end;
 
-procedure bson_dispose_and_destroy(bson : Pointer);
+procedure bson_dealloc_and_destroy(bson : Pointer);
 begin
   bson_destroy(bson);
-  bson_dispose(bson);
+  bson_dealloc(bson);
+end;
+
+function mongo_write_concern_create: Pointer;
+begin
+  Result := mongo_write_concern_alloc;
+  mongo_write_concern_init(Result);
+end;
+
+function bson_create: pointer;
+begin
+  Result := bson_alloc;
+  if bson_init_empty(Result) <> 0 then
+    raise EMongoFatalError.Create('Call to bson_init_empty failed');
 end;
 
 initialization
