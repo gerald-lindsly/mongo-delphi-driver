@@ -672,7 +672,7 @@ begin
   if fhandle <> nil then
   begin
     mongo_destroy(fhandle);
-    mongo_dispose(fhandle);
+    mongo_dealloc(fhandle);
     fhandle := nil;
   end;
   inherited;
@@ -799,7 +799,7 @@ end;
 
 procedure TMongoReplset.InitMongo(const AHost: UTF8String);
 begin
-  fhandle := mongo_create;
+  fhandle := mongo_alloc;
   mongo_replica_set_init(Handle, PAnsiChar(AHost)); // AHost contains the replicate set Name
 end;
 
@@ -965,14 +965,14 @@ begin
       Result := NewBson(res)
     else
     begin
-      bson_dispose_and_destroy(res);
+      bson_dealloc_and_destroy(res);
       res := nil;
       Result := nil;
     end;
     autoCheckCmdLastError(ns, true);
   except
     if res <> nil then
-      bson_dispose_and_destroy(res);
+      bson_dealloc_and_destroy(res);
     raise;
   end;
 end;
@@ -1137,7 +1137,7 @@ begin
       Result := NewBsonCopy(res)
     else Result := nil;
   finally
-    bson_dispose_and_destroy(res);
+    bson_dealloc_and_destroy(res);
   end;
 end;
 
@@ -1174,7 +1174,7 @@ begin
     else
       Result := nil;
   finally
-    bson_dispose_and_destroy(res);
+    bson_dealloc_and_destroy(res);
   end;
 end;
 
@@ -1187,7 +1187,7 @@ begin
   try
     if mongo_cmd_get_last_error(fHandle, PAnsiChar(db), h) = 0 then
     begin
-      bson_dispose_and_destroy(h);
+      bson_dealloc_and_destroy(h);
       h := nil;
       Result := nil;
     end
@@ -1195,7 +1195,7 @@ begin
       Result := NewBson(h);
   except
     if h <> nil then
-      bson_dispose_and_destroy(h);
+      bson_dealloc_and_destroy(h);
     raise;
   end;
 end;
@@ -1268,7 +1268,7 @@ begin
     else
       Result := nil;
   finally
-    bson_dispose_and_destroy(res);
+    bson_dealloc_and_destroy(res);
   end;
 end;
 
@@ -1302,7 +1302,7 @@ begin
   try
     res := NewBson(h);
   except
-    bson_dispose_and_destroy(h);
+    bson_dealloc_and_destroy(h);
     raise;
   end;
   autoCmdResetLastError(ns, true);
@@ -1334,7 +1334,7 @@ var
   hosturl: UTF8String;
   port: Integer;
 begin
-  fhandle := mongo_create;
+  fhandle := mongo_alloc;
   parseHost(AHost, hosturl, port);
   mongo_client(fhandle, PAnsiChar(hosturl), port);
   if not checkConnection then
@@ -1394,26 +1394,23 @@ end;
 
 destructor TMongoCursor.Destroy;
 begin
-  {$IFDEF MONGO_MEMORY_PROTECTION} CheckValid; {$ENDIF}
   DestroyCursor;
   inherited;
 end;
 
 procedure TMongoCursor.CheckHandle(const FnName: String);
 begin
-  {$IFDEF MONGO_MEMORY_PROTECTION} CheckValid; {$ENDIF}
   if FHandle = nil then
     raise EMongo.Create(SMongoCursorHandleIsNil, FnName, E_MongoCursorHandleIsNil);
 end;
 
 procedure TMongoCursor.DestroyCursor;
 begin
-  {$IFDEF MONGO_MEMORY_PROTECTION} CheckValid; {$ENDIF}
   if FHandle <> nil then
   begin
     mongo_cursor_destroy(FHandle);
     if not FFindCalledFlag then
-      mongo_cursor_dispose(FHandle);
+      mongo_cursor_dealloc(FHandle);
     FHandle := nil;
     FFindCalledFlag := false;
   end;
@@ -1421,61 +1418,51 @@ end;
 
 procedure TMongoCursor.FindCalled;
 begin
-  {$IFDEF MONGO_MEMORY_PROTECTION} CheckValid; {$ENDIF}
   FindCalledFlag := true;
 end;
 
 function TMongoCursor.GetConn: TMongo;
 begin
-  {$IFDEF MONGO_MEMORY_PROTECTION} CheckValid; {$ENDIF}
   Result := FConn;
 end;
 
 function TMongoCursor.GetFields: IBson;
 begin
-  {$IFDEF MONGO_MEMORY_PROTECTION} CheckValid; {$ENDIF}
   Result := FFields;
 end;
 
 function TMongoCursor.GetHandle: Pointer;
 begin
-  {$IFDEF MONGO_MEMORY_PROTECTION} CheckValid; {$ENDIF}
   Result := FHandle;
 end;
 
 function TMongoCursor.GetLimit: Integer;
 begin
-  {$IFDEF MONGO_MEMORY_PROTECTION} CheckValid; {$ENDIF}
   Result := FLimit;
 end;
 
 function TMongoCursor.GetOptions: Integer;
 begin
-  {$IFDEF MONGO_MEMORY_PROTECTION} CheckValid; {$ENDIF}
   Result := FOptions;
 end;
 
 function TMongoCursor.GetQuery: IBson;
 begin
-  {$IFDEF MONGO_MEMORY_PROTECTION} CheckValid; {$ENDIF}
   Result := FQuery;
 end;
 
 function TMongoCursor.GetSkip: Integer;
 begin
-  {$IFDEF MONGO_MEMORY_PROTECTION} CheckValid; {$ENDIF}
   Result := FSkip;
 end;
 
 function TMongoCursor.GetSort: IBson;
 begin
-  {$IFDEF MONGO_MEMORY_PROTECTION} CheckValid; {$ENDIF}
   Result := FSort;
 end;
 
 procedure TMongoCursor.Init;
 begin
-  {$IFDEF MONGO_MEMORY_PROTECTION} CheckValid; {$ENDIF}
   Handle := nil;
   query := nil;
   Sort := nil;
@@ -1494,19 +1481,16 @@ end;
 
 procedure TMongoCursor.SetConn(const value: TMongo);
 begin
-  {$IFDEF MONGO_MEMORY_PROTECTION} CheckValid; {$ENDIF}
   FConn := value;
 end;
 
 procedure TMongoCursor.SetFields(const value: IBson);
 begin
-  {$IFDEF MONGO_MEMORY_PROTECTION} CheckValid; {$ENDIF}
   FFields := value;
 end;
 
 procedure TMongoCursor.SetHandle(const value: Pointer);
 begin
-  {$IFDEF MONGO_MEMORY_PROTECTION} CheckValid; {$ENDIF}
   if FHandle <> nil then
     DestroyCursor;
   FHandle := value;
@@ -1514,31 +1498,26 @@ end;
 
 procedure TMongoCursor.SetLimit(const value: Integer);
 begin
-  {$IFDEF MONGO_MEMORY_PROTECTION} CheckValid; {$ENDIF}
   FLimit := value;
 end;
 
 procedure TMongoCursor.SetOptions(const value: Integer);
 begin
-  {$IFDEF MONGO_MEMORY_PROTECTION} CheckValid; {$ENDIF}
   FOptions := value;
 end;
 
 procedure TMongoCursor.SetQuery(const value: IBson);
 begin
-  {$IFDEF MONGO_MEMORY_PROTECTION} CheckValid; {$ENDIF}
   FQuery := value;
 end;
 
 procedure TMongoCursor.SetSkip(const value: Integer);
 begin
-  {$IFDEF MONGO_MEMORY_PROTECTION} CheckValid; {$ENDIF}
   FSkip := value;
 end;
 
 procedure TMongoCursor.SetSort(const value: IBson);
 begin
-  {$IFDEF MONGO_MEMORY_PROTECTION} CheckValid; {$ENDIF}
   FSort := value;
 end;
 
@@ -1574,15 +1553,13 @@ end;
 
 destructor TWriteConcern.Destroy;
 begin
-  {$IFDEF MONGO_MEMORY_PROTECTION} CheckValid; {$ENDIF}
   mongo_write_concern_destroy(FWriteConcern);
-  mongo_write_concern_dispose(FWriteConcern);
+  mongo_write_concern_dealloc(FWriteConcern);
   inherited;
 end;
 
 procedure TWriteConcern.finish;
 begin
-  {$IFDEF MONGO_MEMORY_PROTECTION} CheckValid; {$ENDIF}
   mongo_write_concern_finish(FWriteConcern);
   FFinished := true;
 end;
@@ -1591,7 +1568,6 @@ function TWriteConcern.Getcmd: IBson;
 var
   ACmd : Pointer;
 begin
-  {$IFDEF MONGO_MEMORY_PROTECTION} CheckValid; {$ENDIF}
   ACmd := mongo_write_concern_get_cmd(FWriteConcern);
   if ACmd <> nil then
     Result := NewBsonCopy(ACmd)
@@ -1600,31 +1576,26 @@ end;
 
 function TWriteConcern.Getfinished: Boolean;
 begin
-  {$IFDEF MONGO_MEMORY_PROTECTION} CheckValid; {$ENDIF}
   Result := FFinished;
 end;
 
 function TWriteConcern.Getfsync: Integer;
 begin
-  {$IFDEF MONGO_MEMORY_PROTECTION} CheckValid; {$ENDIF}
   Result := mongo_write_concern_get_fsync(FWriteConcern);
 end;
 
 function TWriteConcern.GetHandle: Pointer;
 begin
-  {$IFDEF MONGO_MEMORY_PROTECTION} CheckValid; {$ENDIF}
   Result := FWriteConcern;
 end;
 
 function TWriteConcern.Getj: Integer;
 begin
-  {$IFDEF MONGO_MEMORY_PROTECTION} CheckValid; {$ENDIF}
   Result := mongo_write_concern_get_j(FWriteConcern);
 end;
 
 function TWriteConcern.Getmode: UTF8String;
 begin
-  {$IFDEF MONGO_MEMORY_PROTECTION} CheckValid; {$ENDIF}
   if mongo_write_concern_get_mode(FWriteConcern) <> nil then
     Result := UTF8String(mongo_write_concern_get_mode(FWriteConcern))
   else
@@ -1633,39 +1604,33 @@ end;
 
 function TWriteConcern.Getw: Integer;
 begin
-  {$IFDEF MONGO_MEMORY_PROTECTION} CheckValid; {$ENDIF}
   Result := mongo_write_concern_get_w(FWriteConcern);
 end;
 
 function TWriteConcern.Getwtimeout: Integer;
 begin
-  {$IFDEF MONGO_MEMORY_PROTECTION} CheckValid; {$ENDIF}
   Result := mongo_write_concern_get_wtimeout(FWriteConcern);
 end;
 
 procedure TWriteConcern.Modified;
 begin
-  {$IFDEF MONGO_MEMORY_PROTECTION} CheckValid; {$ENDIF}
   FFinished := false;
 end;
 
 procedure TWriteConcern.Setfsync(const Value: Integer);
 begin
-  {$IFDEF MONGO_MEMORY_PROTECTION} CheckValid; {$ENDIF}
   mongo_write_concern_set_fsync(FWriteConcern, Value);
   Modified;
 end;
 
 procedure TWriteConcern.Setj(const Value: Integer);
 begin
-  {$IFDEF MONGO_MEMORY_PROTECTION} CheckValid; {$ENDIF}
   mongo_write_concern_set_j(FWriteConcern, Value);
   Modified;
 end;
 
 procedure TWriteConcern.Setmode(const Value: UTF8String);
 begin
-  {$IFDEF MONGO_MEMORY_PROTECTION} CheckValid; {$ENDIF}
   FMode := Value;
   mongo_write_concern_set_mode(FWriteConcern, PAnsiChar(FMode));
   Modified;
@@ -1673,14 +1638,12 @@ end;
 
 procedure TWriteConcern.Setw(const Value: Integer);
 begin
-  {$IFDEF MONGO_MEMORY_PROTECTION} CheckValid; {$ENDIF}
   mongo_write_concern_set_w(FWriteConcern, Value);
   Modified;
 end;
 
 procedure TWriteConcern.Setwtimeout(const Value: Integer);
 begin
-  {$IFDEF MONGO_MEMORY_PROTECTION} CheckValid; {$ENDIF}
   mongo_write_concern_set_wtimeout(FWriteConcern, Value);
   Modified;
 end;

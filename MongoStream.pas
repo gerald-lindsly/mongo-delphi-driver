@@ -64,7 +64,6 @@ type
     procedure SerializeWithJournal;
   protected
     MongoSignature: cardinal;
-    procedure CheckValid;
     function GetSize: Int64; override;
     {$IFDEF DELPHI2007}
     procedure SetSize(NewSize: longint); override;
@@ -155,7 +154,6 @@ end;
 
 destructor TMongoStream.Destroy;
 begin
-  CheckValid;
   FGridFileWriter := nil;
   FGridFile := nil;
   if FGridFS <> nil then
@@ -169,34 +167,24 @@ end;
 
 procedure TMongoStream.CheckGridFile;
 begin
-  CheckValid;
   if FGridFile = nil then
     raise EMongo.Create(SFGridFileIsNil, E_FGridFileIsNil);
 end;
 
 procedure TMongoStream.CheckGridFS;
 begin
-  CheckValid;
   if FGridFS = nil then
     raise EMongo.Create(SFGridFSIsNil, E_FGridFSIsNil);
 end;
 
-procedure TMongoStream.CheckValid;
-begin
-  if MongoSignature <> DELPHI_MONGO_SIGNATURE then
-    raise EMongoFatalError.Create(SDelphiMongoErrorFailedSignature);
-end;
-
 procedure TMongoStream.CheckWriteSupport;
 begin
-  CheckValid;
   if FGridFileWriter = nil then
     raise EMongo.Create(SStreamNotCreatedForWriting, E_StreamNotCreatedForWriting);
 end;
 
 procedure TMongoStream.EnforceStatusOK;
 begin
-  CheckValid;
   if FStatus <> mssOK then
     raise EMongo.Create(SStatusMustBeOKInOrderToAllowStre, E_StatusMustBeOKInOrderToAllowStre);
 end;
@@ -245,7 +233,6 @@ end;
 {$IFDEF DELPHI2007}
 function TMongoStream.Seek(const Offset: Int64; Origin: TSeekOrigin): Int64;
 begin
-  CheckValid;
   case Origin of
     soBeginning : FCurPos := Offset;
     soCurrent : FCurPos := FCurPos + Offset;
@@ -294,8 +281,7 @@ end;
 function TMongoStream.Write(const Buffer; Count: Longint): Longint;
 begin
   CheckWriteSupport;
-  FGridFileWriter.Write(@Buffer, Count);
-  Result := Count;
+  Result := FGridFileWriter.Write(@Buffer, Count);
   inc(FCurPos, Result);
   inc(FBytesWritten, Result);
   CheckSerializeWithJournal;
