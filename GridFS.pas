@@ -136,7 +136,7 @@ type
     { Get the number of chunks into which the file is divided. }
     function getChunkCount: Integer;
     { Get the number of chunks into which the file is divided. }
-    function getStoredChunkCount: Int64;
+    function getStoredChunkCount: UInt64;
       { Get a cursor for stepping through a range of chunks of this gridfile.
         i is the index of the first chunk to be returned.  count is the number
         of chunks to return.  Returns nil if there are no chunks in the
@@ -151,7 +151,7 @@ type
     { Get the filename (remoteName) of this gridfile. }
     function getFilename: UTF8String;
     { Get the length of this gridfile. }
-    function getLength: Int64;
+    function getLength: UInt64;
     { Get the MD5 hash of this gridfile.  This is a 16-digit hex string. }
     function getMD5: UTF8String;
       { Get any metadata associated with this gridfile as a TBson document.
@@ -164,12 +164,12 @@ type
         read to the address indicated by p and length bytes are read.  The size
         of the data read is returned and can be less than length if there was
         not enough data remaining to be read. }
-    function read(p: Pointer; Length: Int64): Int64;
+    function read(p: Pointer; Length: UInt64): UInt64;
       { seek to a specified offset within the gridfile.  read() will then
         return data starting at that location.  Returns the position that
         was set.  This can be at the end of the gridfile if offset is greater
         the length of this gridfile. }
-    function seek(offset: Int64): Int64;
+    function seek(offset: UInt64): UInt64;
     function getID : IBsonOID;
     function Handle : Pointer;
   end;
@@ -183,10 +183,10 @@ type
       { Write data to this IGridfileWriter. p is the address of the data and length
         is its size. Multiple calls to write() may be made to append successive
         data. }
-    procedure Write(p: Pointer; Length: Int64);
-    function truncate(newSize : int64) : Int64;
-    function expand(bytesToExpand : Int64) : Int64;
-    function setSize(newSize : Int64) : Int64;
+    function Write(p: Pointer; Length: UInt64): UInt64;
+    function truncate(newSize: UInt64): UInt64;
+    function expand(bytesToExpand: UInt64): UInt64;
+    function setSize(newSize: UInt64): UInt64;
   end;
 
 implementation
@@ -225,13 +225,13 @@ type
     constructor Create(gridfs: TGridFS);
     procedure DestroyGridFile;
   public
-    function getStoredChunkCount: Int64;
+    function getStoredChunkCount: UInt64;
     { Get the filename (remoteName) of this gridfile. }
     function getFilename: UTF8String;
     { Get the size of the chunks into which the file is divided. }
     function getChunkSize: Integer;
     { Get the length of this gridfile. }
-    function getLength: Int64;
+    function getLength: UInt64;
     { Get the content type of this gridfile. }
     function getContentType: UTF8String;
     { Get the upload date of this gridfile. }
@@ -259,12 +259,12 @@ type
         read to the address indicated by p and length bytes are read.  The size
         of the data read is returned and can be less than length if there was
         not enough data remaining to be read. }
-    function read(p: Pointer; Length: Int64): Int64;
+    function read(p: Pointer; Length: UInt64): UInt64;
       { seek to a specified offset within the gridfile.  read() will then
         return data starting at that location.  Returns the position that
         was set.  This can be at the end of the gridfile if offset is greater
         the length of this gridfile. }
-    function seek(offset: Int64): Int64;
+    function seek(offset: UInt64): UInt64;
     function Handle: Pointer;
     function getID: IBsonOID;
     { Destroy this TGridfile object.  Releases external resources. }
@@ -289,15 +289,15 @@ type
       { write data to this TGridfileWriter. p is the address of the data and length
         is its size. Multiple calls to write() may be made to append successive
         data. }
-    procedure write(p: Pointer; Length: Int64);
+    function write(p: Pointer; Length: UInt64): UInt64;
       { Finish with this TGridfileWriter.  Flushes any data remaining to be written
         to a chunk and posts the 'directory' information of the gridfile to the
         GridFS. Returns True if successful; otherwise, False. }
-    function truncate(newSize : int64): Int64;
-    function expand(bytesToExpand : Int64): Int64;
+    function truncate(newSize: UInt64): UInt64;
+    function expand(bytesToExpand: UInt64): UInt64;
     { setSize supercedes truncate in the sense it can change the file size up or down. If making
       file size larger, file will be zero filled }
-    function setSize(newSize : Int64): Int64;
+    function setSize(newSize: UInt64): UInt64;
     function finish: Boolean;
       { Destroy this TGridfileWriter.  Calls finish() if necessary and releases
         external resources. }
@@ -315,11 +315,11 @@ begin
   FPrefix := prefix;
   fdb := db;
   conn := mongo;
-  Handle := gridfs_create;
+  Handle := gridfs_alloc;
   if gridfs_init(mongo.Handle, PAnsiChar(fdb),
     PAnsiChar(prefix), Handle) <> 0 then
   begin
-    gridfs_dispose(Handle);
+    gridfs_dealloc(Handle);
     raise EMongo.Create(SUnableToCreateGridFS, E_UnableToCreateGridFS);
   end;
   AutoCheckLastError := True;
@@ -336,7 +336,7 @@ begin
   if Handle <> nil then
     begin
       gridfs_destroy(Handle);
-      gridfs_dispose(Handle);
+      gridfs_dealloc(Handle);
       Handle := nil;
     end;
   inherited;
@@ -440,7 +440,7 @@ begin
               gf := TGridfileWriter.Create(Self, gridfile_get_filename(AHandle), True, Meta, GRIDFILE_DEFAULT);
               gridfile_destroy(AHandle);
             finally
-              bson_dispose(meta); // Dont' call Destroy for this object, data is owned by gridfile
+              bson_dealloc(meta); // Dont' call Destroy for this object, data is owned by gridfile
             end;
           end;
         Result := gf;
@@ -448,7 +448,7 @@ begin
       else Result := nil;
   finally
     if AWriteMode then
-      gridfile_dispose(AHandle);
+      gridfile_dealloc(AHandle);
   end;
 end;
 
@@ -503,15 +503,14 @@ begin
   Create(gridfs, remoteName, '', AInit, AMeta, Flags);
 end;
 
-procedure TGridfileWriter.write(p: Pointer; Length: Int64);
+function TGridfileWriter.write(p: Pointer; Length: UInt64): UInt64;
 begin
   CheckHandle;
-  gridfile_write_buffer(Handle, p, Length);
+  Result := gridfile_write_buffer(Handle, p, Length);
 end;
 
 function TGridfileWriter.finish: Boolean;
 begin
-  {$IFDEF MONGO_MEMORY_PROTECTION} CheckValid; {$ENDIF}
   if Handle = nil then
     Result := true
   else
@@ -521,7 +520,7 @@ begin
       DestroyGridFile
     else
     begin
-      gridfile_dispose(Handle);
+      gridfile_dealloc(Handle);
       FHandle := nil;
     end;
   end;
@@ -529,24 +528,23 @@ end;
 
 destructor TGridfileWriter.Destroy;
 begin
-  {$IFDEF MONGO_MEMORY_PROTECTION} CheckValid; {$ENDIF}
   finish;
   inherited;
 end;
 
-function TGridfileWriter.expand(bytesToExpand : Int64): Int64;
+function TGridfileWriter.expand(bytesToExpand: UInt64): UInt64;
 begin
   CheckHandle;
   Result := gridfile_expand(Handle, bytesToExpand);
 end;
 
-function TGridfileWriter.setSize(newSize : Int64): Int64;
+function TGridfileWriter.setSize(newSize: UInt64): UInt64;
 begin
   CheckHandle;
   Result := gridfile_set_size(Handle, newSize);
 end;
 
-function TGridfileWriter.truncate(newSize : int64): Int64;
+function TGridfileWriter.truncate(newSize: UInt64): UInt64;
 begin
   CheckHandle;
   Result := gridfile_truncate(Handle, newSize);
@@ -563,25 +561,22 @@ end;
 
 destructor TGridfile.Destroy;
 begin
-  {$IFDEF MONGO_MEMORY_PROTECTION} CheckValid; {$ENDIF}
   DestroyGridFile;
   inherited;
 end;
 
 procedure TGridfile.CheckHandle;
 begin
-  {$IFDEF MONGO_MEMORY_PROTECTION} CheckValid; {$ENDIF}
   if FHandle = nil then
     raise EMongo.Create(SGridFileHandleIsNil, E_GridFileHandleIsNil);
 end;
 
 procedure TGridfile.DestroyGridFile;
 begin
-  {$IFDEF MONGO_MEMORY_PROTECTION} CheckValid; {$ENDIF}
   if FHandle <> nil then
   begin
     gridfile_destroy(FHandle);
-    gridfile_dispose(FHandle);
+    gridfile_dealloc(FHandle);
     FHandle := nil;
   end;
 end;
@@ -598,7 +593,7 @@ begin
   Result := gridfile_get_chunksize(FHandle);
 end;
 
-function TGridfile.getLength: Int64;
+function TGridfile.getLength: UInt64;
 begin
   CheckHandle;
   Result := gridfile_get_contentlength(FHandle);
@@ -635,7 +630,7 @@ begin
     else
       Result := NewBsonCopy(b);
   finally
-    bson_dispose(b); // Dont' call Destroy for this object, data is owned by gridfile
+    bson_dealloc(b); // Dont' call Destroy for this object, data is owned by gridfile
   end;
 end;
 
@@ -655,7 +650,7 @@ begin
     gridfile_get_descriptor(FHandle, b);
     Result := NewBsonCopy(b);
   finally
-    bson_dispose(b); // Dont' call Destroy for this object, data is owned by gridfile
+    bson_dealloc(b); // Dont' call Destroy for this object, data is owned by gridfile
   end;
 end;
 
@@ -669,7 +664,7 @@ begin
   try
     b := NewBson(h);
   except
-    bson_dispose_and_destroy(h);
+    bson_dealloc_and_destroy(h);
     raise;
   end;
   gridfile_get_chunk(FHandle, i, b.Handle);
@@ -697,32 +692,25 @@ end;
 
 function TGridfile.getID: IBsonOID;
 var
-  poid : pointer;
+  oid : TBsonOIDValue;
 begin
   CheckHandle;
-  poid := gridfile_get_id(FHandle);
-  if poid = nil then
-    raise EMongo.Create(SInternalErrorOIDDescriptorOfFile, E_InternalErrorOIDDescriptorOfFile);
+  oid := gridfile_get_id(FHandle);
   Result := NewBsonOID;
-  Result.setValue(TBsonOIDValue(poid^));
+  Result.setValue(oid);
 end;
 
-function TGridfile.getStoredChunkCount: Int64;
+function TGridfile.getStoredChunkCount: UInt64;
 var
   buf : IBsonBuffer;
   q : IBson;
-  id : Pointer;
+  id : TBsonOIDValue;
   oid : IBsonOID;
 begin
   CheckHandle;
   id := gridfile_get_id(FHandle);
-  if id = nil then
-    begin
-      Result := 0;
-      exit;
-    end;
   oid := NewBsonOID;
-  oid.setValue(TBsonOIDValue(id^));
+  oid.setValue(id);
   buf := NewBsonBuffer;
   buf.Append(SFiles_id, oid);
   q := buf.finish;
@@ -731,17 +719,16 @@ end;
 
 function TGridfile.Handle: Pointer;
 begin
-  {$IFDEF MONGO_MEMORY_PROTECTION} CheckValid; {$ENDIF}
   Result := FHandle;
 end;
 
-function TGridfile.read(p: Pointer; Length: Int64): Int64;
+function TGridfile.read(p: Pointer; Length: UInt64): UInt64;
 begin
   CheckHandle;
   Result := gridfile_read(FHandle, Length, p);
 end;
 
-function TGridfile.seek(offset: Int64): Int64;
+function TGridfile.seek(offset: UInt64): UInt64;
 begin
   CheckHandle;
   Result := gridfile_seek(FHandle, offset);
