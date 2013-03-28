@@ -725,7 +725,7 @@ end;
 function TGridfile.read(p: Pointer; Length: UInt64): UInt64;
 begin
   CheckHandle;
-  Result := gridfile_read(FHandle, Length, p);
+  Result := gridfile_read_buffer(FHandle, p, Length);
 end;
 
 function TGridfile.seek(offset: UInt64): UInt64;
