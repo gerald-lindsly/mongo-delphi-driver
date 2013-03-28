@@ -216,7 +216,7 @@ type
   Tgridfile_get_descriptor = procedure (gf: Pointer; b: Pointer); cdecl;
   Tgridfile_get_chunk = procedure (gf: Pointer; i: Integer; b: Pointer); cdecl;
   Tgridfile_get_chunks = function (gf: Pointer; i: NativeUInt; Count: NativeUInt): Pointer; cdecl;
-  Tgridfile_read = function (gf: Pointer; size: UInt64; buf: Pointer): UInt64; cdecl;
+  Tgridfile_read_buffer = function (gf: Pointer; buf: Pointer; size: UInt64): UInt64; cdecl;
   Tgridfile_seek = function (gf: Pointer; offset: UInt64): UInt64; cdecl;
   Tgridfile_init = function (gfs, meta, gfile : pointer) : integer; cdecl;
   Tgridfile_get_id = function (gfile : pointer) : TBsonOIDValue; cdecl;
@@ -383,7 +383,7 @@ var
   gridfile_get_descriptor : Tgridfile_get_descriptor;
   gridfile_get_chunk: Tgridfile_get_chunk;
   gridfile_get_chunks : Tgridfile_get_chunks;
-  gridfile_read : Tgridfile_read;
+  gridfile_read_buffer : Tgridfile_read_buffer;
   gridfile_seek : Tgridfile_seek;
   gridfile_init : Tgridfile_init;
   gridfile_get_id : Tgridfile_get_id;
@@ -557,7 +557,7 @@ var
   procedure gridfile_get_descriptor(gf: Pointer; b: Pointer); cdecl; external MongoCDLL;
   procedure gridfile_get_chunk(gf: Pointer; i: Integer; b: Pointer); cdecl; external MongoCDLL;
   function gridfile_get_chunks(gf: Pointer; i: NativeUInt; Count: NativeUInt): Pointer; cdecl; external MongoCDLL;
-  function gridfile_read(gf: Pointer; size: UInt64; buf: Pointer): UInt64; cdecl; external MongoCDLL;
+  function gridfile_read_buffer(gf: Pointer; buf: Pointer; size: UInt64): UInt64; cdecl; external MongoCDLL;
   function gridfile_seek(gf: Pointer; offset: UInt64): UInt64; cdecl; external MongoCDLL;
   function gridfile_init(gfs, meta, gfile : pointer) : integer; cdecl; external MongoCDLL;
   function gridfile_get_id(gfile : pointer) : TBsonOIDValue; cdecl; external MongoCDLL;
@@ -782,7 +782,7 @@ begin
   gridfile_get_descriptor := GetProcAddress(HMongoDBDll, 'gridfile_get_descriptor');
   gridfile_get_chunk:= GetProcAddress(HMongoDBDll, 'gridfile_get_chunk');
   gridfile_get_chunks := GetProcAddress(HMongoDBDll, 'gridfile_get_chunks');
-  gridfile_read := GetProcAddress(HMongoDBDll, 'gridfile_read');
+  gridfile_read_buffer := GetProcAddress(HMongoDBDll, 'gridfile_read_buffer');
   gridfile_seek := GetProcAddress(HMongoDBDll, 'gridfile_seek');
   gridfile_init := GetProcAddress(HMongoDBDll, 'gridfile_init');
   gridfile_get_id := GetProcAddress(HMongoDBDll, 'gridfile_get_id');
