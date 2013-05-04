@@ -398,10 +398,10 @@ var
   gridfile_set_flags : Tgridfile_set_flags;
   gridfile_get_flags : Tgridfile_get_flags;
 // ZLib and AES extensions
-  init_ZLib_AES_filtering : TinitPrepostChunkProcessing;
+  init_ZLib_AES_filtering : Tinit_ZLib_AES_filtering;
   create_ZLib_AES_filter_context : Tcreate_ZLib_AES_filter_context;
   destroy_ZLib_AES_filter_context : Tdestroy_ZLib_AES_filter_context;
-  ZLib_AES_filter_context_set_encryption_key : ZLib_AES_filter_context_set_encryption_key;
+  ZLib_AES_filter_context_set_encryption_key : TZLib_AES_filter_context_set_encryption_key;
 
 
   Int64toDouble : TInt64toDouble;
