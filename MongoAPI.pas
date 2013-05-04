@@ -42,9 +42,6 @@ type
     bsonTIMESTAMP,      // 17
     bsonLONG);          // 18
 
-const
-  DELPHI_MONGO_SIGNATURE = $EFEFAFAF;
-
 type
   TMongoInterfacedObject = class(TInterfacedObject)
   public
@@ -204,6 +201,7 @@ type
   Tgridfile_write_buffer = function (gf: Pointer; Data: Pointer; Length: UInt64) : UInt64; cdecl;
   Tgridfile_writer_done = function (gf: Pointer): Integer; cdecl;
   Tgridfs_find_query = function (g: Pointer; query: Pointer; gf: Pointer): Integer; cdecl;
+  Tgridfile_set_filter_context = procedure( gfile, context : Pointer); cdecl;
   Tgridfile_destroy = procedure (gf: Pointer); cdecl;
   Tgridfile_get_filename = function (gf: Pointer): PAnsiChar; cdecl;
   Tgridfile_get_chunksize = function (gf: Pointer): Integer; cdecl;
@@ -227,7 +225,11 @@ type
   Tgridfs_set_caseInsensitive = procedure (gf : Pointer; newValue : LongBool); cdecl;
   Tgridfile_set_flags = procedure(gf : Pointer; Flags : Integer); cdecl;
   Tgridfile_get_flags = function(gf : Pointer) : Integer; cdecl;
-  TinitPrepostChunkProcessing = function (flags : integer) : integer; cdecl;
+// ZLib and AES encryption extensions
+  Tinit_ZLib_AES_filtering = function (flags : integer) : integer; cdecl;
+  Tcreate_ZLib_AES_filter_context = function (flags : integer) : Pointer; cdecl;
+  Tdestroy_ZLib_AES_filter_context = procedure (context : Pointer; flags : integer); cdecl;
+  TZLib_AES_filter_context_set_encryption_key = procedure( context : Pointer; Passphrase : PAnsiChar ); cdecl;
 
 var
   HMongoDBDll : HMODULE;
@@ -371,6 +373,7 @@ var
   gridfile_write_buffer : Tgridfile_write_buffer;
   gridfile_writer_done : Tgridfile_writer_done;
   gridfs_find_query : Tgridfs_find_query;
+  gridfile_set_filter_context : Tgridfile_set_filter_context;
   gridfile_destroy : Tgridfile_destroy;
   gridfile_get_filename : Tgridfile_get_filename;
   gridfile_get_chunksize : Tgridfile_get_chunksize;
@@ -394,7 +397,12 @@ var
   gridfs_set_caseInsensitive : Tgridfs_set_caseInsensitive;
   gridfile_set_flags : Tgridfile_set_flags;
   gridfile_get_flags : Tgridfile_get_flags;
-  initPrepostChunkProcessing : TinitPrepostChunkProcessing;
+// ZLib and AES extensions
+  init_ZLib_AES_filtering : TinitPrepostChunkProcessing;
+  create_ZLib_AES_filter_context : Tcreate_ZLib_AES_filter_context;
+  destroy_ZLib_AES_filter_context : Tdestroy_ZLib_AES_filter_context;
+  ZLib_AES_filter_context_set_encryption_key : ZLib_AES_filter_context_set_encryption_key;
+
 
   Int64toDouble : TInt64toDouble;
 
@@ -545,6 +553,7 @@ var
   function gridfile_write_buffer(gf: Pointer; Data: Pointer; Length: UInt64) : UInt64; cdecl; external MongoCDLL;
   function gridfile_writer_done(gf: Pointer): Integer; cdecl; external MongoCDLL;
   function gridfs_find_query(g: Pointer; query: Pointer; gf: Pointer): Integer; cdecl; external MongoCDLL;
+  procedure gridfile_set_filter_context( gfile, context : Pointer); cdecl; external MongoCDLL;
   procedure gridfile_destroy(gf: Pointer); cdecl; external MongoCDLL;
   function gridfile_get_filename(gf: Pointer): PAnsiChar; cdecl; external MongoCDLL;
   function gridfile_get_chunksize(gf: Pointer): Integer; cdecl; external MongoCDLL;
@@ -568,7 +577,11 @@ var
   procedure gridfs_set_caseInsensitive(gf : Pointer; newValue : LongBool); cdecl; external MongoCDLL;
   procedure gridfile_set_flags(gf : Pointer; Flags : Integer); cdecl; external MongoCDLL;
   function gridfile_get_flags(gf : Pointer) : Integer; cdecl; external MongoCDLL;
-  function initPrepostChunkProcessing(flags : integer) : integer; cdecl; external MongoCDLL;
+// ZLib and AES extensions
+  function init_ZLib_AES_filtering(flags : integer) : integer; cdecl; external MongoCDLL;
+  function create_ZLib_AES_filter_context(flags : integer) : Pointer; cdecl; external MongoCDLL;
+  procedure destroy_ZLib_AES_filter_context(context : Pointer; flags : integer); cdecl; external MongoCDLL;
+  procedure ZLib_AES_filter_context_set_encryption_key( context : Pointer; Passphrase : PAnsiChar ); cdecl; external MongoCDLL;
 
 {$EndIf}
 
@@ -609,7 +622,7 @@ procedure MongoAPIInit;
 begin
   set_mem_alloc_functions(@delphi_malloc, @delphi_realloc, @delphi_free);
   mongo_env_sock_init;
-  initPrepostChunkProcessing(0);
+  init_ZLib_AES_filtering(0);
   set_bson_err_handler(@DefaultMongoErrorHandler);
 end;
 
@@ -760,6 +773,7 @@ begin
   gridfs_alloc := GetProcAddress(HMongoDBDll, 'gridfs_alloc');
   gridfs_dealloc := GetProcAddress(HMongoDBDll, 'gridfs_dealloc');
   gridfs_init := GetProcAddress(HMongoDBDll, 'gridfs_init');
+  gridfile_set_filter_context := GetProcAddress(HMongoDBDll, 'gridfile_set_filter_context');
   gridfs_destroy := GetProcAddress(HMongoDBDll, 'gridfs_destroy');
   gridfs_store_file := GetProcAddress(HMongoDBDll, 'gridfs_store_file');
   gridfs_remove_filename := GetProcAddress(HMongoDBDll, 'gridfs_remove_filename');
@@ -793,7 +807,11 @@ begin
   gridfs_set_caseInsensitive := GetProcAddress(HMongoDBDll, 'gridfs_set_caseInsensitive');
   gridfile_set_flags := GetProcAddress(HMongoDBDll, 'gridfile_set_flags');
   gridfile_get_flags := GetProcAddress(HMongoDBDll, 'gridfile_get_flags');
-  initPrepostChunkProcessing := GetProcAddress(HMongoDBDll, 'initPrepostChunkProcessing');
+// ZLib and AES extensions
+  init_ZLib_AES_filtering := GetProcAddress(HMongoDBDll, 'init_ZLib_AES_filtering');
+  create_ZLib_AES_filter_context := GetProcAddress(HMongoDBDll, 'create_ZLib_AES_filter_context');
+  destroy_ZLib_AES_filter_context := GetProcAddress(HMongoDBDll, 'destroy_ZLib_AES_filter_context');
+  ZLib_AES_filter_context_set_encryption_key := GetProcAddress(HMongoDBDll, 'ZLib_AES_filter_context_set_encryption_key');
 
   Int64toDouble := GetProcAddress(HMongoDBDll, 'bson_int64_to_double');
   MongoAPIInit;

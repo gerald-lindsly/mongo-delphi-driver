@@ -23,10 +23,13 @@ type
   private
     FMongoStream: TMongoStream;
     procedure CheckMongoStreamPointer;
-    procedure CreateTestFile(ACreateMode: Boolean = True);
+    procedure CreateTestFile(ACreateMode: Boolean = True; const AEncryptionKey:
+        String = ''; ACompressed: Boolean = True);
     procedure Internal_TestSetSize(NewSize: Integer);
     procedure OpenStreamReadOnly;
     procedure RecreateStream;
+    procedure TestRead_Internal(const AEncrypted: Boolean; ACompressed: Boolean;
+        MultiChunkData: Boolean = False; VerySmallBlock: Boolean = False);
     {$IFDEF DELPHI2007}
     procedure TestSeek_Int64(AOrigin: TSeekOrigin; AOffset, AbsExpected: Int64);
     {$ENDIF}
@@ -51,6 +54,18 @@ type
     procedure TestEmptyFileThenWriteSomeBytes;
     procedure TestParallelRecreateMongoStream;
     procedure TestRead;
+    procedure TestReadEncryptedEnabledAndCompressionEnabled;
+    procedure TestReadEncryptedEnabledAndCompressionDisabled;
+    procedure TestReadEncryptedDisabledAndCompressionDisabled;
+    procedure TestReadEncryptedDisabledAndCompressionDisabledOneMegOfData;
+    procedure TestReadEncryptedDisabledAndCompressionEnabled;
+    procedure TestReadEncryptedDisabledAndCompressionEnabledOneMegOfData;
+    procedure TestReadEncryptedEnabledAndCompressionDisabled6Bytes;
+    procedure TestReadEncryptedEnabledAndCompressionEnabled6Bytes;
+    procedure TestReadEncryptedEnabledAndCompressionDisabledOneMegOfData;
+    procedure TestReadEncryptedDisabledAndCompressionEnabled6Bytes;
+    procedure TestReadEncryptedDisabledAndCompressionDisabled6Bytes;
+    procedure TestReadEncryptedEnabledAndCompressionEnabledOneMegOfData;
     procedure TestSeekFromCurrentInt32;
     procedure TestSeekFromEndInt32;
     procedure TestSeekFromBeginningInt32;
@@ -68,6 +83,7 @@ type
     procedure TestStressFourThreads;
     procedure TestStressWriteReads;
     procedure TestWrite;
+    procedure TestWriteEncryptedEnabled;
     procedure TestWriteInALoopSerializedWithJournal;
     procedure TestWriteInALoopNotSerializedWithJournal;
     procedure TestWriteRead23MB;
@@ -111,14 +127,15 @@ begin
   Check(FMongoStream <> nil, 'FMongoStream should be <> nil');
 end;
 
-procedure TestTMongoStream.CreateTestFile(ACreateMode: Boolean = True);
+procedure TestTMongoStream.CreateTestFile(ACreateMode: Boolean = True; const
+    AEncryptionKey: String = ''; ACompressed: Boolean = True);
 var
   AMode : TMongoStreamModeSet;
 begin
   if ACreateMode then
     AMode := [msmWrite, msmCreate]
   else AMode := [msmWrite];
-  FMongoStream := TMongoStream.Create(FMongo, FSDB, StandardRemoteFileName, AMode, True);
+  FMongoStream := TMongoStream.Create(FMongo, FSDB, StandardRemoteFileName, AMode, ACompressed, AEncryptionKey);
 end;
 
 procedure TestTMongoStream.InternalRunMultiThreaded(AMethodAddr: Pointer;
@@ -731,6 +748,120 @@ begin
   end;
 end;
 
+procedure TestTMongoStream.TestReadEncryptedEnabledAndCompressionEnabled;
+begin
+  TestRead_Internal(True, True);
+end;
+
+procedure TestTMongoStream.TestRead_Internal(const AEncrypted: Boolean;
+    ACompressed: Boolean; MultiChunkData: Boolean = False; VerySmallBlock:
+    Boolean = False);
+var
+  ReturnValue: Integer;
+  i, Count : Integer;
+  AEncryptionKey : String;
+  Data, Buffer, p : Pointer;
+begin
+  GetMem(Data, 1024 * 1024);
+  try
+    GetMem(Buffer, 1024 * 1024);
+    try
+      if MultiChunkData then
+        begin
+          Count := 1024 * 1024;
+          p := Data;
+          for i := 1 to Count div length(FEW_BYTES_OF_DATA) do
+            begin
+              move(PAnsiChar(FEW_BYTES_OF_DATA)^, p^, length(FEW_BYTES_OF_DATA));
+              inc(NativeUInt(p), length(FEW_BYTES_OF_DATA));
+            end;
+        end
+        else
+        begin
+          if VerySmallBlock then
+            Count := 6
+          else Count := length(FEW_BYTES_OF_DATA);
+          move(PAnsiChar(FEW_BYTES_OF_DATA)^, Data^, Count);
+        end;
+      if AEncrypted then
+        AEncryptionKey := 'TestEncryptionKey'
+      else AEncryptionKey := '';
+      CreateTestFile(True, AEncryptionKey, ACompressed);
+      CheckMongoStreamPointer;
+      CheckEquals(Count, FMongoStream.Write(Data^, Count), 'Number of bytes written don''t match');
+      FreeAndNil(FMongoStream);
+      CreateTestFile(False, AEncryptionKey, ACompressed);
+      ReturnValue := FMongoStream.Read(Buffer^, Count);
+      CheckEquals(Count, ReturnValue, 'Number of bytes read dont''t match');
+      Check(CompareMem(Buffer, Data, Count), 'Memory read don''t match data written');
+    finally
+      FreeMem(Buffer);
+    end;
+  finally
+    FreeMem(Data);
+  end;
+end;
+
+procedure TestTMongoStream.TestReadEncryptedEnabledAndCompressionDisabled;
+begin
+  TestRead_Internal(True, False);
+end;
+
+procedure TestTMongoStream.TestReadEncryptedDisabledAndCompressionDisabled;
+begin
+  TestRead_Internal(False, False);
+end;
+
+procedure
+    TestTMongoStream.TestReadEncryptedDisabledAndCompressionDisabledOneMegOfData;
+begin
+  TestRead_Internal(False, False, True);
+end;
+
+procedure TestTMongoStream.TestReadEncryptedDisabledAndCompressionEnabled;
+begin
+  TestRead_Internal(False, True);
+end;
+
+procedure
+    TestTMongoStream.TestReadEncryptedDisabledAndCompressionEnabledOneMegOfData;
+begin
+  TestRead_Internal(False, True, True);
+end;
+
+procedure TestTMongoStream.TestReadEncryptedEnabledAndCompressionDisabled6Bytes;
+begin
+  TestRead_Internal(True, False, False, True);
+end;
+
+procedure TestTMongoStream.TestReadEncryptedEnabledAndCompressionEnabled6Bytes;
+begin
+  TestRead_Internal(True, True, False, True);
+end;
+
+procedure
+    TestTMongoStream.TestReadEncryptedEnabledAndCompressionDisabledOneMegOfData;
+begin
+  TestRead_Internal(True, False, True);
+end;
+
+procedure TestTMongoStream.TestReadEncryptedDisabledAndCompressionEnabled6Bytes;
+begin
+  TestRead_Internal(False, True, False, True);
+end;
+
+procedure
+    TestTMongoStream.TestReadEncryptedDisabledAndCompressionDisabled6Bytes;
+begin
+  TestRead_Internal(False, False, False, True);
+end;
+
+procedure
+    TestTMongoStream.TestReadEncryptedEnabledAndCompressionEnabledOneMegOfData;
+begin
+  TestRead_Internal(True, True, True);
+end;
+
 procedure TestTMongoStream.TestSetSizeMakeFileLarger;
 var
   NewSize: Integer;
@@ -763,6 +894,20 @@ var
 begin
   for i := 1 to 200 do
     TestEmptyFile;
+end;
+
+procedure TestTMongoStream.TestWriteEncryptedEnabled;
+var
+  ReturnValue: Integer;
+  Count: Integer;
+  Buffer: Pointer;
+begin
+  CreateTestFile(True, 'TestKey');
+  CheckMongoStreamPointer;
+  Count := length(FEW_BYTES_OF_DATA);
+  Buffer := PAnsiChar(FEW_BYTES_OF_DATA);
+  ReturnValue := FMongoStream.Write(Buffer^, Count);
+  CheckEquals(Count, ReturnValue, 'Write didn''t return that I wrote the same amount of bytes written');
 end;
 
 procedure TestTMongoStream.TestWriteAndReadFromSameChunk;
