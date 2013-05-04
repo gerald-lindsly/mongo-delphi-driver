@@ -37,6 +37,7 @@ const
   GRIDFILE_DEFAULT = 0;
   GRIDFILE_NOMD5 = 1;
   GRIDFILE_COMPRESS = 2;
+  GRIDFILE_ENCRYPT = 4;
 
   E_GridFSHandleIsNil                = 90200;
   E_GridFileHandleIsNil              = 90201;

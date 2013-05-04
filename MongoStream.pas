@@ -54,6 +54,8 @@ type
     FDB : UTF8String;
     FLastSerializeWithJournalResult: IBson;
     FSerializeWithJournalByteWritten: Cardinal;
+    FZlibAESContext : Pointer;
+    FFlags : Integer;
     procedure CheckGridFile;
     procedure CheckGridFS;
     procedure CheckSerializeWithJournal; {$IFDEF DELPHI2007} inline; {$ENDIF}
@@ -63,7 +65,6 @@ type
     function GetID: IBsonOID; {$IFDEF DELPHI2007} inline; {$ENDIF}
     procedure SerializeWithJournal;
   protected
-    MongoSignature: cardinal;
     function GetSize: Int64; override;
     {$IFDEF DELPHI2007}
     procedure SetSize(NewSize: longint); override;
@@ -73,10 +74,11 @@ type
     {$ENDIF}
   public
     constructor Create(AMongo: TMongo; const ADB, AFileName: UTF8String; const
-        AMode: TMongoStreamModeSet; ACompressed: Boolean); overload;
+        AMode: TMongoStreamModeSet; ACompressed: Boolean; const AEncryptionKey:
+        String = ''); overload;
     constructor Create(AMongo: TMongo; const ADB, APrefix, AFileName: UTF8String;
         const AMode: TMongoStreamModeSet; ACaseInsensitiveFileNames, ACompressed:
-        Boolean); overload;
+        Boolean; const AEncryptionKey: String = ''); overload;
     destructor Destroy; override;
     function Read(var Buffer; Count: Longint): Longint; override;
     {$IFDEF DELPHI2007}
@@ -112,31 +114,31 @@ resourcestring
   SDelphiMongoErrorFailedSignature = 'Delphi Mongo error failed signature validation (D%d)';
 
 constructor TMongoStream.Create(AMongo: TMongo; const ADB, AFileName:
-    UTF8String; const AMode: TMongoStreamModeSet; ACompressed: Boolean);
+    UTF8String; const AMode: TMongoStreamModeSet; ACompressed: Boolean; const
+    AEncryptionKey: String = '');
 begin
-  Create(AMongo, ADB, SFs, AFileName, AMode, True, ACompressed);
+  Create(AMongo, ADB, SFs, AFileName, AMode, True, ACompressed, AEncryptionKey);
 end;
 
 constructor TMongoStream.Create(AMongo: TMongo; const ADB, APrefix, AFileName:
     UTF8String; const AMode: TMongoStreamModeSet; ACaseInsensitiveFileNames,
-    ACompressed: Boolean);
-var
-  AFlags : Integer;
+    ACompressed: Boolean; const AEncryptionKey: String = '');
 begin
   inherited Create;
   FSerializeWithJournalByteWritten := SERIALIZE_WITH_JOURNAL_BYTES_WRITTEN;
   FDB := ADB;
-  MongoSignature := DELPHI_MONGO_SIGNATURE;
   FMongo := AMongo;
   FStatus := mssOK;
   FGridFS := TGridFS.Create(AMongo, FDB, APrefix);
   FGridFS.CaseInsensitiveFileNames := ACaseInsensitiveFileNames;
+  FFlags := GRIDFILE_NOMD5;
+  if ACompressed then
+    FFlags := FFlags or GRIDFILE_COMPRESS;
+  if AEncryptionKey <> '' then
+    FFlags := FFlags or GRIDFILE_ENCRYPT;
   if msmCreate in AMode then
     begin
-      AFlags := GRIDFILE_NOMD5;
-      if ACompressed then
-        AFlags := AFlags or GRIDFILE_COMPRESS;
-      FGridFileWriter := FGridFS.writerCreate(AFileName, AFlags);
+      FGridFileWriter := FGridFS.writerCreate(AFileName, FFlags);
       FGridFile := FGridFileWriter;
       FGridFileWriter.Truncate(0);
     end
@@ -150,6 +152,10 @@ begin
       if FGridFile.getStoredChunkCount <> FGridFile.getChunkCount then
         FStatus := mssMissingChunks;
     end;
+  FZlibAESContext := create_ZLib_AES_filter_context(FFlags);
+  gridfile_set_filter_context(FGridFile.Handle, FZlibAESContext);
+  if AEncryptionKey <> '' then
+    ZLib_AES_filter_context_set_encryption_key(FZlibAESContext, PAnsiChar(AnsiString(AEncryptionKey)));
 end;
 
 destructor TMongoStream.Destroy;
@@ -162,7 +168,8 @@ begin
       FGridFS := nil;
     end;
   inherited;
-  MongoSignature := 0;
+  if FZlibAESContext <> nil then
+    destroy_ZLib_AES_filter_context(FZlibAESContext, FFlags);
 end;
 
 procedure TMongoStream.CheckGridFile;
