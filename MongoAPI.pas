@@ -229,7 +229,7 @@ type
   Tinit_ZLib_AES_filtering = function (flags : integer) : integer; cdecl;
   Tcreate_ZLib_AES_filter_context = function (flags : integer) : Pointer; cdecl;
   Tdestroy_ZLib_AES_filter_context = procedure (context : Pointer; flags : integer); cdecl;
-  TZLib_AES_filter_context_set_encryption_key = procedure( context : Pointer; Passphrase : PAnsiChar ); cdecl;
+  TZLib_AES_filter_context_set_encryption_key = function( context : Pointer; Passphrase : PAnsiChar; bits : integer ) : integer; cdecl;
 
 var
   HMongoDBDll : HMODULE;
@@ -581,7 +581,7 @@ var
   function init_ZLib_AES_filtering(flags : integer) : integer; cdecl; external MongoCDLL;
   function create_ZLib_AES_filter_context(flags : integer) : Pointer; cdecl; external MongoCDLL;
   procedure destroy_ZLib_AES_filter_context(context : Pointer; flags : integer); cdecl; external MongoCDLL;
-  procedure ZLib_AES_filter_context_set_encryption_key( context : Pointer; Passphrase : PAnsiChar ); cdecl; external MongoCDLL;
+  function ZLib_AES_filter_context_set_encryption_key( context : Pointer; Passphrase : PAnsiChar; bits : integer ) : integer; cdecl; external MongoCDLL;
 
 {$EndIf}
 

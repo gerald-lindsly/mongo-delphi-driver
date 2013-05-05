@@ -24,12 +24,14 @@ type
     FMongoStream: TMongoStream;
     procedure CheckMongoStreamPointer;
     procedure CreateTestFile(ACreateMode: Boolean = True; const AEncryptionKey:
-        String = ''; ACompressed: Boolean = True);
+        String = ''; ACompressed: Boolean = True; AEncryptionBits: TAESKeyLength =
+        akl128);
     procedure Internal_TestSetSize(NewSize: Integer);
     procedure OpenStreamReadOnly;
     procedure RecreateStream;
     procedure TestRead_Internal(const AEncrypted: Boolean; ACompressed: Boolean;
-        MultiChunkData: Boolean = False; VerySmallBlock: Boolean = False);
+        MultiChunkData: Boolean = False; VerySmallBlock: Boolean = False;
+        AEncryptionBits: TAESKeyLength = akl128);
     {$IFDEF DELPHI2007}
     procedure TestSeek_Int64(AOrigin: TSeekOrigin; AOffset, AbsExpected: Int64);
     {$ENDIF}
@@ -65,7 +67,11 @@ type
     procedure TestReadEncryptedEnabledAndCompressionDisabledOneMegOfData;
     procedure TestReadEncryptedDisabledAndCompressionEnabled6Bytes;
     procedure TestReadEncryptedDisabledAndCompressionDisabled6Bytes;
+    procedure TestReadEncryptedEnabledAndCompressionDisabled_256Bits;
+    procedure TestReadEncryptedEnabledAndCompressionDisabled_192Bits;
     procedure TestReadEncryptedEnabledAndCompressionEnabledOneMegOfData;
+    procedure TestReadEncryptedEnabledAndCompressionEnabledOneMegOfData256Bits;
+    procedure TestReadEncryptedEnabledAndCompressionEnabledOneMegOfData192Bits;
     procedure TestSeekFromCurrentInt32;
     procedure TestSeekFromEndInt32;
     procedure TestSeekFromBeginningInt32;
@@ -128,14 +134,15 @@ begin
 end;
 
 procedure TestTMongoStream.CreateTestFile(ACreateMode: Boolean = True; const
-    AEncryptionKey: String = ''; ACompressed: Boolean = True);
+    AEncryptionKey: String = ''; ACompressed: Boolean = True; AEncryptionBits:
+    TAESKeyLength = akl128);
 var
   AMode : TMongoStreamModeSet;
 begin
   if ACreateMode then
     AMode := [msmWrite, msmCreate]
   else AMode := [msmWrite];
-  FMongoStream := TMongoStream.Create(FMongo, FSDB, StandardRemoteFileName, AMode, ACompressed, AEncryptionKey);
+  FMongoStream := TMongoStream.Create(FMongo, FSDB, StandardRemoteFileName, AMode, ACompressed, AEncryptionKey, AEncryptionBits);
 end;
 
 procedure TestTMongoStream.InternalRunMultiThreaded(AMethodAddr: Pointer;
@@ -755,7 +762,7 @@ end;
 
 procedure TestTMongoStream.TestRead_Internal(const AEncrypted: Boolean;
     ACompressed: Boolean; MultiChunkData: Boolean = False; VerySmallBlock:
-    Boolean = False);
+    Boolean = False; AEncryptionBits: TAESKeyLength = akl128);
 var
   ReturnValue: Integer;
   i, Count : Integer;
@@ -786,11 +793,11 @@ begin
       if AEncrypted then
         AEncryptionKey := 'TestEncryptionKey'
       else AEncryptionKey := '';
-      CreateTestFile(True, AEncryptionKey, ACompressed);
+      CreateTestFile(True, AEncryptionKey, ACompressed, AEncryptionBits);
       CheckMongoStreamPointer;
       CheckEquals(Count, FMongoStream.Write(Data^, Count), 'Number of bytes written don''t match');
       FreeAndNil(FMongoStream);
-      CreateTestFile(False, AEncryptionKey, ACompressed);
+      CreateTestFile(False, AEncryptionKey, ACompressed, AEncryptionBits);
       ReturnValue := FMongoStream.Read(Buffer^, Count);
       CheckEquals(Count, ReturnValue, 'Number of bytes read dont''t match');
       Check(CompareMem(Buffer, Data, Count), 'Memory read don''t match data written');
@@ -857,9 +864,33 @@ begin
 end;
 
 procedure
+    TestTMongoStream.TestReadEncryptedEnabledAndCompressionDisabled_256Bits;
+begin
+  TestRead_Internal(True, False, False, False, akl256);
+end;
+
+procedure
+    TestTMongoStream.TestReadEncryptedEnabledAndCompressionDisabled_192Bits;
+begin
+  TestRead_Internal(True, False, False, False, akl192);
+end;
+
+procedure
     TestTMongoStream.TestReadEncryptedEnabledAndCompressionEnabledOneMegOfData;
 begin
   TestRead_Internal(True, True, True);
+end;
+
+procedure
+    TestTMongoStream.TestReadEncryptedEnabledAndCompressionEnabledOneMegOfData256Bits;
+begin
+  TestRead_Internal(True, True, True, False, akl256);
+end;
+
+procedure
+    TestTMongoStream.TestReadEncryptedEnabledAndCompressionEnabledOneMegOfData192Bits;
+begin
+  TestRead_Internal(True, True, True, False, akl192);
 end;
 
 procedure TestTMongoStream.TestSetSizeMakeFileLarger;
