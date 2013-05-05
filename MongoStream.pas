@@ -34,6 +34,7 @@ const
   E_StreamNotCreatedForWriting       = 90303;
   E_StatusMustBeOKInOrderToAllowStre = 90304;
   E_DelphiMongoErrorFailedSignature  = 90305;
+  E_FailedInitializingEncryptionKey  = 90306;
 
   SERIALIZE_WITH_JOURNAL_BYTES_WRITTEN = 1024 * 1024 * 10; (* Serialize with Journal every 10 megs written by default *)
 
@@ -41,6 +42,7 @@ type
   TMongoStreamMode = (msmWrite, msmCreate);
   TMongoStreamStatus = (mssOK, mssMissingChunks);
   TMongoStreamModeSet = set of TMongoStreamMode;
+  TAESKeyLength = (akl128, akl192, akl256);
   TMongoStream = class(TStream)
   private
     FCurPos: Int64;
@@ -75,10 +77,11 @@ type
   public
     constructor Create(AMongo: TMongo; const ADB, AFileName: UTF8String; const
         AMode: TMongoStreamModeSet; ACompressed: Boolean; const AEncryptionKey:
-        String = ''); overload;
+        String = ''; AEncryptionBits: TAESKeyLength = akl128); overload;
     constructor Create(AMongo: TMongo; const ADB, APrefix, AFileName: UTF8String;
         const AMode: TMongoStreamModeSet; ACaseInsensitiveFileNames, ACompressed:
-        Boolean; const AEncryptionKey: String = ''); overload;
+        Boolean; const AEncryptionKey: String = ''; AEncryptionBits: TAESKeyLength
+        = akl128); overload;
     destructor Destroy; override;
     function Read(var Buffer; Count: Longint): Longint; override;
     {$IFDEF DELPHI2007}
@@ -104,6 +107,7 @@ const
   SFs = 'fs';
   GET_LAST_ERROR_CMD = 'getLastError';
   WAIT_FOR_JOURNAL_OPTION = 'j';
+  aklLenToKeyLen : array [TAESKeyLength] of integer = (128, 192, 256);
 
 resourcestring
   SFileNotFound = 'File %s not found (D%d)';
@@ -112,17 +116,19 @@ resourcestring
   SStreamNotCreatedForWriting = 'Stream not created for writing (D%d)';
   SStatusMustBeOKInOrderToAllowStre = 'Status must be OK in order to allow stream read operations (D%d)';
   SDelphiMongoErrorFailedSignature = 'Delphi Mongo error failed signature validation (D%d)';
+  SFailedInitializingEncryptionKey = 'Failed initializing encryption key (D%d)';
 
 constructor TMongoStream.Create(AMongo: TMongo; const ADB, AFileName:
     UTF8String; const AMode: TMongoStreamModeSet; ACompressed: Boolean; const
-    AEncryptionKey: String = '');
+    AEncryptionKey: String = ''; AEncryptionBits: TAESKeyLength = akl128);
 begin
-  Create(AMongo, ADB, SFs, AFileName, AMode, True, ACompressed, AEncryptionKey);
+  Create(AMongo, ADB, SFs, AFileName, AMode, True, ACompressed, AEncryptionKey, AEncryptionBits);
 end;
 
 constructor TMongoStream.Create(AMongo: TMongo; const ADB, APrefix, AFileName:
     UTF8String; const AMode: TMongoStreamModeSet; ACaseInsensitiveFileNames,
-    ACompressed: Boolean; const AEncryptionKey: String = '');
+    ACompressed: Boolean; const AEncryptionKey: String = ''; AEncryptionBits:
+    TAESKeyLength = akl128);
 begin
   inherited Create;
   FSerializeWithJournalByteWritten := SERIALIZE_WITH_JOURNAL_BYTES_WRITTEN;
@@ -154,8 +160,8 @@ begin
     end;
   FZlibAESContext := create_ZLib_AES_filter_context(FFlags);
   gridfile_set_filter_context(FGridFile.Handle, FZlibAESContext);
-  if AEncryptionKey <> '' then
-    ZLib_AES_filter_context_set_encryption_key(FZlibAESContext, PAnsiChar(AnsiString(AEncryptionKey)));
+  if (AEncryptionKey <> '') and (ZLib_AES_filter_context_set_encryption_key(FZlibAESContext, PAnsiChar(AnsiString(AEncryptionKey)), aklLenToKeyLen[AEncryptionBits]) <> 0) then
+    raise EMongo.Create(SFailedInitializingEncryptionKey, E_FailedInitializingEncryptionKey);
 end;
 
 destructor TMongoStream.Destroy;
