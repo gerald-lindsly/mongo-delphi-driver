@@ -354,7 +354,7 @@ implementation
     cdecl; external 'mongoc.dll';
   function bson_append_date(b : Pointer; name : PAnsiChar; value : Int64) : Integer;
     cdecl; external 'mongoc.dll';
-  function bson_append_bool(b : Pointer; name : PAnsiChar; value : Boolean) : Integer;
+  function bson_append_bool(b : Pointer; name : PAnsiChar; value : Integer) : Integer;
     cdecl; external 'mongoc.dll';
   function bson_append_null(b : Pointer; name : PAnsiChar) : Integer;
     cdecl; external 'mongoc.dll';
@@ -699,7 +699,7 @@ implementation
   begin
     if handle = nil then
       raise Exception.Create('BsonBuffer already finished');
-    Result := (bson_append_bool(handle, name, value) = 0);
+    Result := (bson_append_bool(handle, name, Integer(value)) = 0);
   end;
 
   function TBsonBuffer.append(name: PAnsiChar; value: TBsonOID) : Boolean;
@@ -826,7 +826,7 @@ implementation
     len := Length(value);
     i := 0;
     while success and (i < len) do begin
-      success := (bson_append_bool(handle, PAnsiChar(AnsiString(IntToStr(i))), value[i]) = 0);
+      success := (bson_append_bool(handle, PAnsiChar(AnsiString(IntToStr(i))), Integer(value[i])) = 0);
       inc(i);
     end;
     if success then
