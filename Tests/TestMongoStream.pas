@@ -36,6 +36,8 @@ type
     procedure TestSeek_Int64(AOrigin: TSeekOrigin; AOffset, AbsExpected: Int64);
     {$ENDIF}
     procedure TestSeek_Int32(AOrigin: Word; AOffset: Longint; AbsExpected: Int64);
+    procedure TestWriteCloseOverwriteAndReadSmallFile_Internal(const
+        AEncryptionKey: String);
   protected
     procedure InternalRunMultiThreaded(AMethodAddr: Pointer; ALoops: Integer);
     procedure Internal_TestEmptyFile;
@@ -97,6 +99,8 @@ type
     procedure TestWriteAndReadFromSameChunk;
     procedure TestWriteAndReadBackSomeChunks;
     procedure TestWriteAndReadBackSomeChunksTryBoundaries;
+    procedure TestWriteCloseOverwriteAndReadSmallFileEncrypted;
+    procedure TestWriteCloseOverwriteAndReadSmallFile;
   end;
 
 implementation
@@ -1048,6 +1052,42 @@ begin
   finally
     FreeMem(Buffer);
   end;
+end;
+
+procedure TestTMongoStream.TestWriteCloseOverwriteAndReadSmallFileEncrypted;
+begin
+  TestWriteCloseOverwriteAndReadSmallFile_Internal('TestOfKey');
+end;
+
+procedure TestTMongoStream.TestWriteCloseOverwriteAndReadSmallFile;
+begin
+  TestWriteCloseOverwriteAndReadSmallFile_Internal('');
+end;
+
+procedure TestTMongoStream.TestWriteCloseOverwriteAndReadSmallFile_Internal(
+    const AEncryptionKey: String);
+const
+  s : UTF8String = 'sss';
+  s2 : UTF8String = 'new data';
+var
+  Readbuff : UTF8String;
+begin
+  CreateTestFile(True, AEncryptionKey, True, akl256);
+  FMongoStream.Write(PAnsiChar(s)^, length(s));
+  FreeAndNil(FMongoStream);
+  CreateTestFile(False, AEncryptionKey, True, akl256);
+  CheckEquals(length(s), FMongoStream.Size, 'Size of stream should match length of s2');
+  SetLength(Readbuff, FMongoStream.Size);
+  FMongoStream.Read(PAnsiChar(ReadBuff)^, FMongoStream.Size);
+  CheckEqualsString(s, ReadBuff, 'Read data doesn''t match expected data');
+  FMongoStream.Position := 0;
+  FMongoStream.Write(PAnsiChar(s2)^, length(s2));
+  FreeAndNil(FMongoStream);
+  CreateTestFile(False, AEncryptionKey, True, akl256);
+  CheckEquals(length(s2), FMongoStream.Size, 'Size of stream should match length of s2');
+  SetLength(Readbuff, FMongoStream.Size);
+  FMongoStream.Read(PAnsiChar(ReadBuff)^, FMongoStream.Size);
+  CheckEqualsString(s2, ReadBuff, 'Read data doesn''t match expected data');
 end;
 
 initialization
