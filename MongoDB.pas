@@ -1309,7 +1309,7 @@ begin
   if Name <> '' then
     AName := PAnsiChar(Name)
   else AName := nil;
-  created := mongo_create_index(fhandle, PAnsiChar(ns), key.Handle, AName, options, res.Handle) = 0;
+  created := mongo_create_index(fhandle, PAnsiChar(ns), key.Handle, AName, options, -1, res.Handle) = 0;
   autoCheckCmdLastError(ns, true);
   if not created then
     Result := res

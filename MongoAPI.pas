@@ -99,7 +99,7 @@ type
   Tmongo_cmd_drop_collection = function (c: Pointer; db: PAnsiChar; collection: PAnsiChar; Result: Pointer): Integer; cdecl;
   Tmongo_cmd_drop_db = function (c: Pointer; db: PAnsiChar): Integer; cdecl;
   Tmongo_count = function (c: Pointer; db: PAnsiChar; collection: PAnsiChar; query: Pointer): Double; cdecl;
-  Tmongo_create_index = function (c: Pointer; ns: PAnsiChar; key: Pointer; name : PAnsiChar; options: Integer; res: Pointer): Integer; cdecl;
+  Tmongo_create_index = function (c: Pointer; ns: PAnsiChar; key: Pointer; name : PAnsiChar; options: Integer; ttl : integer; res: Pointer): Integer; cdecl;
   Tmongo_cmd_add_user = function (c: Pointer; db: PAnsiChar; Name: PAnsiChar; password: PAnsiChar): Integer; cdecl;
   Tmongo_cmd_authenticate = function (c: Pointer; db: PAnsiChar; Name: PAnsiChar; password: PAnsiChar): Integer; cdecl;
   Tmongo_run_command = function (c: Pointer; db: PAnsiChar; command: Pointer; res: Pointer): Integer; cdecl;
@@ -451,7 +451,7 @@ var
   function mongo_cmd_drop_collection(c: Pointer; db: PAnsiChar; collection: PAnsiChar; Result: Pointer): Integer; cdecl; external MongoCDLL;
   function mongo_cmd_drop_db(c: Pointer; db: PAnsiChar): Integer; cdecl; external MongoCDLL;
   function mongo_count(c: Pointer; db: PAnsiChar; collection: PAnsiChar; query: Pointer): Double; cdecl; external MongoCDLL;
-  function mongo_create_index(c: Pointer; ns: PAnsiChar; key: Pointer; name : PAnsiChar; options: Integer; res: Pointer): Integer; cdecl; external MongoCDLL;
+  function mongo_create_index(c: Pointer; ns: PAnsiChar; key: Pointer; name : PAnsiChar; options: Integer; ttl : integer; res: Pointer): Integer; cdecl; external MongoCDLL;
   function mongo_cmd_add_user(c: Pointer; db: PAnsiChar; Name: PAnsiChar; password: PAnsiChar): Integer; cdecl; external MongoCDLL;
   function mongo_cmd_authenticate(c: Pointer; db: PAnsiChar; Name: PAnsiChar; password: PAnsiChar): Integer; cdecl; external MongoCDLL;
   function mongo_run_command(c: Pointer; db: PAnsiChar; command: Pointer; res: Pointer): Integer; cdecl; external MongoCDLL;

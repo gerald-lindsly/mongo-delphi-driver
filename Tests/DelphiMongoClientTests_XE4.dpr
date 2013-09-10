@@ -1,4 +1,4 @@
-program DelphiMongoClientTests_XE2;
+program DelphiMongoClientTests_XE4;
 {
 
   Delphi DUnit Test Project
