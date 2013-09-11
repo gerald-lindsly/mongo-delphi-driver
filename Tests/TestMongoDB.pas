@@ -186,6 +186,8 @@ var
 
 procedure StartMongoDB(const AParams: UTF8String);
 
+procedure StartReplSet;
+
 implementation
 
 uses

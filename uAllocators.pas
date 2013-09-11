@@ -67,7 +67,7 @@ implementation
 {$ENDIF}
 
 uses
-  SysUtils {$IFDEF USEFASTMM4} ,FastMM4 {$ENDIF};
+  SysUtils {$IFDEF USEFASTMM4} ,FastMM4 {$ENDIF}{$IFDEF DELPHIXE2} ,Types {$ENDIF};
 
 const
   Aligner = sizeof (NativeUInt) - 1;

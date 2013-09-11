@@ -29,6 +29,8 @@ type
     procedure TestAcquireWithHostNameAndPassword;
     procedure TestAcquireWithHostNamePasswordAndDBName;
     procedure TestAcquireWithHostAndDBName;
+    procedure TestAcquireReplicaSet;
+    procedure TestAcquireReplicaSetWithAuthentication;
     procedure TestAcquireWithPoolPointer;
     procedure TestFailConnectionOnAcquire;
     procedure TestMultiThreaded;
@@ -59,6 +61,7 @@ type
 procedure TestTMongoPool.SetUp;
 begin
   inherited;
+  StartReplSet;
   FMongoPool := TMongoPool.Create;
 end;
 
@@ -173,6 +176,41 @@ begin
   Check(ReturnValue.Mongo <> nil, 'Call to FMongoPool.Acquire should return value <> nil');
   FMongoPool.Release(ReturnValue);
   FMongoPool.Release(ReturnValue.Pool, AMongo);
+end;
+
+procedure TestTMongoPool.TestAcquireReplicaSet;
+var
+  ReturnValue: TMongoPooledRecord;
+  AHostName: UTF8String;
+begin
+  AHostName := 'foo@127.0.0.1:27018,127.0.0.1:27019,127.0.0.1:27020';
+  ReturnValue := FMongoPool.Acquire(AHostName);
+  Check(ReturnValue.Mongo <> nil, 'Call to FMongoPool.Acquire should return value <> nil');
+  Check(ReturnValue.Mongo is TMongoReplSet, 'ReturnValue.Mongo object should be of type TMongoReplSet');
+  FMongoPool.Release(ReturnValue);
+end;
+
+procedure TestTMongoPool.TestAcquireReplicaSetWithAuthentication;
+var
+  ReturnValue: TMongoPooledRecord;
+  AHostName: UTF8String;
+begin
+  AHostName := 'foo@127.0.0.1:27018,127.0.0.1:27019,127.0.0.1:27020';
+  ReturnValue := FMongoPool.Acquire(AHostName);
+  Check(ReturnValue.Mongo <> nil, 'Call to FMongoPool.Acquire should return value <> nil');
+  Check(ReturnValue.Mongo is TMongoReplSet, 'ReturnValue.Mongo object should be of type TMongoReplSet');
+  Check(ReturnValue.Mongo.addUser('testuser', 'testpassword', 'testdb'), 'Failed adding user testuser');
+  FMongoPool.Release(ReturnValue);
+  ReturnValue := FMongoPool.Acquire('foo@' + AHostName + '|testuser|testpassword|testdb');
+  Check(ReturnValue.Mongo <> nil, 'Call to FMongoPool.Acquire should return value <> nil');
+  Check(ReturnValue.Mongo is TMongoReplSet, 'ReturnValue.Mongo object should be of type TMongoReplSet');
+  FMongoPool.Release(ReturnValue);
+  try
+    ReturnValue := FMongoPool.Acquire(AHostName + '|testuser|testpassword_bad|testdb');
+    Fail('Code should never get here. Failure should happen when acquiring connection with wrong password');
+  except
+    on E : Exception do Check(not (E is ETestFailure));
+  end;
 end;
 
 procedure TestTMongoPool.TestAcquireWithPoolPointer;
