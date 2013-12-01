@@ -1,6 +1,6 @@
 This is a Delphi package supporting access to MongoDB.
 
-After downloading this repo, download and build [mongo-c-driver](https://github.com/jsbattig/mongo-c-driver). You MUST use for
+After downloading this repo, download and build [mongo-c-driver](https://github.com/Convey-Compliance/mongo-c-driver). You MUST use for
 proper operation the forked driver from the main mongo-c-driver. For your convinience, different binary versions of the driver
 are included on the forker repo under the bin subfolder.
 
