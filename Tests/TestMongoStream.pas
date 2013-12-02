@@ -784,7 +784,7 @@ begin
           for i := 1 to Count div length(FEW_BYTES_OF_DATA) do
             begin
               move(PAnsiChar(FEW_BYTES_OF_DATA)^, p^, length(FEW_BYTES_OF_DATA));
-              inc(NativeUInt(p), length(FEW_BYTES_OF_DATA));
+              inc(PByte(p), length(FEW_BYTES_OF_DATA));
             end;
         end
         else
