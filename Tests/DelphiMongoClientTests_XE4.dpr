@@ -18,6 +18,7 @@ uses
   {$IFDEF FASTMM}
   FastMM4,
   {$ENDIF}
+  SysUtils,
   Forms,
   XMLTestRunner2,
   TestFramework,
@@ -54,7 +55,7 @@ begin
     IsConsole := True;
   Application.Initialize;
   if IsConsole then
-    XMLTestRunner2.RunRegisteredTests(ParamStr(2))
+    XMLTestRunner2.RunRegisteredTests(ExpandFileName(ParamStr(2)))
   else
   begin
     Application.CreateForm(TGUITestRunner, GUITestRunner_);
