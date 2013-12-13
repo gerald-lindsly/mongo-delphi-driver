@@ -54,7 +54,7 @@ begin
     IsConsole := True;
   Application.Initialize;
   if IsConsole then
-    XMLTestRunner2.RunRegisteredTests('..\..\..\TestResults\dunit-result-dxe4.xml')
+    XMLTestRunner2.RunRegisteredTests(ParamStr(2))
   else
   begin
     Application.CreateForm(TGUITestRunner, GUITestRunner_);
