@@ -18,7 +18,9 @@ uses
   {$IFDEF FASTMM}
   FastMM4,
   {$ENDIF}
+  SysUtils,
   Forms,
+  XMLTestRunner2,
   TestFramework,
   GUITestRunner,
   TextTestRunner,
@@ -41,7 +43,7 @@ uses
   uPrimitiveAllocator in '..\uPrimitiveAllocator.pas',
   TestuPrimitiveAllocator in 'TestuPrimitiveAllocator.pas',
   TestuAllocators in 'TestuAllocators.pas',
-  uAllocators in '..\uAllocators.pas';
+  uAllocators;
 
 {$R *.RES}
 
@@ -49,9 +51,11 @@ var
   GUITestRunner_ :TGUITestRunner;
 
 begin
+  if ParamStr(1) = '-console' then
+    IsConsole := True;
   Application.Initialize;
   if IsConsole then
-    TextTestRunner.RunRegisteredTests
+    XMLTestRunner2.RunRegisteredTests(ExpandFileName(ParamStr(2)))
   else
   begin
     Application.CreateForm(TGUITestRunner, GUITestRunner_);

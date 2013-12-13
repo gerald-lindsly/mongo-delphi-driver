@@ -15,7 +15,9 @@ program DelphiMongoClientTests;
 {$ENDIF}
 
 uses
+  SysUtils,
   Forms,
+  XmlTestRunner2,
   TestFramework,
   GUITestRunner,
   TextTestRunner,
@@ -46,9 +48,11 @@ var
   GUITestRunner_ :TGUITestRunner;
 
 begin
+  if ParamStr(1) = '-console' then
+    IsConsole := True;
   Application.Initialize;
   if IsConsole then
-    TextTestRunner.RunRegisteredTests
+    XMLTestRunner2.RunRegisteredTests(ExpandFileName(ParamStr(2)))
   else
   begin
     Application.CreateForm(TGUITestRunner, GUITestRunner_);
