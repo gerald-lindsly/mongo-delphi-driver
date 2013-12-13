@@ -16,6 +16,7 @@ program DelphiMongoClientTests;
 
 uses
   Forms,
+  XmlTestRunner2,
   TestFramework,
   GUITestRunner,
   TextTestRunner,
@@ -46,9 +47,11 @@ var
   GUITestRunner_ :TGUITestRunner;
 
 begin
+  if ParamStr(1) = '-console' then
+    IsConsole := True;
   Application.Initialize;
   if IsConsole then
-    TextTestRunner.RunRegisteredTests
+    XMLTestRunner2.RunRegisteredTests('..\..\..\TestResults\dunit-result-d2007.xml')
   else
   begin
     Application.CreateForm(TGUITestRunner, GUITestRunner_);

@@ -19,6 +19,7 @@ uses
   FastMM4,
   {$ENDIF}
   Forms,
+  XMLTestRunner2,
   TestFramework,
   GUITestRunner,
   TextTestRunner,
@@ -49,9 +50,11 @@ var
   GUITestRunner_ :TGUITestRunner;
 
 begin
+  if ParamStr(1) = '-console' then
+    IsConsole := True;
   Application.Initialize;
   if IsConsole then
-    TextTestRunner.RunRegisteredTests
+    XMLTestRunner2.RunRegisteredTests('..\..\..\TestResults\dunit-result-dxe4.xml')
   else
   begin
     Application.CreateForm(TGUITestRunner, GUITestRunner_);

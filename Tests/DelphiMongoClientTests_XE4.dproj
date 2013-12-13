@@ -82,7 +82,7 @@
         <Icon_MainIcon>DelphiMongoClientTests_Icon.ico</Icon_MainIcon>
         <Manifest_File>None</Manifest_File>
         <DCC_DcuOutput>..\..\..\intermediate\$(Platform)\$(Config)</DCC_DcuOutput>
-        <DCC_UnitSearchPath>$(BDS)\Source\DUnit\src;..\..\delphi-fastmm\;..\;$(DCC_UnitSearchPath)</DCC_UnitSearchPath>
+        <DCC_UnitSearchPath>$(BDS)\Source\DUnit\src;..\..\delphi-fastmm\;..\;$(BDS)\Source\dUnit\Contrib\XMLReporting;$(DCC_UnitSearchPath)</DCC_UnitSearchPath>
         <DCC_Namespace>Vcl;Vcl.Imaging;Vcl.Touch;Vcl.Samples;Vcl.Shell;System;Xml;Data;Datasnap;Web;Soap;Winapi;$(DCC_Namespace)</DCC_Namespace>
         <VerInfo_Keys>CompanyName=;FileDescription=;FileVersion=1.0.0.0;InternalName=;LegalCopyright=;LegalTrademarks=;OriginalFilename=;ProductName=;ProductVersion=1.0.0.0;Comments=</VerInfo_Keys>
         <VerInfo_Locale>1033</VerInfo_Locale>
