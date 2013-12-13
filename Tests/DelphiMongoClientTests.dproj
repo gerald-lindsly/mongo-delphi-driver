@@ -6,7 +6,7 @@
     <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
     <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
     <DCC_DCCCompiler>DCC32</DCC_DCCCompiler>
-    <DCC_DependencyCheckOutputName>DelphiMongoClientTests.exe</DCC_DependencyCheckOutputName>
+    <DCC_DependencyCheckOutputName>..\..\..\bin\Win32\Debug\DelphiMongoClientTests.exe</DCC_DependencyCheckOutputName>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
     <Version>7.0</Version>
@@ -14,13 +14,14 @@
     <DCC_LocalDebugSymbols>False</DCC_LocalDebugSymbols>
     <DCC_SymbolReferenceInfo>0</DCC_SymbolReferenceInfo>
     <DCC_Define>RELEASE</DCC_Define>
-  </PropertyGroup>
-  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
-    <Version>7.0</Version>
-    <DCC_Define>DEBUG</DCC_Define>
-    <DCC_DcuOutput>X:\DCU\D2007</DCC_DcuOutput>
-    <DCC_ObjOutput>X:\DCU\D2007</DCC_ObjOutput>
-    <DCC_HppOutput>X:\DCU\D2007</DCC_HppOutput>
+    <DCC_ExeOutput>..\..\..\bin\Win32\Release</DCC_ExeOutput>
+    <DCC_DcuOutput>..\..\..\Intermediate\D2007\Win32\Release</DCC_DcuOutput>
+    <DCC_ObjOutput>..\..\..\Intermediate\D2007\Win32\Release</DCC_ObjOutput>
+    <DCC_HppOutput>..\..\..\Intermediate\D2007\Win32\Release</DCC_HppOutput>
+    <DCC_UnitSearchPath>$(BDS)\Source\DUnit\src;..\..\delphi-fastmm\;..\;$(BDS)\Source\dUnit\Contrib\XMLReporting</DCC_UnitSearchPath>
+    <DCC_ResourcePath>$(BDS)\Source\DUnit\src;..\..\delphi-fastmm\;..\;$(BDS)\Source\dUnit\Contrib\XMLReporting</DCC_ResourcePath>
+    <DCC_ObjPath>$(BDS)\Source\DUnit\src;..\..\delphi-fastmm\;..\;$(BDS)\Source\dUnit\Contrib\XMLReporting</DCC_ObjPath>
+    <DCC_IncludePath>$(BDS)\Source\DUnit\src;..\..\delphi-fastmm\;..\;$(BDS)\Source\dUnit\Contrib\XMLReporting</DCC_IncludePath>
     <DCC_SYMBOL_DEPRECATED>False</DCC_SYMBOL_DEPRECATED>
     <DCC_SYMBOL_LIBRARY>False</DCC_SYMBOL_LIBRARY>
     <DCC_SYMBOL_PLATFORM>False</DCC_SYMBOL_PLATFORM>
@@ -30,12 +31,36 @@
     <DCC_UNIT_DEPRECATED>False</DCC_UNIT_DEPRECATED>
     <DCC_UNIT_EXPERIMENTAL>False</DCC_UNIT_EXPERIMENTAL>
     <DCC_TYPEINFO_IMPLICITLY_ADDED>False</DCC_TYPEINFO_IMPLICITLY_ADDED>
+    <DCC_Warnings>False</DCC_Warnings>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
+    <Version>7.0</Version>
+    <DCC_Define>DEBUG</DCC_Define>
+    <DCC_DcuOutput>..\..\..\Intermediate\D2007\Win32\Debug</DCC_DcuOutput>
+    <DCC_ObjOutput>..\..\..\Intermediate\D2007\Win32\Debug</DCC_ObjOutput>
+    <DCC_HppOutput>..\..\..\Intermediate\D2007\Win32\Debug</DCC_HppOutput>
+    <DCC_SYMBOL_DEPRECATED>False</DCC_SYMBOL_DEPRECATED>
+    <DCC_SYMBOL_LIBRARY>False</DCC_SYMBOL_LIBRARY>
+    <DCC_SYMBOL_PLATFORM>False</DCC_SYMBOL_PLATFORM>
+    <DCC_SYMBOL_EXPERIMENTAL>False</DCC_SYMBOL_EXPERIMENTAL>
+    <DCC_UNIT_LIBRARY>False</DCC_UNIT_LIBRARY>
+    <DCC_UNIT_PLATFORM>False</DCC_UNIT_PLATFORM>
+    <DCC_UNIT_DEPRECATED>False</DCC_UNIT_DEPRECATED>
+    <DCC_UNIT_EXPERIMENTAL>False</DCC_UNIT_EXPERIMENTAL>
+    <DCC_TYPEINFO_IMPLICITLY_ADDED>False</DCC_TYPEINFO_IMPLICITLY_ADDED>
+    <DCC_ExeOutput>..\..\..\bin\Win32\Debug</DCC_ExeOutput>
+    <DCC_UnitSearchPath>..\..\delphi-fastmm\;..\;$(BDS)\Source\DUnit\src;$(BDS)\Source\dUnit\Contrib\XMLReporting</DCC_UnitSearchPath>
+    <DCC_ResourcePath>..\..\delphi-fastmm\;..\;$(BDS)\Source\DUnit\src;$(BDS)\Source\dUnit\Contrib\XMLReporting</DCC_ResourcePath>
+    <DCC_ObjPath>..\..\delphi-fastmm\;..\;$(BDS)\Source\DUnit\src;$(BDS)\Source\dUnit\Contrib\XMLReporting</DCC_ObjPath>
+    <DCC_IncludePath>..\..\delphi-fastmm\;..\;$(BDS)\Source\DUnit\src;$(BDS)\Source\dUnit\Contrib\XMLReporting</DCC_IncludePath>
+    <DCC_Warnings>False</DCC_Warnings>
   </PropertyGroup>
   <ProjectExtensions>
     <Borland.Personality>Delphi.Personality</Borland.Personality>
     <Borland.ProjectType>VCLApplication</Borland.ProjectType>
     <BorlandProject>
-<BorlandProject><Delphi.Personality><Parameters><Parameters Name="UseLauncher">False</Parameters><Parameters Name="LoadAllSymbols">True</Parameters><Parameters Name="LoadUnspecifiedSymbols">False</Parameters></Parameters><VersionInfo><VersionInfo Name="IncludeVerInfo">True</VersionInfo><VersionInfo Name="AutoIncBuild">False</VersionInfo><VersionInfo Name="MajorVer">1</VersionInfo><VersionInfo Name="MinorVer">0</VersionInfo><VersionInfo Name="Release">0</VersionInfo><VersionInfo Name="Build">0</VersionInfo><VersionInfo Name="Debug">False</VersionInfo><VersionInfo Name="PreRelease">False</VersionInfo><VersionInfo Name="Special">False</VersionInfo><VersionInfo Name="Private">False</VersionInfo><VersionInfo Name="DLL">False</VersionInfo><VersionInfo Name="Locale">1033</VersionInfo><VersionInfo Name="CodePage">1252</VersionInfo></VersionInfo><VersionInfoKeys><VersionInfoKeys Name="CompanyName"></VersionInfoKeys><VersionInfoKeys Name="FileDescription"></VersionInfoKeys><VersionInfoKeys Name="FileVersion">1.0.0.0</VersionInfoKeys><VersionInfoKeys Name="InternalName"></VersionInfoKeys><VersionInfoKeys Name="LegalCopyright"></VersionInfoKeys><VersionInfoKeys Name="LegalTrademarks"></VersionInfoKeys><VersionInfoKeys Name="OriginalFilename"></VersionInfoKeys><VersionInfoKeys Name="ProductName"></VersionInfoKeys><VersionInfoKeys Name="ProductVersion">1.0.0.0</VersionInfoKeys><VersionInfoKeys Name="Comments"></VersionInfoKeys></VersionInfoKeys><Source><Source Name="MainSource">DelphiMongoClientTests.dpr</Source></Source></Delphi.Personality><ModelSupport>False</ModelSupport></BorlandProject></BorlandProject>
+<BorlandProject><Delphi.Personality><Parameters><Parameters Name="UseLauncher">False</Parameters><Parameters Name="LoadAllSymbols">True</Parameters><Parameters Name="LoadUnspecifiedSymbols">False</Parameters>  
+    </Parameters><VersionInfo><VersionInfo Name="IncludeVerInfo">True</VersionInfo><VersionInfo Name="AutoIncBuild">False</VersionInfo><VersionInfo Name="MajorVer">1</VersionInfo><VersionInfo Name="MinorVer">0</VersionInfo><VersionInfo Name="Release">0</VersionInfo><VersionInfo Name="Build">0</VersionInfo><VersionInfo Name="Debug">False</VersionInfo><VersionInfo Name="PreRelease">False</VersionInfo><VersionInfo Name="Special">False</VersionInfo><VersionInfo Name="Private">False</VersionInfo><VersionInfo Name="DLL">False</VersionInfo><VersionInfo Name="Locale">1033</VersionInfo><VersionInfo Name="CodePage">1252</VersionInfo></VersionInfo><VersionInfoKeys><VersionInfoKeys Name="CompanyName"></VersionInfoKeys><VersionInfoKeys Name="FileDescription"></VersionInfoKeys><VersionInfoKeys Name="FileVersion">1.0.0.0</VersionInfoKeys><VersionInfoKeys Name="InternalName"></VersionInfoKeys><VersionInfoKeys Name="LegalCopyright"></VersionInfoKeys><VersionInfoKeys Name="LegalTrademarks"></VersionInfoKeys><VersionInfoKeys Name="OriginalFilename"></VersionInfoKeys><VersionInfoKeys Name="ProductName"></VersionInfoKeys><VersionInfoKeys Name="ProductVersion">1.0.0.0</VersionInfoKeys><VersionInfoKeys Name="Comments"></VersionInfoKeys></VersionInfoKeys><Source><Source Name="MainSource">DelphiMongoClientTests.dpr</Source></Source></Delphi.Personality><ModelSupport>False</ModelSupport></BorlandProject></BorlandProject>
   </ProjectExtensions>
   <Import Project="$(MSBuildBinPath)\Borland.Delphi.Targets" />
   <PropertyGroup>
@@ -61,6 +86,7 @@
     <DCCReference Include="..\Ufilemanagement.pas" />
     <DCCReference Include="..\uPrimitiveAllocator.pas" />
     <DCCReference Include="..\uStack.pas" />
+    <DCCReference Include="..\uWinProcHelper.pas" />
     <DCCReference Include="TestGridFS.pas" />
     <DCCReference Include="TestMongoBson.pas" />
     <DCCReference Include="TestMongoDB.pas" />
