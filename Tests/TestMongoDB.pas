@@ -185,8 +185,8 @@ var
   FSlaveStarted : Boolean;
 
 procedure StartMongoDB(const AParams: UTF8String);
-
 procedure StartReplSet;
+function MongoDBPath: string;
 
 implementation
 
@@ -209,7 +209,7 @@ var
 begin
   {$IFDEF TAXPORT}
   Scope := NewScope;
-  TargetMongoDBPath := ExtractFilePath(Application.ExeName) + 'MongoDB\';
+  TargetMongoDBPath := MongoDBPath;
   TargetMongoDFile := TargetMongoDBPath + MONGOD_NAME;
   Files := Scope.Add(TFileInfoList.Create);
   TCnvStream.GetStreamList(SRC_MONGOD, Files, False, True);
@@ -228,12 +228,13 @@ begin
   with TAppExec.Create(nil) do
     try
       ExeName := 'mongod.exe';
-      ExePath := ExtractFilePath(ParamStr(0)) + '\MongoDB';
+      ExePath := MongoDBPath;
       ExeParams.CommaText := AParams;
       Execute;
     finally
       Free;
     end;
+  ChDir(ExtractFilePath(ParamStr(0)));
   Sleep(1000);
 end;
 
@@ -282,17 +283,17 @@ var
 begin
   if not FSlaveStarted then
     begin
-      DeleteEntireDir(ExtractFilePath(ParamStr(0)) + '\MongoDataReplica_1');
-      ForceDirectories(ExtractFilePath(ParamStr(0)) + '\MongoDataReplica_1');
-      StartMongoDB('--dbpath ' + ExtractFilePath(ParamStr(0)) + '\MongoDataReplica_1 --smallfiles --noprealloc --journalCommitInterval 5 --port 27018 --replSet foo');
+      DeleteEntireDir(MongoDBPath + '\MongoDataReplica_1');
+      ForceDirectories(MongoDBPath + '\MongoDataReplica_1');
+      StartMongoDB('--dbpath ' + MongoDBPath + '\MongoDataReplica_1 --smallfiles --noprealloc --journalCommitInterval 5 --port 27018 --replSet foo');
 
-      DeleteEntireDir(ExtractFilePath(ParamStr(0)) + '\MongoDataReplica_2');
-      ForceDirectories(ExtractFilePath(ParamStr(0)) + '\MongoDataReplica_2');
-      StartMongoDB('--dbpath ' + ExtractFilePath(ParamStr(0)) + '\MongoDataReplica_2 --smallfiles --noprealloc --journalCommitInterval 5 --port 27019 --replSet foo');
+      DeleteEntireDir(MongoDBPath + '\MongoDataReplica_2');
+      ForceDirectories(MongoDBPath + '\MongoDataReplica_2');
+      StartMongoDB('--dbpath ' + MongoDBPath + '\MongoDataReplica_2 --smallfiles --noprealloc --journalCommitInterval 5 --port 27019 --replSet foo');
 
-      DeleteEntireDir(ExtractFilePath(ParamStr(0)) + '\MongoDataReplica_3');
-      ForceDirectories(ExtractFilePath(ParamStr(0)) + '\MongoDataReplica_3');
-      StartMongoDB('--dbpath ' + ExtractFilePath(ParamStr(0)) + '\MongoDataReplica_3 --smallfiles --noprealloc --journalCommitInterval 5 --port 27020 --replSet foo');
+      DeleteEntireDir(MongoDBPath + '\MongoDataReplica_3');
+      ForceDirectories(MongoDBPath + '\MongoDataReplica_3');
+      StartMongoDB('--dbpath ' + MongoDBPath + '\MongoDataReplica_3 --smallfiles --noprealloc --journalCommitInterval 5 --port 27020 --replSet foo');
 
       with TMongo.Create('127.0.0.1:27018') do
         try
@@ -330,6 +331,15 @@ begin
     Sleep(200); // Need to sleep between calls to give time to first KillProcess call to succeed
 end;
 
+function MongoDBPath: string;
+begin
+  {$IFDEF TAXPORT}
+  Result := ExtractFilePath(Application.ExeName) + 'MongoDB\';
+  {$ELSE}
+  Result := ExpandFileName('..\..\..\MongoDB\');
+  {$ENDIF}
+end;
+
 { TestMongoBase }
 
 function TestMongoBase.CreateMongo: TMongo;
@@ -357,9 +367,9 @@ class procedure TestMongoBase.StartMongo;
 begin
   if not MongoStarted then
     begin
-      DeleteEntireDir(ExtractFilePath(ParamStr(0)) + '\MongoData');
-      ForceDirectories(ExtractFilePath(ParamStr(0)) + '\MongoData');
-      StartMongoDB('--dbpath ' + ExtractFilePath(ParamStr(0)) + '\MongoData --smallfiles --noprealloc --journalCommitInterval 5');
+      DeleteEntireDir(MongoDBPath + '\MongoData');
+      ForceDirectories(MongoDBPath + '\MongoData');
+      StartMongoDB('--dbpath ' + MongoDBPath + '\MongoData --smallfiles --noprealloc --journalCommitInterval 5');
       MongoStarted := True;
     end;
 end;
@@ -442,9 +452,12 @@ end;
 
 procedure TestTMongo.TearDown;
 begin
-  FMongo.drop('test_db.test_thread');
-  FMongo.dropDatabase('test_db');
-  FMongo.dropDatabase('test_database');
+  if FMongo <> nil then
+    begin
+      FMongo.drop('test_db.test_thread');
+      FMongo.dropDatabase('test_db');
+      FMongo.dropDatabase('test_database');
+    end;
   inherited;
 end;
 

@@ -78,10 +78,11 @@
         <Base>true</Base>
     </PropertyGroup>
     <PropertyGroup Condition="'$(Base)'!=''">
+        <DCC_ExeOutput>..\..\..\bin\$(Platform)\$(Config)</DCC_ExeOutput>
         <Icon_MainIcon>DelphiMongoClientTests_Icon.ico</Icon_MainIcon>
         <Manifest_File>None</Manifest_File>
-        <DCC_DcuOutput>.\DCU\$(Platform)\$(Config)</DCC_DcuOutput>
-        <DCC_UnitSearchPath>$(BDS)\Source\DUnit\src;..\;$(DCC_UnitSearchPath)</DCC_UnitSearchPath>
+        <DCC_DcuOutput>..\..\..\intermediate\$(Platform)\$(Config)</DCC_DcuOutput>
+        <DCC_UnitSearchPath>$(BDS)\Source\DUnit\src;..\..\delphi-fastmm\;..\;$(BDS)\Source\dUnit\Contrib\XMLReporting;$(DCC_UnitSearchPath)</DCC_UnitSearchPath>
         <DCC_Namespace>Vcl;Vcl.Imaging;Vcl.Touch;Vcl.Samples;Vcl.Shell;System;Xml;Data;Datasnap;Web;Soap;Winapi;$(DCC_Namespace)</DCC_Namespace>
         <VerInfo_Keys>CompanyName=;FileDescription=;FileVersion=1.0.0.0;InternalName=;LegalCopyright=;LegalTrademarks=;OriginalFilename=;ProductName=;ProductVersion=1.0.0.0;Comments=</VerInfo_Keys>
         <VerInfo_Locale>1033</VerInfo_Locale>
@@ -101,6 +102,10 @@
         <Manifest_File>$(BDS)\bin\default_app.manifest</Manifest_File>
     </PropertyGroup>
     <PropertyGroup Condition="'$(Base_Win64)'!=''">
+        <DCC_ExeOutput>..\..\..\bin\x64\$(Config)</DCC_ExeOutput>
+        <Debugger_EnvVars>Platform=x64;$(Debugger_EnvVars)</Debugger_EnvVars>
+        <Debugger_IncludeSystemVars>true</Debugger_IncludeSystemVars>
+        <DCC_DcuOutput>..\..\..\intermediate\x64\$(Config)</DCC_DcuOutput>
         <BRCC_Defines>FASTMM;NeverSleepOnThreadContention;DEBUG;OnDemandMongoCLoad</BRCC_Defines>
         <DCC_UnitSearchPath>..\..\..\FastMM4\;$(DCC_UnitSearchPath)</DCC_UnitSearchPath>
         <DCC_SYMBOL_PLATFORM>false</DCC_SYMBOL_PLATFORM>
@@ -123,16 +128,12 @@
     <PropertyGroup Condition="'$(Cfg_1_Win32)'!=''">
         <DCC_Define>FASTMM;NeverSleepOnThreadContention;$(DCC_Define)</DCC_Define>
         <Manifest_File>$(BDS)\bin\default_app.manifest</Manifest_File>
-        <PreBuildEvent><![CDATA[copy $(OUTPUTDIR)MongoC\Win32\Release\MongoC.dll $(OUTPUTDIR)
-$(PreBuildEvent)]]></PreBuildEvent>
         <VerInfo_IncludeVerInfo>true</VerInfo_IncludeVerInfo>
     </PropertyGroup>
     <PropertyGroup Condition="'$(Cfg_1_Win64)'!=''">
         <DCC_Define>FASTMM;NeverSleepOnThreadContention;$(DCC_Define)</DCC_Define>
         <BRCC_Defines>FASTMM;NeverSleepOnThreadContention</BRCC_Defines>
         <Manifest_File>$(BDS)\bin\default_app.manifest</Manifest_File>
-        <PreBuildEvent><![CDATA[copy $(OUTPUTDIR)MongoC\x64\Release\MongoC.dll $(OUTPUTDIR)
-$(PreBuildEvent)]]></PreBuildEvent>
         <DCC_IMPLICIT_STRING_CAST_LOSS>false</DCC_IMPLICIT_STRING_CAST_LOSS>
         <DCC_IMPLICIT_STRING_CAST>false</DCC_IMPLICIT_STRING_CAST>
         <VerInfo_IncludeVerInfo>true</VerInfo_IncludeVerInfo>
@@ -157,8 +158,6 @@ $(PreBuildEvent)]]></PreBuildEvent>
     </PropertyGroup>
     <PropertyGroup Condition="'$(Cfg_2_Win32)'!=''">
         <DCC_Define>NoDebugInfo;$(DCC_Define)</DCC_Define>
-        <PreBuildEvent><![CDATA[copy $(OUTPUTDIR)MongoC\Win32\Debug\MongoC.dll  $(OUTPUTDIR)
-$(PreBuildEvent)]]></PreBuildEvent>
         <Manifest_File>$(BDS)\bin\default_app.manifest</Manifest_File>
         <VerInfo_IncludeVerInfo>true</VerInfo_IncludeVerInfo>
         <DCC_DebugInfoInExe>true</DCC_DebugInfoInExe>
@@ -166,8 +165,6 @@ $(PreBuildEvent)]]></PreBuildEvent>
     <PropertyGroup Condition="'$(Cfg_2_Win64)'!=''">
         <DCC_Define>NoDebugInfo;$(DCC_Define)</DCC_Define>
         <Manifest_File>$(BDS)\bin\default_app.manifest</Manifest_File>
-        <PreBuildEvent><![CDATA[copy $(OUTPUTDIR)MongoC\x64\Debug\MongoC.dll $(OUTPUTDIR)
-$(PreBuildEvent)]]></PreBuildEvent>
         <DCC_DebugDCUs>true</DCC_DebugDCUs>
         <DCC_MapFile>0</DCC_MapFile>
         <DCC_RemoteDebug>true</DCC_RemoteDebug>
@@ -181,8 +178,6 @@ $(PreBuildEvent)]]></PreBuildEvent>
     </PropertyGroup>
     <PropertyGroup Condition="'$(Cfg_3_Win32)'!=''">
         <DCC_Define>NoDebugInfo;FASTMM;$(DCC_Define)</DCC_Define>
-        <PreBuildEvent><![CDATA[copy $(OUTPUTDIR)MongoC\Win32\Debug\MongoC.dll $(OUTPUTDIR)
-$(PreBuildEvent)]]></PreBuildEvent>
         <Manifest_File>$(BDS)\bin\default_app.manifest</Manifest_File>
         <DCC_GenerateStackFrames>true</DCC_GenerateStackFrames>
         <DCC_RemoteDebug>true</DCC_RemoteDebug>
@@ -191,8 +186,6 @@ $(PreBuildEvent)]]></PreBuildEvent>
         <DCC_DebugInfoInExe>true</DCC_DebugInfoInExe>
     </PropertyGroup>
     <PropertyGroup Condition="'$(Cfg_3_Win64)'!=''">
-        <PreBuildEvent><![CDATA[copy $(OUTPUTDIR)MongoC\x64\Debug\MongoC.dll $(OUTPUTDIR)
-$(PreBuildEvent)]]></PreBuildEvent>
         <DCC_IMPLICIT_STRING_CAST>false</DCC_IMPLICIT_STRING_CAST>
         <Manifest_File>$(BDS)\bin\default_app.manifest</Manifest_File>
         <DCC_Define>NoDebugInfo;FASTMM;$(DCC_Define)</DCC_Define>
@@ -240,8 +233,8 @@ $(PreBuildEvent)]]></PreBuildEvent>
                     <Source Name="MainSource">DelphiMongoClientTests_XE4.dpr</Source>
                 </Source>
                 <Excluded_Packages>
-                    <Excluded_Packages Name="$(BDSBIN)\dcloffice2k160.bpl">Microsoft Office 2000 Sample Automation Server Wrapper Components</Excluded_Packages>
-                    <Excluded_Packages Name="$(BDSBIN)\dclofficexp160.bpl">Microsoft Office XP Sample Automation Server Wrapper Components</Excluded_Packages>
+                    <Excluded_Packages Name="$(BDSBIN)\dcloffice2k180.bpl">Microsoft Office 2000 Sample Automation Server Wrapper Components</Excluded_Packages>
+                    <Excluded_Packages Name="$(BDSBIN)\dclofficexp180.bpl">Microsoft Office XP Sample Automation Server Wrapper Components</Excluded_Packages>
                 </Excluded_Packages>
             </Delphi.Personality>
             <UnitTesting>
@@ -258,7 +251,6 @@ $(PreBuildEvent)]]></PreBuildEvent>
         </BorlandProject>
         <ProjectFileVersion>12</ProjectFileVersion>
     </ProjectExtensions>
-    <Import Project="$(BDS)\Bin\CodeGear.Delphi.Targets"/>
     <Import Project="$(BDS)\Bin\CodeGear.Delphi.Targets"/>
     <ItemGroup>
         <DelphiCompile Include="$(MainSource)">
@@ -283,7 +275,6 @@ $(PreBuildEvent)]]></PreBuildEvent>
         <DCCReference Include="..\uPrimitiveAllocator.pas"/>
         <DCCReference Include="TestuPrimitiveAllocator.pas"/>
         <DCCReference Include="TestuAllocators.pas"/>
-        <DCCReference Include="..\uAllocators.pas"/>
         <BuildConfiguration Include="Debug">
             <Key>Cfg_2</Key>
             <CfgParent>Base</CfgParent>
@@ -301,52 +292,4 @@ $(PreBuildEvent)]]></PreBuildEvent>
         </BuildConfiguration>
     </ItemGroup>
     <Import Condition="Exists('$(APPDATA)\Embarcadero\$(BDSAPPDATABASEDIR)\$(PRODUCTVERSION)\UserTools.proj')" Project="$(APPDATA)\Embarcadero\$(BDSAPPDATABASEDIR)\$(PRODUCTVERSION)\UserTools.proj"/>
-    <PropertyGroup Condition="'$(Config)'=='Release' And '$(Platform)'=='Win32'">
-        <PreBuildEvent>copy $(OUTPUTDIR)MongoC\Win32\Release\MongoC.dll $(OUTPUTDIR)</PreBuildEvent>
-        <PreBuildEventIgnoreExitCode>False</PreBuildEventIgnoreExitCode>
-        <PreLinkEvent/>
-        <PreLinkEventIgnoreExitCode>False</PreLinkEventIgnoreExitCode>
-        <PostBuildEvent/>
-        <PostBuildEventIgnoreExitCode>False</PostBuildEventIgnoreExitCode>
-    </PropertyGroup>
-    <PropertyGroup Condition="'$(Config)'=='Release' And '$(Platform)'=='Win64'">
-        <PreBuildEvent>copy $(OUTPUTDIR)MongoC\x64\Release\MongoC.dll $(OUTPUTDIR)</PreBuildEvent>
-        <PreBuildEventIgnoreExitCode>False</PreBuildEventIgnoreExitCode>
-        <PreLinkEvent/>
-        <PreLinkEventIgnoreExitCode>False</PreLinkEventIgnoreExitCode>
-        <PostBuildEvent/>
-        <PostBuildEventIgnoreExitCode>False</PostBuildEventIgnoreExitCode>
-    </PropertyGroup>
-    <PropertyGroup Condition="'$(Config)'=='Debug' And '$(Platform)'=='Win32'">
-        <PreBuildEvent>copy $(OUTPUTDIR)MongoC\Win32\Debug\MongoC.dll  $(OUTPUTDIR)</PreBuildEvent>
-        <PreBuildEventIgnoreExitCode>False</PreBuildEventIgnoreExitCode>
-        <PreLinkEvent/>
-        <PreLinkEventIgnoreExitCode>False</PreLinkEventIgnoreExitCode>
-        <PostBuildEvent/>
-        <PostBuildEventIgnoreExitCode>False</PostBuildEventIgnoreExitCode>
-    </PropertyGroup>
-    <PropertyGroup Condition="'$(Config)'=='Debug' And '$(Platform)'=='Win64'">
-        <PreBuildEvent>copy $(OUTPUTDIR)MongoC\x64\Debug\MongoC.dll $(OUTPUTDIR)</PreBuildEvent>
-        <PreBuildEventIgnoreExitCode>False</PreBuildEventIgnoreExitCode>
-        <PreLinkEvent/>
-        <PreLinkEventIgnoreExitCode>False</PreLinkEventIgnoreExitCode>
-        <PostBuildEvent/>
-        <PostBuildEventIgnoreExitCode>False</PostBuildEventIgnoreExitCode>
-    </PropertyGroup>
-    <PropertyGroup Condition="'$(Config)'=='DebugOnDemand' And '$(Platform)'=='Win32'">
-        <PreBuildEvent>copy $(OUTPUTDIR)MongoC\Win32\Debug\MongoC.dll $(OUTPUTDIR)</PreBuildEvent>
-        <PreBuildEventIgnoreExitCode>False</PreBuildEventIgnoreExitCode>
-        <PreLinkEvent/>
-        <PreLinkEventIgnoreExitCode>False</PreLinkEventIgnoreExitCode>
-        <PostBuildEvent/>
-        <PostBuildEventIgnoreExitCode>False</PostBuildEventIgnoreExitCode>
-    </PropertyGroup>
-    <PropertyGroup Condition="'$(Config)'=='DebugOnDemand' And '$(Platform)'=='Win64'">
-        <PreBuildEvent>copy $(OUTPUTDIR)MongoC\x64\Debug\MongoC.dll $(OUTPUTDIR)</PreBuildEvent>
-        <PreBuildEventIgnoreExitCode>False</PreBuildEventIgnoreExitCode>
-        <PreLinkEvent/>
-        <PreLinkEventIgnoreExitCode>False</PreLinkEventIgnoreExitCode>
-        <PostBuildEvent/>
-        <PostBuildEventIgnoreExitCode>False</PostBuildEventIgnoreExitCode>
-    </PropertyGroup>
 </Project>
