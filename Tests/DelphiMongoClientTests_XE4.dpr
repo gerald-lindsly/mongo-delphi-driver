@@ -41,7 +41,7 @@ uses
   uPrimitiveAllocator in '..\uPrimitiveAllocator.pas',
   TestuPrimitiveAllocator in 'TestuPrimitiveAllocator.pas',
   TestuAllocators in 'TestuAllocators.pas',
-  uAllocators in '..\uAllocators.pas';
+  uAllocators;
 
 {$R *.RES}
 
