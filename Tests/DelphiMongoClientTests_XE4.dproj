@@ -102,6 +102,10 @@
         <Manifest_File>$(BDS)\bin\default_app.manifest</Manifest_File>
     </PropertyGroup>
     <PropertyGroup Condition="'$(Base_Win64)'!=''">
+        <DCC_ExeOutput>..\..\..\bin\x64\$(Config)</DCC_ExeOutput>
+        <Debugger_EnvVars>Platform=x64;$(Debugger_EnvVars)</Debugger_EnvVars>
+        <Debugger_IncludeSystemVars>true</Debugger_IncludeSystemVars>
+        <DCC_DcuOutput>..\..\..\intermediate\x64\$(Config)</DCC_DcuOutput>
         <BRCC_Defines>FASTMM;NeverSleepOnThreadContention;DEBUG;OnDemandMongoCLoad</BRCC_Defines>
         <DCC_UnitSearchPath>..\..\..\FastMM4\;$(DCC_UnitSearchPath)</DCC_UnitSearchPath>
         <DCC_SYMBOL_PLATFORM>false</DCC_SYMBOL_PLATFORM>
@@ -247,7 +251,6 @@
         </BorlandProject>
         <ProjectFileVersion>12</ProjectFileVersion>
     </ProjectExtensions>
-    <Import Project="$(BDS)\Bin\CodeGear.Delphi.Targets"/>
     <Import Project="$(BDS)\Bin\CodeGear.Delphi.Targets"/>
     <ItemGroup>
         <DelphiCompile Include="$(MainSource)">
