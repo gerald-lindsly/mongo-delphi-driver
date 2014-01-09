@@ -8,7 +8,7 @@ uses
   Windows, SysUtils;
 
 const
-  MongoCDLL = 'mongoc.dll';
+  Default_MongoCDLL = 'mongoc.dll';
 
 type
   {$IFNDEF DELPHI2007}
@@ -406,7 +406,7 @@ var
 
   Int64toDouble : TInt64toDouble;
 
-  procedure InitMongoDBLibrary;
+  procedure InitMongoDBLibrary(const MongoCDLL : UTF8String = Default_MongoCDLL);
   procedure DoneMongoDBLibrary;
 
 {$Else}
@@ -627,7 +627,10 @@ begin
 end;
 
 {$IFDEF OnDemandMongoCLoad}
-procedure InitMongoDBLibrary;
+var
+  UsedDLLName : UTF8String = '';
+
+procedure InitMongoDBLibrary(const MongoCDLL : UTF8String = Default_MongoCDLL);
   function GetProcAddress(h : HMODULE; const FnName : UTF8String) : Pointer;
   begin
     Result := Windows.GetProcAddress(h, PAnsiChar(FnName));
@@ -637,7 +640,9 @@ procedure InitMongoDBLibrary;
 begin
   if HMongoDBDll <> 0 then
     exit;
-  HMongoDBDll := LoadLibrary(MongoCDLL);
+  if UsedDLLName = '' then
+    UsedDLLName := MongoCDLL;
+  HMongoDBDll := LoadLibraryA(PAnsiChar(UsedDLLName));
   if HMongoDBDll = 0 then
     raise Exception.Create(SFailedLoadingMongocDll);
   // MongoDB initializations
