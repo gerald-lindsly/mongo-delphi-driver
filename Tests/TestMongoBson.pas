@@ -1957,6 +1957,11 @@ begin
   Check(not Arr[6].VBoolean, 'Arr[6] value doesn''t match');
 end;
 
+{$IFDEF OnDemandMongoCLoad}
+var
+  MongoCDLLName : UTF8String;
+{$ENDIF}
+
 initialization
   // Register any test cases with the test runner
   RegisterTest(TestIBsonOID.Suite);
@@ -1970,7 +1975,11 @@ initialization
   RegisterTest(TestIBson.Suite);
   RegisterTest(TestArrayBuildingFunctions.Suite);
   {$IFDEF OnDemandMongoCLoad}
-  InitMongoDBLibrary;
+  if ParamStr(1) = '' then
+    MongoCDLLName := Default_MongoCDLL
+  else
+    MongoCDLLName := ParamStr(1);
+  InitMongoDBLibrary(MongoCDLLName);
   {$ENDIF}
   bson_set_oid_fuzz(@CustomOIDFuzzFunction);
   bson_set_oid_inc(@CustomOIDReturnIntFunction);
