@@ -360,8 +360,9 @@ procedure AppendToVarRecArray(const Arr : array of const; var TargetArray : TVar
 
 function BSON(const x: array of Variant): IBson;
 
-{ Create an empty TBsonBuffer ready to have fields appended. }
-function NewBsonBuffer: IBsonBuffer;
+{ Create an empty TBsonBuffer ready to have fields appended.
+  native unfinished bson can be passed, in this case it should be deleted after with TBson manually }
+function NewBsonBuffer(AHandle: Pointer = nil): IBsonBuffer;
 
 { Create a TBsonBinary from a pointer and a length.  The data
   is copied to the heap.  kind is initialized to 0 }
@@ -402,8 +403,9 @@ function NewBsonIterator(ABson: IBson): IBsonIterator; overload;
 
 { Create a TBson given a pointer to externally managed data describing
   the document.  User code should not instantiate TBson directly.  Use
-  TBsonBuffer and finish() to create BSON documents. }
-function NewBson(AHandle: Pointer): IBson;
+  TBsonBuffer and finish() to create BSON documents.
+  If Bson don't own Handle it should be destroyed manually with TBson }
+function NewBson(AHandle: Pointer; owns: boolean = true): IBson;
 function NewBsonCopy(AHandle: Pointer): IBson;
 
 {$IFDEF DELPHIXE2}
@@ -572,6 +574,7 @@ type
   TBsonBuffer = class(TMongoInterfacedObject, IBsonBuffer)
   private
     Handle: Pointer;
+    FOwnsHandle: boolean;
     function appendIntCallback(i: Integer; const Arr): Boolean;
     function appendDoubleCallback(i: Integer; const Arr): Boolean;
     function appendBooleanCallback(i: Integer; const Arr): Boolean;
@@ -581,7 +584,7 @@ type
         AppendElementCallback: Pointer): Boolean;
     class function UTF8StringFromTVarRec(const AVarRec: TVarRec): UTF8String;
   public
-    constructor Create;
+    constructor Create(AHandle: Pointer = nil);
     {$IFDEF DELPHI2009}
     function append(const Name, Value: UTF8String): Boolean; overload;
     {$EndIf}
@@ -639,6 +642,7 @@ type
   TBson = class(TMongoInterfacedObject, IBson)
   private
     FHandle: Pointer;
+    FOwnsHandle: boolean;
     procedure checkHandle;
   protected
     function getHandle: Pointer;
@@ -649,7 +653,7 @@ type
     function value(const Name: UTF8String): Variant;
     procedure display;
     function valueAsInt64(const Name: UTF8String): Int64;
-    constructor Create(h: Pointer);
+    constructor Create(h: Pointer; owns: boolean = true);
     destructor Destroy; override;
     property Handle: Pointer read getHandle;
   end;
@@ -973,14 +977,22 @@ end;
 
 { TBsonBuffer }
 
-constructor TBsonBuffer.Create;
+constructor TBsonBuffer.Create(AHandle: Pointer);
 begin
   inherited Create;
   {$IFDEF OnDemandMongoCLoad}
   InitMongoDBLibrary;
   {$ENDIF}
-  Handle := bson_create;
-  bson_init(Handle);
+  if AHandle <> nil then
+  begin
+    Handle := AHandle;
+    FOwnsHandle := false;
+  end
+  else begin
+    Handle := bson_create;
+    bson_init(Handle);
+    FOwnsHandle := true;
+  end;
 end;
 
 destructor TBsonBuffer.Destroy;
@@ -1431,7 +1443,7 @@ begin
   checkBsonBuffer;
   if bson_finish(Handle) = 0 then
   begin
-    Result := NewBson(Handle);
+    Result := NewBson(Handle, FOwnsHandle);
     Handle := nil;
   end
   else
@@ -1458,18 +1470,19 @@ end;
 
 { TBson }
 
-constructor TBson.Create(h: Pointer);
+constructor TBson.Create(h: Pointer; owns: boolean);
 begin
   inherited Create;
   {$IFDEF OnDemandMongoCLoad}
   InitMongoDBLibrary;
   {$ENDIF}
   FHandle := h;
+  FOwnsHandle := owns;
 end;
 
 destructor TBson.Destroy();
 begin
-  if FHandle <> nil then
+  if FOwnsHandle and (FHandle <> nil) then
     begin
       bson_dealloc_and_destroy(FHandle);
       FHandle := nil;
@@ -1914,14 +1927,14 @@ begin
   Result := TBsonIterator.Create(ABson);
 end;
 
-function NewBsonBuffer: IBsonBuffer;
+function NewBsonBuffer(AHandle: Pointer): IBsonBuffer;
 begin
-  Result := TBsonBuffer.Create;
+  Result := TBsonBuffer.Create(AHandle);
 end;
 
-function NewBson(AHandle: Pointer): IBson;
+function NewBson(AHandle: Pointer; owns: boolean): IBson;
 begin
-  Result := TBson.Create(AHandle);
+  Result := TBson.Create(AHandle, owns);
 end;
 
 var
