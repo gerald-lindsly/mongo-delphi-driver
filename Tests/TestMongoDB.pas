@@ -191,7 +191,7 @@ function MongoDBPath: string;
 implementation
 
 uses
-  AppExec, uWinProcHelper, uFileManagement, Variants, Windows, FileCtrl
+  AppExec, uWinProcHelper, uFileManagement{$IFNDEF VER130}, Variants{$ENDIF}, Windows, FileCtrl
   {$IFDEF TAXPORT}, uScope, Forms, CnvStream, CnvFileUtils, JclDateTime {$ENDIF};
 
 procedure StartMongoDB(const AParams: UTF8String);

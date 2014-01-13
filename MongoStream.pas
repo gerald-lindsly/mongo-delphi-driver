@@ -45,7 +45,7 @@ type
   TAESKeyLength = (akl128, akl192, akl256);
   TMongoStream = class(TStream)
   private
-    FCurPos: Int64;
+    FCurPos: {$IFDEF VER130}longint{$ELSE}Int64{$ENDIF};
     FGridFS : TGridFS;
     FGridFile : IGridFile;
     FGridFileWriter : IGridfileWriter;
@@ -67,10 +67,16 @@ type
     function GetID: IBsonOID; {$IFDEF DELPHI2007} inline; {$ENDIF}
     procedure SerializeWithJournal;
   protected
+    {$IFDEF VER130}
+    function GetSize: Longint;
+    {$Else}
     function GetSize: Int64; override;
+    {$ENDIF}
     {$IFDEF DELPHI2007}
     procedure SetSize(NewSize: longint); override;
     procedure SetSize(const NewSize: Int64); overload; override;
+    {$ELSE IFDEF VER130}
+    procedure SetSize(NewSize: Longint); override;
     {$ELSE}
     procedure SetSize(NewSize: {$IFDef Enterprise} Int64 {$Else} longint {$EndIf}); override;
     {$ENDIF}
@@ -87,6 +93,8 @@ type
     {$IFDEF DELPHI2007}
     function Seek(const Offset: Int64; Origin: TSeekOrigin): Int64; overload; override;
     function Seek(Offset: longint; Origin: Word ): longint; override;
+    {$ELSE IFDEF VER130}
+    function Seek(Offset: Longint; Origin: Word): Longint; override;
     {$ELSE}
     function Seek(Offset: {$IFDef Enterprise} Int64 {$Else} longint {$EndIf}; Origin: TSeekOrigin ): {$IFDef Enterprise} Int64 {$Else} longint {$EndIf}; override;
     {$ENDIF}
@@ -99,6 +107,9 @@ type
     property SerializedWithJournal: Boolean read FSerializedWithJournal write FSerializedWithJournal default False;
     property SerializeWithJournalByteWritten : Cardinal read FSerializeWithJournalByteWritten write FSerializeWithJournalByteWritten default SERIALIZE_WITH_JOURNAL_BYTES_WRITTEN;
     property Status: TMongoStreamStatus read FStatus;
+    {$IFDEF VER130}
+    property Size: Longint read GetSize write SetSize;
+    {$ENDIF}
   end;
 
 implementation
@@ -214,7 +225,7 @@ begin
   Result := FGridFile.getId;
 end;
 
-function TMongoStream.GetSize: Int64;
+function TMongoStream.GetSize: {$IFDEF VER130}Longint{$Else}Int64{$ENDIF};
 begin
   CheckGridFile;
   Result := FGridFile.getLength;
@@ -229,6 +240,8 @@ begin
 end;
 
 {$IFDEF DELPHI2007}
+function TMongoStream.Seek(Offset: longint; Origin: Word ): longint;
+{$ELSE IFDEF VER130}
 function TMongoStream.Seek(Offset: longint; Origin: Word ): longint;
 {$ELSE}
 function TMongoStream.Seek(Offset: {$IFDef Enterprise} Int64 {$Else} longint {$EndIf}; Origin: TSeekOrigin ): {$IFDef Enterprise} Int64 {$Else} longint {$EndIf};
@@ -256,7 +269,9 @@ end;
 {$ENDIF}
 
 {$IFDEF DELPHI2007}
-procedure TMongoStream.SetSize(NewSize: longint);
+procedure TMongoStream.SetSize(NewSize: Longint);
+{$ELSE IFDEF VER130}
+procedure TMongoStream.SetSize(NewSize: Longint);
 {$ELSE}
 procedure TMongoStream.SetSize(NewSize: {$IFDef Enterprise} Int64 {$Else} longint {$EndIf});
 {$ENDIF}

@@ -14,7 +14,7 @@ interface
 uses
   SysUtils, TestFramework, MongoBson;
 
-{$i DelphiVersion_defines.inc}
+{$i ..\DelphiVersion_defines.inc}
 
 type
   // Test methods for class IBsonOID
@@ -201,7 +201,7 @@ type
 implementation
 
 uses
-  Classes, Variants, MongoAPI, MongoDB, uPrimitiveAllocator;
+  Classes{$IFNDEF VER130}, Variants{$ENDIF}, MongoAPI, MongoDB, uPrimitiveAllocator;
 
 const
   DELTA_DATE = 0.00009999;

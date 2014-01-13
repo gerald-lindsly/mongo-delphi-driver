@@ -12,7 +12,7 @@ unit TestuStack;
 interface
 
 uses
-  TestFramework, Variants, uStack;
+  TestFramework{$IFNDEF VER130}, Variants{$EndIf}, uStack;
 
 type
   // Test methods for class TStack

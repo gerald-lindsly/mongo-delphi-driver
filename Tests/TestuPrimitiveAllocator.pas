@@ -12,9 +12,9 @@ unit TestuPrimitiveAllocator;
 interface
 
 uses
-  TestFramework, Variants, uPrimitiveAllocator;
+  TestFramework{$IFNDEF VER130}, Variants{$EndIf}, uPrimitiveAllocator;
 
-{$i DelphiVersion_defines.inc}
+{$i ..\DelphiVersion_defines.inc}
 
 type
   // Test methods for class TStack

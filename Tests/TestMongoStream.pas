@@ -14,7 +14,7 @@ interface
 uses
   TestFramework, Classes, MongoStream, MongoDB, GridFS, TestMongoDB, TestGridFS, MongoAPI;
 
-{$I MongoC_defines.inc}
+{$I ..\MongoC_defines.inc}
 
 type
   // Test methods for class TMongoStream
@@ -106,7 +106,7 @@ type
 implementation
 
 uses
-  uFileManagement, FileCtrl, SysUtils, MongoBson, Dialogs, Variants, Windows;
+  uFileManagement, FileCtrl, SysUtils, MongoBson, Dialogs{$IFNDEF VER130}, Variants{$EndIf}, Windows;
 
 const
   FILESIZE = 512 * 1024;
