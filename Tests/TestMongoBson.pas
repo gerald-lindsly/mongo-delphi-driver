@@ -176,6 +176,7 @@ type
     procedure TestSimpleBSON;
     procedure Testsize;
     procedure TestValue;
+    procedure Testowns;
   end;
 
   TestBsonAPI = class(TTestCase)
@@ -1753,6 +1754,35 @@ begin
   CheckEquals(123, ReturnValue, 'ReturnValue should be equals to 123');
 end;
 
+procedure TestIBson.Testowns;
+var
+  pb, bsonObj, i: Pointer;
+  b : IBson;
+begin
+  // create native bson
+  bsonObj := bson_alloc;
+  bson_init(bsonObj);
+  bson_append_int(bsonObj, PAnsiChar('test'), 3);
+  b := NewBsonBuffer(bsonObj).finish; // b should not own native bson after created by passing handle
+  pb := b.Handle; // point to native bson
+  b := nil; // destroy b
+  // native bson should not be destroyed while destroying b
+  i := bson_iterator_alloc;
+  bson_iterator_init(i, pb);
+  bson_find(i, pb, PAnsiChar('test'));
+  CheckEquals(3, bson_iterator_int(i));
+  bson_iterator_dealloc(i);
+  bson_dealloc_and_destroy(pb);
+
+  b := BSON(['test', 3]); // create bson that owns native bson
+  pb := b.Handle;
+  b := nil;
+  // expect exception while accessing native bson
+  StartExpectingException(EAccessViolation);
+  mongo_cursor_next(pb);
+  StopExpectingException();
+end;
+
 var
   CustomReturnIntCalled : Boolean;
   CustomOIDFuzz : Boolean;
@@ -1957,6 +1987,11 @@ begin
   Check(not Arr[6].VBoolean, 'Arr[6] value doesn''t match');
 end;
 
+{$IFDEF OnDemandMongoCLoad}
+var
+  MongoCDLLName : UTF8String;
+{$ENDIF}
+
 initialization
   // Register any test cases with the test runner
   RegisterTest(TestIBsonOID.Suite);
@@ -1970,7 +2005,11 @@ initialization
   RegisterTest(TestIBson.Suite);
   RegisterTest(TestArrayBuildingFunctions.Suite);
   {$IFDEF OnDemandMongoCLoad}
-  InitMongoDBLibrary;
+  if ParamStr(1) = '' then
+    MongoCDLLName := Default_MongoCDLL
+  else
+    MongoCDLLName := ParamStr(1);
+  InitMongoDBLibrary(MongoCDLLName);
   {$ENDIF}
   bson_set_oid_fuzz(@CustomOIDFuzzFunction);
   bson_set_oid_inc(@CustomOIDReturnIntFunction);
