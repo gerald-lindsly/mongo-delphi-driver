@@ -191,7 +191,7 @@ function MongoDBPath: string;
 implementation
 
 uses
-  AppExec, uWinProcHelper, uFileManagement, Variants, Windows, FileCtrl
+  AppExec, uWinProcHelper, uFileManagement{$IFNDEF VER130}, Variants{$ENDIF}, Windows, FileCtrl
   {$IFDEF TAXPORT}, uScope, Forms, CnvStream, CnvFileUtils, JclDateTime {$ENDIF};
 
 procedure StartMongoDB(const AParams: UTF8String);
@@ -1697,7 +1697,11 @@ initialization
   if ParamStr(1) = '' then
     MongoCDLLName := Default_MongoCDLL
   else
+    {$IFDEF Enterprise}
+    MongoCDLLName := Default_MongoCDLL;
+    {$Else}
     MongoCDLLName := ParamStr(1);
+    {$ENDIF}
   InitMongoDBLibrary(MongoCDLLName);
   {$ENDIF}
   bsonEmpty; // Call bsonEmpty on initialization to avoid reporting of memory leak when enabled
