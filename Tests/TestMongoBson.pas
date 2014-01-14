@@ -14,7 +14,7 @@ interface
 uses
   SysUtils, TestFramework, MongoBson;
 
-{$i DelphiVersion_defines.inc}
+{$i ..\DelphiVersion_defines.inc}
 
 type
   // Test methods for class IBsonOID
@@ -202,7 +202,7 @@ type
 implementation
 
 uses
-  Classes, Variants, MongoAPI, MongoDB, uPrimitiveAllocator;
+  Classes{$IFNDEF VER130}, Variants{$ENDIF}, MongoAPI, MongoDB, uPrimitiveAllocator;
 
 const
   DELTA_DATE = 0.00009999;
@@ -2008,7 +2008,11 @@ initialization
   if ParamStr(1) = '' then
     MongoCDLLName := Default_MongoCDLL
   else
+    {$IFDEF Enterprise}
+    MongoCDLLName := Default_MongoCDLL;
+    {$Else}
     MongoCDLLName := ParamStr(1);
+    {$ENDIF}
   InitMongoDBLibrary(MongoCDLLName);
   {$ENDIF}
   bson_set_oid_fuzz(@CustomOIDFuzzFunction);

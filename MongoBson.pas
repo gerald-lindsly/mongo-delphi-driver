@@ -426,7 +426,7 @@ function Null_Element : TObject;
 implementation
 
 uses
-  SysUtils, Variants, Windows, MongoDB, uStack;
+  SysUtils{$IFNDEF VER130}, Variants{$ENDIF}, Windows, MongoDB, uStack;
 
 // START resource string wizard section
 resourcestring
