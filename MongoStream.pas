@@ -39,6 +39,9 @@ const
   SERIALIZE_WITH_JOURNAL_BYTES_WRITTEN = 1024 * 1024 * 10; (* Serialize with Journal every 10 megs written by default *)
 
 type
+  {$IFDEF VER130}
+  TSeekOrigin = (soBeginning, soCurrent, soEnd);
+  {$ENDIF}
   TMongoStreamMode = (msmWrite, msmCreate);
   TMongoStreamStatus = (mssOK, mssMissingChunks);
   TMongoStreamModeSet = set of TMongoStreamMode;
@@ -66,14 +69,11 @@ type
     function GetCaseInsensitiveNames: Boolean; {$IFDEF DELPHI2007} inline; {$ENDIF}
     function GetID: IBsonOID; {$IFDEF DELPHI2007} inline; {$ENDIF}
     procedure SerializeWithJournal;
+    procedure SetSize64(const NewSize: Int64);
   protected
-    function GetSize: Int64; override;
-    {$IFDEF DELPHI2007}
-    procedure SetSize(NewSize: longint); override;
-    procedure SetSize(const NewSize: Int64); overload; override;
-    {$ELSE}
-    procedure SetSize(NewSize: {$IFDef Enterprise} Int64 {$Else} longint {$EndIf}); override;
-    {$ENDIF}
+    function GetSize: Int64; {$IFNDEF VER130}override;{$ENDIF}
+    procedure SetSize(NewSize: longint); overload; override;
+    procedure SetSize(const NewSize: Int64); {$IFDEF VER130}reintroduce; overload;{$ELSE}overload; override;{$ENDIF}
   public
     constructor Create(AMongo: TMongo; const ADB, AFileName: UTF8String; const
         AMode: TMongoStreamModeSet; ACompressed: Boolean; const AEncryptionKey:
@@ -84,12 +84,8 @@ type
         = akl128); overload;
     destructor Destroy; override;
     function Read(var Buffer; Count: Longint): Longint; override;
-    {$IFDEF DELPHI2007}
-    function Seek(const Offset: Int64; Origin: TSeekOrigin): Int64; overload; override;
-    function Seek(Offset: longint; Origin: Word ): longint; override;
-    {$ELSE}
-    function Seek(Offset: {$IFDef Enterprise} Int64 {$Else} longint {$EndIf}; Origin: TSeekOrigin ): {$IFDef Enterprise} Int64 {$Else} longint {$EndIf}; override;
-    {$ENDIF}
+    function Seek(Offset: longint; Origin: Word ): longint; overload; override;
+    function Seek(const Offset: Int64; Origin: TSeekOrigin): Int64; {$IFDEF VER130}reintroduce; overload;{$ELSE}overload; override;{$ENDIF}
     function Write(const Buffer; Count: Longint): Longint; override;
 
     property CaseInsensitiveNames: Boolean read GetCaseInsensitiveNames;
@@ -99,6 +95,9 @@ type
     property SerializedWithJournal: Boolean read FSerializedWithJournal write FSerializedWithJournal default False;
     property SerializeWithJournalByteWritten : Cardinal read FSerializeWithJournalByteWritten write FSerializeWithJournalByteWritten default SERIALIZE_WITH_JOURNAL_BYTES_WRITTEN;
     property Status: TMongoStreamStatus read FStatus;
+    {$IFDEF VER130}
+    property Size: Int64 read GetSize write SetSize64;
+    {$ENDIF}
   end;
 
 implementation
@@ -228,11 +227,7 @@ begin
   inc(FCurPos, Result);
 end;
 
-{$IFDEF DELPHI2007}
 function TMongoStream.Seek(Offset: longint; Origin: Word ): longint;
-{$ELSE}
-function TMongoStream.Seek(Offset: {$IFDef Enterprise} Int64 {$Else} longint {$EndIf}; Origin: TSeekOrigin ): {$IFDef Enterprise} Int64 {$Else} longint {$EndIf};
-{$ENDIF}
 begin
   CheckGridFile;
   case Origin of
@@ -243,7 +238,6 @@ begin
   Result := FGridFile.Seek(FCurPos);
 end;
 
-{$IFDEF DELPHI2007}
 function TMongoStream.Seek(const Offset: Int64; Origin: TSeekOrigin): Int64;
 begin
   case Origin of
@@ -253,25 +247,22 @@ begin
   end;
   Result := FGridFile.Seek(FCurPos);
 end;
-{$ENDIF}
 
-{$IFDEF DELPHI2007}
-procedure TMongoStream.SetSize(NewSize: longint);
-{$ELSE}
-procedure TMongoStream.SetSize(NewSize: {$IFDef Enterprise} Int64 {$Else} longint {$EndIf});
-{$ENDIF}
+procedure TMongoStream.SetSize64(const NewSize: Int64);
 begin
-  CheckWriteSupport;
-  FCurPos := FGridFileWriter.setSize(NewSize);
+  SetSize(NewSize);
 end;
 
-{$IFDEF DELPHI2007}
+procedure TMongoStream.SetSize(NewSize: Longint);
+begin
+  SetSize(NewSize);
+end;
+
 procedure TMongoStream.SetSize(const NewSize: Int64);
 begin
   CheckWriteSupport;
   FCurPos := FGridFileWriter.setSize(NewSize);
 end;
-{$ENDIF}
 
 procedure TMongoStream.SerializeWithJournal;
 var
