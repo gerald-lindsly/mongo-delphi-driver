@@ -1697,7 +1697,11 @@ initialization
   if ParamStr(1) = '' then
     MongoCDLLName := Default_MongoCDLL
   else
+    {$IFDEF Enterprise}
+    MongoCDLLName := Default_MongoCDLL;
+    {$Else}
     MongoCDLLName := ParamStr(1);
+    {$ENDIF}
   InitMongoDBLibrary(MongoCDLLName);
   {$ENDIF}
   bsonEmpty; // Call bsonEmpty on initialization to avoid reporting of memory leak when enabled
