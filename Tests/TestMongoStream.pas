@@ -32,9 +32,7 @@ type
     procedure TestRead_Internal(const AEncrypted: Boolean; ACompressed: Boolean;
         MultiChunkData: Boolean = False; VerySmallBlock: Boolean = False;
         AEncryptionBits: TAESKeyLength = akl128);
-    {$IFDEF DELPHI2007}
     procedure TestSeek_Int64(AOrigin: TSeekOrigin; AOffset, AbsExpected: Int64);
-    {$ENDIF}
     procedure TestSeek_Int32(AOrigin: Word; AOffset: Longint; AbsExpected: Int64);
     procedure TestWriteCloseOverwriteAndReadSmallFile_Internal(const
         AEncryptionKey: String);
@@ -48,9 +46,7 @@ type
   published
     procedure TestGetSizeInt32;
     procedure TestSetSizeInt32;
-    {$IFDEF DELPHI2007}
     procedure TestSetSizeInt64;
-    {$ENDIF}
     procedure TestCreateStream;
     procedure TestCreateStreamAndOpenWithDifferentCase;
     procedure TestCreateStreamWithPrefix;
@@ -77,11 +73,9 @@ type
     procedure TestSeekFromCurrentInt32;
     procedure TestSeekFromEndInt32;
     procedure TestSeekFromBeginningInt32;
-    {$IFDEF DELPHI2007}
     procedure TestSeekFromBeginningInt64;
     procedure TestSeekFromCurrentInt64;
     procedure TestSeekFromEndInt64;
-    {$ENDIF}
     procedure TestSeekPastTheEndOfFile;
     procedure TestSetSizeMakeFileLarger;
     procedure TestSetSizeMakeFileLargerOverOneChunk;
@@ -224,7 +218,6 @@ begin
   CheckEquals(NewSize, FMongoStream.Size, 'New size was not taken by MongoStream');
 end;
 
-{$IFDEF DELPHI2007}
 procedure TestTMongoStream.TestSetSizeInt64;
 var
   NewSize: Int64;
@@ -239,7 +232,6 @@ begin
   FMongoStream := TMongoStream.Create(FMongo, FSDB, StandardRemoteFileName, [], True);
   CheckEquals(NewSize, FMongoStream.Size, 'New size was not taken by MongoStream');
 end;
-{$ENDIF}
 
 procedure TestTMongoStream.TestCreateStream;
 var
@@ -330,7 +322,6 @@ begin
   Check(CompareMem(@Buffer, @PAnsiChar(FEW_BYTES_OF_DATA)[AbsExpected], Count - AbsExpected), 'Data read doesn''t match');
 end;
 
-{$IFDEF DELPHI2007}
 procedure TestTMongoStream.TestSeekFromBeginningInt64;
 begin
   TestSeek_Int64(soBeginning, 5, 5);
@@ -345,7 +336,6 @@ procedure TestTMongoStream.TestSeekFromEndInt64;
 begin
   TestSeek_Int64(soEnd, -2, length(FEW_BYTES_OF_DATA) - 2);
 end;
-{$ENDIF}
 
 procedure TestTMongoStream.TestSeekPastTheEndOfFile;
 begin
@@ -356,7 +346,6 @@ begin
   CheckEquals(length(FEW_BYTES_OF_DATA), FMongoStream.Position, 'Should not allow seeking past the end of file');
 end;
 
-{$IFDEF DELPHI2007}
 procedure TestTMongoStream.TestSeek_Int64(AOrigin: TSeekOrigin; AOffset,
     AbsExpected: Int64);
 var
@@ -377,7 +366,6 @@ begin
   CheckEquals(Count - AbsExpected, FMongoStream.Read(Buffer, Count), 'Number of bytes read after first Seek not what expected');
   Check(CompareMem(@Buffer, @PAnsiChar(FEW_BYTES_OF_DATA)[AbsExpected], Count - AbsExpected), 'Data read doesn''t match');
 end;
-{$ENDIF}
 
 procedure TestTMongoStream.TestStreamStatusFlag;
 var
