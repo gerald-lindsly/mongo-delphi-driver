@@ -998,10 +998,11 @@ end;
 destructor TBsonBuffer.Destroy;
 begin
   if Handle <> nil then
-    begin
+  begin
+    if FOwnsHandle then
       bson_dealloc_and_destroy(Handle);
-      Handle := nil;
-    end;
+    Handle := nil;
+  end;
   inherited Destroy;
 end;
 
