@@ -9,7 +9,7 @@ function CreateEntireDir (const Dir : string) : boolean;
 implementation
 
 uses
-  Classes, SysUtils, FileCtrl;
+  Windows, Classes, SysUtils, FileCtrl;
 
 function DeleteEntireDir;
 var

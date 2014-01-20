@@ -40,10 +40,7 @@ uses
   uPrimitiveAllocator in '..\uPrimitiveAllocator.pas',
   TestuPrimitiveAllocator in 'TestuPrimitiveAllocator.pas',
   TestuAllocators in 'TestuAllocators.pas',
-  uAllocators in '..\uAllocators.pas',
-  {$IFDEF VER130}{$IFNDef Enterprise}
-  Variants in 'Variants.pas';
-  {$ENDIF}{$ENDIF}
+  uAllocators in '..\uAllocators.pas';
 
 {$R *.RES}
 
