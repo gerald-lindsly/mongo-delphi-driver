@@ -103,7 +103,7 @@ type
 implementation
 
 uses
-  Classes, SysUtils;
+  Classes, Windows, SysUtils;
 
 const
   TESTFILE = 'TestFile.txt';

@@ -90,7 +90,6 @@ type
     procedure FreeMongosFromPool;
     function GetItems(Index: Integer): TMongo; {$IFDEF DELPHIXE} inline; {$ENDIF}
     function GetCount: Integer;
-    procedure SetItems(Index: Integer; const Value: TMongo); {$IFDEF DELPHIXE} inline; {$ENDIF}
   public
     constructor Create;
     destructor Destroy; override;
@@ -99,7 +98,7 @@ type
     property Count: Integer read GetCount;
     property ConnectionString: UTF8String read FConnectionString write
         FConnectionString;
-    property Items[Index: Integer]: TMongo read GetItems write SetItems; default;
+    property Items[Index: Integer]: TMongo read GetItems; default;
   end;
 
   { TMongoPool }
@@ -410,11 +409,6 @@ end;
 function TMongoPoolList.GetItems(Index: Integer): TMongo;
 begin
   Result := TMongo(inherited Items[Index]);
-end;
-
-procedure TMongoPoolList.SetItems(Index: Integer; const Value: TMongo);
-begin
-  inherited Items[Index] := Value;
 end;
 
 procedure TMongoPoolList.Lock;

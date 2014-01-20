@@ -56,7 +56,7 @@ begin
   else
   begin
     Application.CreateForm(TGUITestRunner, GUITestRunner_);
-  GUITestRunner_.Suite := RegisteredTests;
+    GUITestRunner_.Suite := RegisteredTests;
     Application.Run;
   end;
 end.

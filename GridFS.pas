@@ -207,7 +207,6 @@ const
 resourcestring
   SGridFSHandleIsNil = 'GridFS Handle is nil (D%d)';
   SGridFileHandleIsNil = 'GridFile Handle is nil (D%d)';
-  SInternalErrorOIDDescriptorOfFile = 'Internal error. OID descriptor of file is nil (D%d)';
   SUnableToCreateGridFS = 'Unable to create GridFS (D%d)';
   // END resource string wizard section
 

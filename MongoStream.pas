@@ -67,10 +67,11 @@ type
     function GetID: IBsonOID; {$IFDEF DELPHI2007} inline; {$ENDIF}
     procedure SerializeWithJournal;
   protected
-    function GetSize: Int64; override;
+    function GetSize: {$IFNDEF VER130} Int64; override; {$ELSE}{$IFDEF Enterprise} Int64; override; {$ELSE} Longint; {$ENDIF}{$ENDIF}
     {$IFDEF DELPHI2007}
     procedure SetSize(NewSize: longint); override;
     procedure SetSize(const NewSize: Int64); overload; override;
+    procedure SetSize64(const NewSize : Int64);
     {$ELSE}
     procedure SetSize(NewSize: {$IFDef Enterprise} Int64 {$Else} longint {$EndIf}); override;
     {$ENDIF}
@@ -88,7 +89,7 @@ type
     function Seek(const Offset: Int64; Origin: TSeekOrigin): Int64; overload; override;
     function Seek(Offset: longint; Origin: Word ): longint; override;
     {$ELSE}
-    function Seek(Offset: {$IFDef Enterprise} Int64 {$Else} longint {$EndIf}; Origin: TSeekOrigin ): {$IFDef Enterprise} Int64 {$Else} longint {$EndIf}; override;
+    function Seek(Offset: {$IFDef Enterprise} Int64 {$Else} longint {$EndIf}; Origin: {$IFNDEF VER130}TSeekOrigin{$Else}{$IFDef Enterprise}TSeekOrigin{$ELSE}Word{$ENDIF}{$ENDIF}): {$IFDef Enterprise} Int64 {$Else} longint {$EndIf}; override;
     {$ENDIF}
     function Write(const Buffer; Count: Longint): Longint; override;
 
@@ -99,6 +100,7 @@ type
     property SerializedWithJournal: Boolean read FSerializedWithJournal write FSerializedWithJournal default False;
     property SerializeWithJournalByteWritten : Cardinal read FSerializeWithJournalByteWritten write FSerializeWithJournalByteWritten default SERIALIZE_WITH_JOURNAL_BYTES_WRITTEN;
     property Status: TMongoStreamStatus read FStatus;
+    property Size: {$IFNDEF VER130}Int64 {$ELSE}{$IFDef Enterprise}Int64 {$ELSE}Longint{$ENDIF}{$ENDIF} read GetSize write {$IFDEF DELPHI2007}SetSize64{$ELSE}SetSize{$ENDIF};
   end;
 
 implementation
@@ -115,7 +117,6 @@ resourcestring
   SFGridFSIsNil = 'FGridFS is nil (D%d)';
   SStreamNotCreatedForWriting = 'Stream not created for writing (D%d)';
   SStatusMustBeOKInOrderToAllowStre = 'Status must be OK in order to allow stream read operations (D%d)';
-  SDelphiMongoErrorFailedSignature = 'Delphi Mongo error failed signature validation (D%d)';
   SFailedInitializingEncryptionKey = 'Failed initializing encryption key (D%d)';
 
 constructor TMongoStream.Create(AMongo: TMongo; const ADB, AFileName:
@@ -214,7 +215,7 @@ begin
   Result := FGridFile.getId;
 end;
 
-function TMongoStream.GetSize: Int64;
+function TMongoStream.GetSize: {$IFNDEF VER130}Int64{$ELSE}{$IFDef Enterprise}Int64{$ELSE}Longint{$ENDIF}{$ENDIF};
 begin
   CheckGridFile;
   Result := FGridFile.getLength;
@@ -231,7 +232,7 @@ end;
 {$IFDEF DELPHI2007}
 function TMongoStream.Seek(Offset: longint; Origin: Word ): longint;
 {$ELSE}
-function TMongoStream.Seek(Offset: {$IFDef Enterprise} Int64 {$Else} longint {$EndIf}; Origin: TSeekOrigin ): {$IFDef Enterprise} Int64 {$Else} longint {$EndIf};
+function TMongoStream.Seek(Offset: {$IFDef Enterprise} Int64 {$Else} longint {$EndIf}; Origin: {$IFNDEF VER130}TSeekOrigin{$Else}{$IFDef Enterprise}TSeekOrigin{$ELSE}Word{$ENDIF}{$ENDIF}): {$IFDef Enterprise} Int64 {$Else} longint {$EndIf};
 {$ENDIF}
 begin
   CheckGridFile;
@@ -291,6 +292,13 @@ begin
     end;
 end;
 
+{$IFDEF DELPHI2007}
+procedure TMongoStream.SetSize64(const NewSize : Int64);
+begin
+  SetSize(NewSize);
+end;
+{$ENDIF}
+
 function TMongoStream.Write(const Buffer; Count: Longint): Longint;
 begin
   CheckWriteSupport;
@@ -301,4 +309,3 @@ begin
 end;
 
 end.
-
