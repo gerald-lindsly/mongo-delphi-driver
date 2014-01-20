@@ -67,7 +67,7 @@ type
     function GetID: IBsonOID; {$IFDEF DELPHI2007} inline; {$ENDIF}
     procedure SerializeWithJournal;
   protected
-    function GetSize: Int64; {$IFNDEF VER130}override;{$ELSE}{$IFDef Enterprise}override;{$ENDIF}{$ENDIF}
+    function GetSize: {$IFNDEF VER130}Int64; override;{$ELSE}{$IFDef Enterprise}Int64; override;{$ENDIF}Longint;{$ENDIF}
     {$IFDEF DELPHI2007}
     procedure SetSize(NewSize: longint); override;
     procedure SetSize(const NewSize: Int64); overload; override;
@@ -99,6 +99,9 @@ type
     property SerializedWithJournal: Boolean read FSerializedWithJournal write FSerializedWithJournal default False;
     property SerializeWithJournalByteWritten : Cardinal read FSerializeWithJournalByteWritten write FSerializeWithJournalByteWritten default SERIALIZE_WITH_JOURNAL_BYTES_WRITTEN;
     property Status: TMongoStreamStatus read FStatus;
+    {$IFNDEF VER130}{$IFNDef Enterprise}
+    property Size: Longint read GetSize write SetSize;
+    {$EndIf}{$EndIf}
   end;
 
 implementation
@@ -214,7 +217,7 @@ begin
   Result := FGridFile.getId;
 end;
 
-function TMongoStream.GetSize: Int64;
+function TMongoStream.GetSize: {$IFNDEF VER130}Int64{$ELSE}{$IFDef Enterprise}Int64{$ENDIF}Longint{$ENDIF};
 begin
   CheckGridFile;
   Result := FGridFile.getLength;
