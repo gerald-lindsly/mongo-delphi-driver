@@ -99,9 +99,7 @@ type
     property SerializedWithJournal: Boolean read FSerializedWithJournal write FSerializedWithJournal default False;
     property SerializeWithJournalByteWritten : Cardinal read FSerializeWithJournalByteWritten write FSerializeWithJournalByteWritten default SERIALIZE_WITH_JOURNAL_BYTES_WRITTEN;
     property Status: TMongoStreamStatus read FStatus;
-    {$IFNDEF VER130}{$IFNDef Enterprise}
-    property Size: Longint read GetSize write SetSize;
-    {$EndIf}{$EndIf}
+    property Size: {$IFNDEF VER130}Int64 {$ELSE}{$IFDef Enterprise}Int64 {$ENDIF}Longint{$ENDIF} read GetSize write SetSize;
   end;
 
 implementation
