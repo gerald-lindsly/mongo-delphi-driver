@@ -40,7 +40,10 @@ uses
   uPrimitiveAllocator in '..\uPrimitiveAllocator.pas',
   TestuPrimitiveAllocator in 'TestuPrimitiveAllocator.pas',
   TestuAllocators in 'TestuAllocators.pas',
-  uAllocators in '..\uAllocators.pas';
+  uAllocators in '..\uAllocators.pas',
+  {$IFDEF VER130}{$IFNDef Enterprise}
+  Variants in 'Variants.pas';
+  {$ENDIF}{$ENDIF}
 
 {$R *.RES}
 
@@ -56,7 +59,7 @@ begin
   else
   begin
     Application.CreateForm(TGUITestRunner, GUITestRunner_);
-  GUITestRunner_.Suite := RegisteredTests;
+    GUITestRunner_.Suite := RegisteredTests;
     Application.Run;
   end;
 end.
