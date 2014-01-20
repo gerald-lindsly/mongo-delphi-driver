@@ -67,7 +67,7 @@ type
     function GetID: IBsonOID; {$IFDEF DELPHI2007} inline; {$ENDIF}
     procedure SerializeWithJournal;
   protected
-    function GetSize: Int64; override;
+    function GetSize: Int64; {$IFNDEF VER130}override;{$ELSE}{$IFDef Enterprise}override;{$ENDIF}{$ENDIF}
     {$IFDEF DELPHI2007}
     procedure SetSize(NewSize: longint); override;
     procedure SetSize(const NewSize: Int64); overload; override;
@@ -88,7 +88,7 @@ type
     function Seek(const Offset: Int64; Origin: TSeekOrigin): Int64; overload; override;
     function Seek(Offset: longint; Origin: Word ): longint; override;
     {$ELSE}
-    function Seek(Offset: {$IFDef Enterprise} Int64 {$Else} longint {$EndIf}; Origin: TSeekOrigin ): {$IFDef Enterprise} Int64 {$Else} longint {$EndIf}; override;
+    function Seek(Offset: {$IFDef Enterprise} Int64 {$Else} longint {$EndIf}; Origin: {$IFNDEF VER130}TSeekOrigin{$Else}{$IFDef Enterprise}TSeekOrigin{$ELSE}Word{$ENDIF}{$ENDIF}): {$IFDef Enterprise} Int64 {$Else} longint {$EndIf}; override;
     {$ENDIF}
     function Write(const Buffer; Count: Longint): Longint; override;
 
@@ -231,7 +231,7 @@ end;
 {$IFDEF DELPHI2007}
 function TMongoStream.Seek(Offset: longint; Origin: Word ): longint;
 {$ELSE}
-function TMongoStream.Seek(Offset: {$IFDef Enterprise} Int64 {$Else} longint {$EndIf}; Origin: TSeekOrigin ): {$IFDef Enterprise} Int64 {$Else} longint {$EndIf};
+function TMongoStream.Seek(Offset: {$IFDef Enterprise} Int64 {$Else} longint {$EndIf}; Origin: {$IFNDEF VER130}TSeekOrigin{$Else}{$IFDef Enterprise}TSeekOrigin{$ELSE}Word{$ENDIF}{$ENDIF}): {$IFDef Enterprise} Int64 {$Else} longint {$EndIf};
 {$ENDIF}
 begin
   CheckGridFile;
@@ -301,4 +301,3 @@ begin
 end;
 
 end.
-
