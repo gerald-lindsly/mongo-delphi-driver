@@ -627,6 +627,7 @@ implementation
       Result := Null
     else
       Result := i.value;
+      i.Free;  { Thanks to SamJokO }
   end;
 
   function TBson.iterator() : TBsonIterator;
