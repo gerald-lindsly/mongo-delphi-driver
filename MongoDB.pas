@@ -722,7 +722,7 @@ implementation
     if cursor.sort <> nil then begin
       bb := TBsonBuffer.Create();
       bb.append('$query', cursor.query);
-      bb.append('$sort', cursor.sort);
+      bb.append('$orderby', cursor.sort);
       q := bb.finish;
     end;
     cursor.conn := Self;
